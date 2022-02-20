@@ -1,5 +1,5 @@
 #[derive(Debug, Clone)]
-pub struct Diameter(f32);
+pub struct Diameter(pub f32);
 
 impl Diameter {
     pub fn mm(d: f32) -> Diameter {
@@ -29,6 +29,9 @@ impl P3 {
 pub struct Timestamp(pub f32);
 
 #[derive(Debug, Clone)]
+pub struct Interval(pub f32);
+
+#[derive(Debug, Clone)]
 pub struct Siemens(pub f32);
 
 #[derive(Debug, Clone)]
@@ -39,3 +42,9 @@ pub struct Celcius(pub f32);
 
 #[derive(Debug, Clone)]
 pub struct Molar(pub f32);
+
+#[derive(Debug, Clone)]
+pub struct FaradsPerArea(pub f32);
+
+#[derive(Debug, Clone)]
+pub struct Farads(pub f32);

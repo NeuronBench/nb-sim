@@ -1,7 +1,10 @@
 use crate::constants::{gas_constant, inverse_faraday};
-use crate::dimension::{Celcius, Siemens, Timestamp, Volts};
+use crate::dimension::{Celcius, FaradsPerArea, Siemens, Timestamp, Volts};
 use crate::neuron::solution::Solution;
 
+/// The more static properties of a cell membrane: its permeability to
+/// various ions. This may change with the development of the neuron,
+/// but it is fairly static, compared to [`MembraneChannelState`].
 #[derive(Clone, Debug)]
 pub struct Membrane {
     pub na_channels_per_square_meter: f32,
@@ -11,13 +14,24 @@ pub struct Membrane {
     pub na_leak: Siemens,
     pub k_leak: Siemens,
     pub ca_leak: Siemens,
+    pub capacitance: FaradsPerArea,
 }
 
+/// The more dynamic state of a membrane: its instantaneous permeability
+/// to various ions. This permiability is determined by the properties
+/// of the ion channels, which change quickly in response to the voltage
+/// across the membrane.
 #[derive(Clone, Debug)]
 pub struct MembraneChannelState {
     pub na_conductance: Siemens,
     pub k_conductance: Siemens,
     pub ca_conductance: Siemens,
+
+    /// Sodium channels become temporarily closed, and insensitive
+    /// to membrane potential, after membrane potential reaches a
+    /// certain level. This field tracks whether they are inactivated,
+    /// and if so, when the inactivation occurred.
+    pub na_inactivated: Option<Timestamp>,
 }
 
 impl MembraneChannelState {
@@ -40,6 +54,10 @@ impl MembraneChannelState {
                 + p_ca * internal.ca_concentration.0);
 
         Volts(gas_constant * inverse_faraday * conductances)
+    }
+
+    pub fn conductance(&self) -> Siemens {
+        Siemens(self.na_conductance.0 + self.k_conductance.0 + self.ca_conductance.0)
     }
 }
 

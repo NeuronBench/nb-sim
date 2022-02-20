@@ -7,23 +7,20 @@ pub struct Solution {
     pub na_concentration: Molar,
 }
 
+pub const intersticial_fluid: Solution = Solution {
+    ca_concentration: Molar(1e-9),
+    k_concentration: Molar(1e-9),
+    na_concentration: Molar(1e-8),
+};
+
+pub const example_neuron: Solution = Solution {
+    ca_concentration: Molar(1e-9),
+    k_concentration: Molar(1e-10),
+    na_concentration: Molar(1e-7),
+};
+
 #[cfg(test)]
 pub mod tests {
     use super::*;
     use crate::dimension::Molar;
-    fn intersticial_fluid() -> Solution {
-        Solution {
-            ca_concentration: Molar(1e-9),
-            k_concentration: Molar(1e-9),
-            na_concentration: Molar(1e-8),
-        }
-    }
-
-    fn example_neuron() -> Solution {
-        Solution {
-            ca_concentration: Molar(1e-9),
-            k_concentration: Molar(1e-10),
-            na_concentration: Molar(1e-7),
-        }
-    }
 }
