@@ -38,6 +38,9 @@ pub struct Siemens(pub f32);
 pub struct Volts(pub f32);
 
 #[derive(Debug, Clone)]
+pub struct MilliVolts(pub f32);
+
+#[derive(Debug, Clone)]
 pub struct Celcius(pub f32);
 
 #[derive(Debug, Clone)]
