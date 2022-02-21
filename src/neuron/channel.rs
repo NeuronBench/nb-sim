@@ -161,9 +161,9 @@ impl Channel {
 
 #[derive(Clone, Debug)]
 pub struct ChannelBuilder {
-    activation_parameters: Option<Gating>,
-    inactivation_parameters: Option<Gating>,
-    ion_selectivity: IonSelectivity,
+    pub activation_parameters: Option<Gating>,
+    pub inactivation_parameters: Option<Gating>,
+    pub ion_selectivity: IonSelectivity,
 }
 
 impl ChannelBuilder {
@@ -350,7 +350,6 @@ mod tests {
             slope: 15.0,
         }
         .steady_state(&membrane_potential);
-        dbg!(&expected_magnitude);
         assert!((na_channel.activation.unwrap().magnitude - expected_magnitude).abs() < EPSILON);
     }
 

@@ -21,6 +21,3 @@ pub const EXAMPLE_CYTOPLASM: Solution = Solution {
     cl_concentration: Molar(4e-3),
     ca_concentration: Molar(0.1e-6),
 };
-
-#[cfg(test)]
-pub mod tests {}

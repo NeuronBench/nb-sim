@@ -47,7 +47,7 @@ pub struct Kelvin(pub f32);
 pub struct Molar(pub f32);
 
 #[derive(Debug, Clone)]
-pub struct FaradsPerArea(pub f32);
+pub struct FaradsPerSquareCm(pub f32);
 
 #[derive(Debug, Clone)]
 pub struct Farads(pub f32);
