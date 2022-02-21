@@ -1,27 +1,58 @@
 use crate::dimension::{Interval, MilliVolts, Siemens, Volts};
 use crate::neuron::solution::Solution;
 
-pub fn na_voltage_gated_conductance(
-    na_max_conductance: Siemens,
-    membrane_potential: Volts,
-    na_reversal_potential: Volts,
-) -> Siemens {
-    let m: f32 = 0.182 * (membrane_potential.0 + 0.035)
-        / (1.0 - (-1.0 * (membrane_potential.0 + 0.035) / 9.0).exp());
-    let h: f32 = 0.25 * (-1.0 * (membrane_potential.0 * 90.0) / 12.0).exp();
-    Siemens(0.0)
+/// The relative permeability of a channel to various ions.
+/// These should add to 1.0.
+#[derive(Clone, Debug)]
+pub struct IonSelectivity {
+    /// Sodium+.
+    na: f32,
+    /// Potasium+.
+    k: f32,
+    /// Calcium2+.
+    ca: f32,
+    /// Chloride-.
+    cl: f32,
 }
 
-#[derive(Clone, Debug)]
-pub enum Ion {
-    /// Sodium+.
-    Na,
-    /// Potasium+.
-    K,
-    /// Calcium2+.
-    Ca,
-    /// Chloride-.
-    Cl,
+const K: IonSelectivity = IonSelectivity {
+    na: 0.0,
+    k: 1.0,
+    ca: 0.0,
+    cl: 0.0,
+};
+
+const NA: IonSelectivity = IonSelectivity {
+    na: 1.0,
+    k: 0.0,
+    ca: 0.0,
+    cl: 0.0,
+};
+
+const CA: IonSelectivity = IonSelectivity {
+    na: 0.0,
+    k: 0.0,
+    ca: 1.0,
+    cl: 0.0,
+};
+
+const CL: IonSelectivity = IonSelectivity {
+    na: 0.0,
+    k: 0.0,
+    ca: 0.0,
+    cl: 1.0,
+};
+
+impl IonSelectivity {
+    pub fn normalize(&self) -> IonSelectivity {
+        let sum = self.k + self.na + self.ca + self.cl;
+        IonSelectivity {
+            k: self.k / sum,
+            na: self.na / sum,
+            ca: self.ca / sum,
+            cl: self.cl / sum,
+        }
+    }
 }
 
 /// State of the voltage-gated conductance, such as the conductance of
@@ -33,7 +64,7 @@ pub struct Channel {
     /// State of the inactivation gates.
     inactivation: Option<GateState>,
     /// The ion this channel is permeable to.
-    ion: Ion,
+    ion_selectivity: IonSelectivity,
 }
 
 impl Channel {
@@ -68,7 +99,7 @@ impl Channel {
 pub struct ChannelBuilder {
     activation_parameters: Option<Gating>,
     inactivation_parameters: Option<Gating>,
-    ion: Ion,
+    ion_selectivity: IonSelectivity,
 }
 
 impl ChannelBuilder {
@@ -97,7 +128,7 @@ impl ChannelBuilder {
         Channel {
             activation,
             inactivation,
-            ion: self.ion,
+            ion_selectivity: self.ion_selectivity.normalize(),
         }
     }
 }
@@ -175,7 +206,7 @@ pub mod common_channels {
 
         /// The Giant Squid axon's Na+ channel.
         pub const NA_CHANNEL: ChannelBuilder = ChannelBuilder {
-            ion: Ion::Na,
+            ion_selectivity: NA,
             activation_parameters: Some(Gating {
                 gates: 3,
                 steady_state_magnitude: Magnitude {
@@ -206,7 +237,7 @@ pub mod common_channels {
 
         /// The Giant Squid axon's K+ rectifying channel.
         pub const K_CHANNEL: ChannelBuilder = ChannelBuilder {
-            ion: Ion::K,
+            ion_selectivity: K,
             activation_parameters: Some(Gating {
                 gates: 4,
                 steady_state_magnitude: Magnitude {
