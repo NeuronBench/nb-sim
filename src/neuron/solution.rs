@@ -5,22 +5,22 @@ pub struct Solution {
     pub ca_concentration: Molar,
     pub k_concentration: Molar,
     pub na_concentration: Molar,
+    pub cl_concentration: Molar,
 }
 
-pub const intersticial_fluid: Solution = Solution {
-    ca_concentration: Molar(1e-9),
-    k_concentration: Molar(1e-9),
-    na_concentration: Molar(1e-8),
+pub const INTERSTICIAL_FLUID: Solution = Solution {
+    na_concentration: Molar(145e-3),
+    k_concentration: Molar(5e-3),
+    cl_concentration: Molar(110e-3),
+    ca_concentration: Molar(2.5e-3),
 };
 
-pub const example_neuron: Solution = Solution {
-    ca_concentration: Molar(1e-9),
-    k_concentration: Molar(1e-10),
-    na_concentration: Molar(1e-7),
+pub const EXAMPLE_CYTOPLASM: Solution = Solution {
+    na_concentration: Molar(5e-3),
+    k_concentration: Molar(140e-3),
+    cl_concentration: Molar(4e-3),
+    ca_concentration: Molar(0.1e-6),
 };
 
 #[cfg(test)]
-pub mod tests {
-    use super::*;
-    use crate::dimension::Molar;
-}
+pub mod tests {}

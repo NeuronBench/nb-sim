@@ -15,11 +15,11 @@ pub struct P3 {
 }
 
 impl P3 {
-    fn squared_distance(&self, other: &P3) -> f32 {
+    pub fn squared_distance(&self, other: &P3) -> f32 {
         (self.x - other.x).powi(2) + (self.y - other.y).powi(2) + (self.z + other.z).powi(2)
     }
 
-    fn distance(&self, other: &P3) -> f32 {
+    pub fn distance(&self, other: &P3) -> f32 {
         self.squared_distance(other).sqrt()
     }
 }
@@ -41,7 +41,7 @@ pub struct Volts(pub f32);
 pub struct MilliVolts(pub f32);
 
 #[derive(Debug, Clone)]
-pub struct Celcius(pub f32);
+pub struct Kelvin(pub f32);
 
 #[derive(Debug, Clone)]
 pub struct Molar(pub f32);

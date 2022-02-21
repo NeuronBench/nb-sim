@@ -1,4 +1,5 @@
-use crate::dimension::{Interval, MilliVolts, Siemens, Volts};
+use crate::constants::{GAS_CONSTANT, INVERSE_FARADAY};
+use crate::dimension::{Interval, Kelvin, MilliVolts, Molar, Siemens, Volts};
 use crate::neuron::solution::Solution;
 
 /// The relative permeability of a channel to various ions.
@@ -6,42 +7,105 @@ use crate::neuron::solution::Solution;
 #[derive(Clone, Debug)]
 pub struct IonSelectivity {
     /// Sodium+.
-    na: f32,
+    pub na: f32,
     /// Potasium+.
-    k: f32,
+    pub k: f32,
     /// Calcium2+.
-    ca: f32,
+    pub ca: f32,
     /// Chloride-.
-    cl: f32,
+    pub cl: f32,
 }
 
-const K: IonSelectivity = IonSelectivity {
+pub const K: IonSelectivity = IonSelectivity {
     na: 0.0,
     k: 1.0,
     ca: 0.0,
     cl: 0.0,
 };
 
-const NA: IonSelectivity = IonSelectivity {
+pub const NA: IonSelectivity = IonSelectivity {
     na: 1.0,
     k: 0.0,
     ca: 0.0,
     cl: 0.0,
 };
 
-const CA: IonSelectivity = IonSelectivity {
+pub const CA: IonSelectivity = IonSelectivity {
     na: 0.0,
     k: 0.0,
     ca: 1.0,
     cl: 0.0,
 };
 
-const CL: IonSelectivity = IonSelectivity {
+pub const CL: IonSelectivity = IonSelectivity {
     na: 0.0,
     k: 0.0,
     ca: 0.0,
     cl: 1.0,
 };
+
+pub fn reversal_potential(
+    internal_concentration: &Molar,
+    external_concentration: &Molar,
+    temperature: &Kelvin,
+    valence: i8,
+) -> MilliVolts {
+    let v = GAS_CONSTANT * INVERSE_FARADAY * temperature.0 / valence as f32
+        * (external_concentration.0 / internal_concentration.0).ln();
+    MilliVolts(v * 1000.0)
+}
+
+pub fn k_reversal(
+    internal_solution: &Solution,
+    external_solution: &Solution,
+    temperature: &Kelvin,
+) -> MilliVolts {
+    reversal_potential(
+        &internal_solution.k_concentration,
+        &external_solution.k_concentration,
+        temperature,
+        1,
+    )
+}
+
+pub fn na_reversal(
+    internal_solution: &Solution,
+    external_solution: &Solution,
+    temperature: &Kelvin,
+) -> MilliVolts {
+    reversal_potential(
+        &internal_solution.na_concentration,
+        &external_solution.na_concentration,
+        temperature,
+        1,
+    )
+}
+
+pub fn ca_reversal(
+    internal_solution: &Solution,
+    external_solution: &Solution,
+    temperature: &Kelvin,
+) -> MilliVolts {
+    reversal_potential(
+        &internal_solution.ca_concentration,
+        &external_solution.ca_concentration,
+        temperature,
+        2,
+    )
+}
+
+pub fn cl_reversal(
+    internal_solution: &Solution,
+    external_solution: &Solution,
+    temperature: &Kelvin,
+) -> MilliVolts {
+    reversal_potential(
+        &internal_solution.cl_concentration,
+        &external_solution.cl_concentration,
+        temperature,
+        -1,
+    )
+}
 
 impl IonSelectivity {
     pub fn normalize(&self) -> IonSelectivity {
@@ -60,11 +124,11 @@ impl IonSelectivity {
 #[derive(Clone, Debug)]
 pub struct Channel {
     /// State of the activation gates.
-    activation: Option<GateState>,
+    pub activation: Option<GateState>,
     /// State of the inactivation gates.
-    inactivation: Option<GateState>,
+    pub inactivation: Option<GateState>,
     /// The ion this channel is permeable to.
-    ion_selectivity: IonSelectivity,
+    pub ion_selectivity: IonSelectivity,
 }
 
 impl Channel {
@@ -193,8 +257,9 @@ pub struct TimeConstant {
 
 impl TimeConstant {
     pub fn tau(&self, v: &MilliVolts) -> f32 {
-        self.c_base
-            + self.c_amp * ((-1.0 * (self.v_at_max_tau.0 - v.0).powi(2)) / self.sigma.powi(2)).exp()
+        let numerator = -1.0 * (self.v_at_max_tau.0 - v.0).powi(2);
+        let denominator = self.sigma.powi(2);
+        self.c_base + self.c_amp * (numerator / denominator).exp()
     }
 }
 
@@ -253,5 +318,58 @@ pub mod common_channels {
             }),
             inactivation_parameters: None,
         };
+
+        /// The Gaint Squid axon's leak current.
+        pub const LEAK_CHANNEL: ChannelBuilder = ChannelBuilder {
+            ion_selectivity: CL,
+            activation_parameters: None,
+            inactivation_parameters: None,
+        };
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::constants::*;
+    use crate::dimension::*;
+    use crate::neuron::channel::*;
+    use crate::neuron::solution::*;
+
+    #[test]
+    fn activations_tend_toward_v_inf() {
+        let builder_voltage = MilliVolts(0.0);
+        let membrane_potential = MilliVolts(-60.0);
+        let mut na_channel = crate::neuron::channel::common_channels::giant_squid::NA_CHANNEL
+            .build(&builder_voltage);
+        let interval = Interval(0.01);
+        for i in 0..1000 {
+            na_channel.step(&membrane_potential, &interval);
+        }
+        let expected_magnitude = Magnitude {
+            v_at_half_max: MilliVolts(-40.0),
+            slope: 15.0,
+        }
+        .steady_state(&membrane_potential);
+        dbg!(&expected_magnitude);
+        assert!((na_channel.activation.unwrap().magnitude - expected_magnitude).abs() < EPSILON);
+    }
+
+    #[test]
+    pub fn reversal_potentials() {
+        let actual = k_reversal(&EXAMPLE_CYTOPLASM, &INTERSTICIAL_FLUID, &BODY_TEMPERATURE);
+        let expected = MilliVolts(-89.01071);
+        assert!((actual.0 - expected.0).abs() < EPSILON);
+
+        let actual = na_reversal(&EXAMPLE_CYTOPLASM, &INTERSTICIAL_FLUID, &BODY_TEMPERATURE);
+        let expected = MilliVolts(89.948074);
+        assert!((actual.0 - expected.0).abs() < EPSILON);
+
+        let actual = cl_reversal(&EXAMPLE_CYTOPLASM, &INTERSTICIAL_FLUID, &BODY_TEMPERATURE);
+        let expected = MilliVolts(-88.52939);
+        assert!((actual.0 - expected.0).abs() < EPSILON);
+
+        let actual = ca_reversal(&EXAMPLE_CYTOPLASM, &INTERSTICIAL_FLUID, &BODY_TEMPERATURE);
+        let expected = MilliVolts(135.25258);
+        assert!((actual.0 - expected.0).abs() < EPSILON);
     }
 }
