@@ -1,5 +1,5 @@
 // use crate::constants::BODY_TEMPERATURE;
-use crate::dimension::{Diameter, Interval, Kelvin, MilliVolts};
+use crate::dimension::{Diameter, Interval, Kelvin, MicroAmpsPerSquareCm, MilliVolts};
 use crate::neuron::channel::{ca_reversal, cl_reversal, k_reversal, na_reversal};
 use crate::neuron::membrane::Membrane;
 use crate::neuron::solution::Solution;
@@ -13,6 +13,7 @@ pub struct Segment {
     /// The concentration of various channels.
     pub membrane: Membrane,
     pub membrane_potential: MilliVolts,
+    pub input_current: MicroAmpsPerSquareCm,
 }
 
 /// A cylindical neuron segment shape.
@@ -83,7 +84,7 @@ impl Segment {
     }
 }
 
-mod examples {
+pub mod examples {
     use super::*;
     use crate::constants::*;
     use crate::dimension::*;
@@ -105,6 +106,7 @@ mod examples {
                 diameter_end: Diameter(1.0),
                 length: 3.0,
             },
+            input_current: MicroAmpsPerSquareCm(0.0),
             membrane_potential: initial_membrane_potential.clone(),
             membrane: Membrane {
                 membrane_channels: vec![
@@ -138,6 +140,7 @@ mod examples {
                 diameter_end: Diameter(1.0),
                 length: 3.0,
             },
+            input_current: MicroAmpsPerSquareCm(0.0),
             membrane_potential: initial_membrane_potential.clone(),
             membrane: Membrane {
                 membrane_channels: vec![MembraneChannel {
@@ -153,6 +156,7 @@ mod examples {
     pub fn k_channels_only() -> Segment {
         let initial_membrane_potential = MilliVolts(-80.0);
         Segment {
+            input_current: MicroAmpsPerSquareCm(0.0),
             intracellular_solution: Solution {
                 na_concentration: Molar(5e-3),
                 k_concentration: Molar(140e-3),
@@ -176,6 +180,8 @@ mod examples {
         }
     }
 
+    /// Build a segment with the passive sodium, potassium and chloride
+    /// channels with the parameterized conductances.
     pub fn passive_channels(
         na_conductance: Siemens,
         k_conductance: Siemens,
@@ -184,6 +190,7 @@ mod examples {
         let initial_membrane_potential = MilliVolts(-80.0);
         Segment {
             intracellular_solution: EXAMPLE_CYTOPLASM,
+            input_current: MicroAmpsPerSquareCm(0.0),
             geometry: Geometry {
                 diameter_start: Diameter(2.0),
                 diameter_end: Diameter(2.0),
@@ -237,6 +244,9 @@ mod examples {
         use crate::neuron::solution::{EXAMPLE_CYTOPLASM, INTERSTICIAL_FLUID};
 
         #[test]
+        // The giant squid axon should settly at a resting membrane potential
+        // of -76 mV. (This is a smoke test - I didn't get this number from
+        // a book, but should.
         pub fn giant_axon_steady_state() {
             let mut segment = giant_squid_axon();
             let interval = Interval(0.001);
@@ -249,6 +259,8 @@ mod examples {
         }
 
         #[test]
+        // A membrane with a leak current (which we model with a passive Cl-
+        // channel) should settle at the Cl- reversal potential.
         pub fn simple_leak_reaches_nearnst_equillibrium() {
             let mut segment = simple_leak();
             let expected_resting_potential = cl_reversal(
@@ -266,6 +278,8 @@ mod examples {
             dbg!(&expected_resting_potential.0);
             assert!((segment.membrane_potential.0 - expected_resting_potential.0).abs() < 1.0);
 
+            // Instantaneously set the membrane voltage very low. It should
+            // recover.
             segment.membrane_potential = MilliVolts(-160.0);
             for _ in 1..10000 {
                 dbg!(&segment.membrane_potential.0);
@@ -274,6 +288,8 @@ mod examples {
             dbg!(&expected_resting_potential.0);
             assert!((segment.membrane_potential.0 - expected_resting_potential.0).abs() < 1.0);
 
+            // Instantaneously set the membrane voltage very high. It should
+            // recover.
             segment.membrane_potential = MilliVolts(1.0);
             for _ in 1..10000 {
                 dbg!(&segment.membrane_potential.0);
@@ -284,6 +300,11 @@ mod examples {
         }
 
         #[test]
+        // A segment with a single potassium current should settle at
+        // the potassium equillibrium potential, no matter what membrane
+        // potential it starts at (with some caveats - starting too negative
+        // will close all the K channels and the membrane potential will
+        // remain constant).
         pub fn k_membrane_reaches_k_reversal_potential() {
             let mut segment = k_channels_only();
 
@@ -313,6 +334,8 @@ mod examples {
         }
 
         #[test]
+        // A membrane with some combination of passive K, Na and Cl channels
+        // should settle at a membrate potential determined by the GHK equation.
         pub fn resting_potential_follows_ghk_equation() {
             let interval = Interval(0.001);
             fn ghk(g_na: f32, g_k: f32, g_cl: f32) -> MilliVolts {
@@ -325,7 +348,19 @@ mod examples {
                 MilliVolts((e_k.0 * g_k + e_na.0 * g_na + e_cl.0 * g_cl) / g_total)
             }
 
+            // Example 1: Low Na+ conductance, high Cl- conductance.
             let (na, k, cl) = (1e-3, 2e-3, 3e-3);
+            let mut segment = passive_channels(Siemens(na), Siemens(k), Siemens(cl));
+            for _ in 1..10000 {
+                dbg!(&segment.membrane_potential.0);
+                segment.step(&BODY_TEMPERATURE, &INTERSTICIAL_FLUID, &interval);
+            }
+            let expected_voltage = ghk(na, k, cl);
+            dbg!(&expected_voltage);
+            assert!((segment.membrane_potential.0 - expected_voltage.0).abs() < 1e-3);
+
+            // Example 2: High Na+ conductance, low Cl- conductance.
+            let (na, k, cl) = (3e-3, 2e-3, 1e-3);
             let mut segment = passive_channels(Siemens(na), Siemens(k), Siemens(cl));
             for _ in 1..10000 {
                 dbg!(&segment.membrane_potential.0);
