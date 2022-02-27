@@ -17,8 +17,8 @@ impl Membrane {
         &self,
         k_reversal: &MilliVolts,
         na_reversal: &MilliVolts,
-        ca_reversal: &MilliVolts,
         cl_reversal: &MilliVolts,
+        ca_reversal: &MilliVolts,
         membrane_potential: &MilliVolts,
     ) -> f32 {
         self.membrane_channels
@@ -27,8 +27,8 @@ impl Membrane {
                 membrane_channel.channel_current_per_cm(
                     k_reversal,
                     na_reversal,
-                    ca_reversal,
                     cl_reversal,
+                    ca_reversal,
                     membrane_potential,
                 )
             })
@@ -95,8 +95,8 @@ impl MembraneChannel {
         &self,
         k_reversal: &MilliVolts,
         na_reversal: &MilliVolts,
-        ca_reversal: &MilliVolts,
         cl_reversal: &MilliVolts,
+        ca_reversal: &MilliVolts,
         membrane_potential: &MilliVolts,
     ) -> f32 {
         let gating_coefficient = self.channel.conductance_coefficient();
@@ -127,6 +127,118 @@ mod tests {
     use super::*;
     use crate::constants::BODY_TEMPERATURE;
 
+    const K_REVERSAL: MilliVolts = MilliVolts(-89.0);
+    const NA_REVERSAL: MilliVolts = MilliVolts(80.0);
+    const CL_REVERSAL: MilliVolts = MilliVolts(-80.0);
+    const CA_REVERSAL: MilliVolts = MilliVolts(90.0);
+
     #[test]
-    fn example_reversal_potential() {}
+    fn example_reversal_potential() {
+        let epsilon = 1e-9;
+
+        let initial_membrane_potential = MilliVolts(0.0);
+        let na_reversal = MilliVolts(80.0);
+        let mut na_channel = crate::neuron::channel::common_channels::giant_squid::NA_CHANNEL
+            .build(&initial_membrane_potential);
+        na_channel
+            .inactivation
+            .iter_mut()
+            .for_each(|gs| gs.magnitude = 1.0);
+        let m = na_channel.activation.as_ref().unwrap().magnitude;
+        assert!((m - 0.935).abs() < 1e-3);
+        let na_example = MembraneChannel {
+            channel: na_channel,
+            siemens_per_square_cm: 120e-3,
+        };
+        let na_current = na_example.channel_current_per_cm(
+            &K_REVERSAL,
+            &NA_REVERSAL,
+            &CL_REVERSAL,
+            &CA_REVERSAL,
+            &initial_membrane_potential,
+        );
+        let expected = -0.080 * 120e-3 * m.powi(3);
+        assert!((na_current - expected).abs() < 1e-10);
+    }
+
+    #[test]
+    fn k_current_at_equillibrium_is_zero() {
+        let epsilon = 1e-9;
+        let initial_membrane_potential = MilliVolts(-89.0);
+        let k_reversal = MilliVolts(-89.0);
+        let cl_reversal = MilliVolts(-90.0);
+        let null_reversal = MilliVolts(0.0);
+        let k_example = MembraneChannel {
+            channel: crate::neuron::channel::common_channels::giant_squid::K_CHANNEL
+                .build(&initial_membrane_potential),
+            siemens_per_square_cm: 3e-3,
+        };
+
+        // K current when v_m == E(k) should be zero.
+        assert!(
+            k_example.channel_current_per_cm(
+                &K_REVERSAL,
+                &NA_REVERSAL,
+                &CL_REVERSAL,
+                &CA_REVERSAL,
+                &K_REVERSAL
+            ) < epsilon
+        );
+    }
+
+    #[test]
+    fn cl_current_example() {
+        let epsilon = 1e-9;
+
+        let initial_membrane_potential = MilliVolts(-79.0);
+        let cl_channel = crate::neuron::channel::common_channels::giant_squid::LEAK_CHANNEL
+            .build(&initial_membrane_potential);
+        let cl_example = MembraneChannel {
+            channel: cl_channel,
+            siemens_per_square_cm: 0.3e-3,
+        };
+        let cl_current = cl_example.channel_current_per_cm(
+            &K_REVERSAL,
+            &NA_REVERSAL,
+            &CL_REVERSAL,
+            &CA_REVERSAL,
+            &initial_membrane_potential,
+        );
+        dbg!(cl_current);
+        let expected = 0.001 * 0.3e-3;
+        dbg!(expected);
+        assert!((cl_current - expected).abs() < 1e-6);
+    }
+
+    #[test]
+    fn k_current_example() {
+        let epsilon = 1e-9;
+
+        // K current when v_m is 10mV depolarized from E(k) should be V/R.
+        // V is 0.01
+        // R is 1/(3e-3 * h), the reciprocal of the max conductance times K activation.
+        let initial_membrane_potential = MilliVolts(-53.0);
+        let k_channel = crate::neuron::channel::common_channels::giant_squid::K_CHANNEL
+            .build(&initial_membrane_potential);
+        let n = k_channel.activation.unwrap().magnitude;
+        assert_eq!(n, 0.5);
+
+        let k_example = MembraneChannel {
+            channel: crate::neuron::channel::common_channels::giant_squid::K_CHANNEL
+                .build(&initial_membrane_potential),
+            siemens_per_square_cm: 3e-3,
+        };
+
+        let expected = (initial_membrane_potential.0 - K_REVERSAL.0) * 0.001 * 3e-3 * n.powi(4);
+        dbg!(&expected);
+        let k_current = k_example.channel_current_per_cm(
+            &K_REVERSAL,
+            &NA_REVERSAL,
+            &CL_REVERSAL,
+            &CA_REVERSAL,
+            &initial_membrane_potential,
+        );
+        dbg!(&k_current);
+        assert!((k_current - expected).abs() < epsilon);
+    }
 }

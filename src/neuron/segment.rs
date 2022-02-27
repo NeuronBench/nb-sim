@@ -16,6 +16,7 @@ pub struct Segment {
     pub input_current: MicroAmpsPerSquareCm,
 }
 
+
 /// A cylindical neuron segment shape.
 #[derive(Clone, Debug)]
 pub struct Geometry {
@@ -43,12 +44,12 @@ impl Segment {
                     extracellular_solution,
                     temperature,
                 ),
-                &ca_reversal(
+                &cl_reversal(
                     &self.intracellular_solution,
                     extracellular_solution,
                     temperature,
                 ),
-                &cl_reversal(
+                &ca_reversal(
                     &self.intracellular_solution,
                     extracellular_solution,
                     temperature,
@@ -238,10 +239,7 @@ pub mod examples {
     mod tests {
         use super::examples::{giant_squid_axon, k_channels_only, simple_leak};
         use super::*;
-        use crate::constants::*;
-        use crate::dimension::*;
-        use crate::neuron::channel::{self, ChannelBuilder};
-        use crate::neuron::channel::{cl_reversal, CL, K, NA};
+        use crate::neuron::channel::{cl_reversal};
         use crate::neuron::membrane::{Membrane, MembraneChannel};
         use crate::neuron::solution::{EXAMPLE_CYTOPLASM, INTERSTICIAL_FLUID};
         use std::io;
@@ -444,11 +442,12 @@ pub mod examples {
                 MilliVolts((e_k.0 * g_k + e_na.0 * g_na + e_cl.0 * g_cl) / g_total)
             }
 
-            assert!((ghk(1e-3, 2e-3, 3e-3).0 - -58.0) < 1.0);
-            assert!((ghk(1e-3, 2e-3, 3e-3).0 - -58.0) < 1.0);
+            dbg!(ghk(00e-3, 36e-3, 0.3e-3).0);
+            assert!((ghk(00e-3, 36e-3, 0.3e-3).0 - -89.0) < 1.0);
+            // assert!((ghk(1e-3, 2e-3, 3e-3).0 - -58.0) < 1.0);
 
             // Example 1: Low Na+ conductance, high Cl- conductance.
-            let (na, k, cl) = (1e-3, 2e-3, 3e-3);
+            let (na, k, cl) = (0e-3, 36e-3, 3e-3);
             let mut segment = passive_channels(Siemens(na), Siemens(k), Siemens(cl));
             for _ in 1..10 {
                 dbg!(&segment.membrane_potential.0);
