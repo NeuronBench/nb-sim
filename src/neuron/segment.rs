@@ -54,7 +54,9 @@ impl Segment {
                     temperature,
                 ),
                 &self.membrane_potential,
-            ) * self.surface_area();
+            ) * self.surface_area()
+                + self.input_current.0 * 1e-6 * surface_area;
+        dbg!(&current);
         let capacitance = self.membrane.capacitance.0 * surface_area;
         current / capacitance
     }
@@ -68,7 +70,7 @@ impl Segment {
         // Currents charge the membrane.
         let new_membrane_potential = MilliVolts(
             self.membrane_potential.0
-                + self.dv_dt(temperature, extracellular_solution) * interval.0,
+                + self.dv_dt(temperature, extracellular_solution) * 1000.0 * interval.0,
         );
         self.membrane_potential = new_membrane_potential.clone();
 
@@ -93,7 +95,7 @@ pub mod examples {
     use crate::neuron::solution::{EXAMPLE_CYTOPLASM, INTERSTICIAL_FLUID};
 
     pub fn giant_squid_axon() -> Segment {
-        let initial_membrane_potential = MilliVolts(-80.0);
+        let initial_membrane_potential = MilliVolts(-70.0);
         Segment {
             intracellular_solution: Solution {
                 na_concentration: Molar(5e-3),
@@ -136,9 +138,9 @@ pub mod examples {
         Segment {
             intracellular_solution: EXAMPLE_CYTOPLASM,
             geometry: Geometry {
-                diameter_start: Diameter(1.0),
-                diameter_end: Diameter(1.0),
-                length: 3.0,
+                diameter_start: Diameter(0.01),
+                diameter_end: Diameter(0.01),
+                length: 1000.0,
             },
             input_current: MicroAmpsPerSquareCm(0.0),
             membrane_potential: initial_membrane_potential.clone(),
@@ -187,7 +189,7 @@ pub mod examples {
         k_conductance: Siemens,
         cl_conductance: Siemens,
     ) -> Segment {
-        let initial_membrane_potential = MilliVolts(-80.0);
+        let initial_membrane_potential = MilliVolts(-58.0);
         Segment {
             intracellular_solution: EXAMPLE_CYTOPLASM,
             input_current: MicroAmpsPerSquareCm(0.0),
@@ -196,7 +198,7 @@ pub mod examples {
                 diameter_end: Diameter(2.0),
                 length: 2.0,
             },
-            membrane_potential: MilliVolts(-80.0),
+            membrane_potential: initial_membrane_potential.clone(),
             membrane: Membrane {
                 membrane_channels: vec![
                     MembraneChannel {
@@ -242,20 +244,83 @@ pub mod examples {
         use crate::neuron::channel::{cl_reversal, CL, K, NA};
         use crate::neuron::membrane::{Membrane, MembraneChannel};
         use crate::neuron::solution::{EXAMPLE_CYTOPLASM, INTERSTICIAL_FLUID};
+        use std::io;
 
         #[test]
         // The giant squid axon should settly at a resting membrane potential
         // of -76 mV. (This is a smoke test - I didn't get this number from
         // a book, but should.
         pub fn giant_axon_steady_state() {
+            let mut wtr = csv::Writer::from_path("out.csv").unwrap();
+            wtr.write_record(&[
+                "t", "v_m", "i", "g_k", "g_na", "g_cl", "m_na", "h_na", "m_k",
+            ])
+            .unwrap();
+            let mut write_record = |t: f32, s: &Segment| {
+                let (k, na, cl, ca) = s.membrane.conductances();
+                wtr.write_record(&[
+                    format!("{0:.5}", t),
+                    s.membrane_potential.0.to_string(),
+                    s.input_current.0.to_string(),
+                    k.to_string(),
+                    na.to_string(),
+                    cl.to_string(),
+                    s.membrane.membrane_channels[1]
+                        .clone()
+                        .channel
+                        .activation
+                        .unwrap()
+                        .magnitude
+                        .to_string(),
+                    s.membrane.membrane_channels[1]
+                        .clone()
+                        .channel
+                        .inactivation
+                        .unwrap()
+                        .magnitude
+                        .to_string(),
+                    s.membrane.membrane_channels[0]
+                        .clone()
+                        .channel
+                        .activation
+                        .unwrap()
+                        .magnitude
+                        .to_string(),
+                ])
+                .unwrap();
+            };
+            let mut t = 0.0;
+
             let mut segment = giant_squid_axon();
-            let interval = Interval(0.001);
-            for _ in 0..1000 {
-                dbg!(&segment.membrane_potential.0);
+            let interval = Interval(0.00001);
+            // segment.membrane_potential = MilliVolts(-60.0);
+
+            // 1 ms pre-stim.
+            while t < 0.001 {
+                write_record(t, &segment);
                 segment.step(&BODY_TEMPERATURE, &INTERSTICIAL_FLUID, &interval);
+                t += interval.0;
             }
             // Equilibrium state should be about -76 mV.
-            assert!((segment.membrane_potential.0 - (-76.0)).abs() < 1.0);
+            // assert!((segment.membrane_potential.0 - (-76.0)).abs() < 1.0);
+
+            // Now turn on current injection for 0.1 milliseconds.
+            segment.input_current = MicroAmpsPerSquareCm(10.0);
+            while t < 0.0011 {
+                write_record(t, &segment);
+                segment.step(&BODY_TEMPERATURE, &INTERSTICIAL_FLUID, &interval);
+                t += interval.0;
+            }
+
+            // And turn it back off. Run for 100 ms.
+            segment.input_current = MicroAmpsPerSquareCm(0.0);
+            while t < 0.002 {
+                write_record(t, &segment);
+                segment.step(&BODY_TEMPERATURE, &INTERSTICIAL_FLUID, &interval);
+                t += interval.0;
+            }
+
+            assert!(false);
         }
 
         #[test]
@@ -297,6 +362,37 @@ pub mod examples {
             }
             dbg!(&expected_resting_potential.0);
             assert!((segment.membrane_potential.0 - expected_resting_potential.0).abs() < 1.0);
+        }
+
+        #[test]
+        // A membrane with a leak current should take a certain amount of
+        // time to equilibrate.
+        pub fn leak_timecourse() {
+            let interval = Interval(0.0001);
+            let mut segment = simple_leak();
+            let mut t = 0.0;
+
+            let target = cl_reversal(
+                &segment.intracellular_solution,
+                &INTERSTICIAL_FLUID,
+                &BODY_TEMPERATURE,
+            );
+
+            segment.membrane_potential = MilliVolts(-100.0);
+            while (segment.membrane_potential.0 - target.0).abs() > 1.0 && t < 0.5 {
+                dbg!(&segment.membrane_potential);
+                segment.step(&BODY_TEMPERATURE, &INTERSTICIAL_FLUID, &interval);
+                t += interval.0;
+            }
+            dbg!(&t);
+
+            // It takes about 8ms for the leak current to bring the membrane
+            // voltage up from -100mV to -88 mV (1 mV from the Cl reversal
+            // potential).
+            //
+            // This was determined by running the code. Should confirm
+            // mathematically.
+            assert!(t > 0.001 && t < 0.009)
         }
 
         #[test]
@@ -348,10 +444,13 @@ pub mod examples {
                 MilliVolts((e_k.0 * g_k + e_na.0 * g_na + e_cl.0 * g_cl) / g_total)
             }
 
+            assert!((ghk(1e-3, 2e-3, 3e-3).0 - -58.0) < 1.0);
+            assert!((ghk(1e-3, 2e-3, 3e-3).0 - -58.0) < 1.0);
+
             // Example 1: Low Na+ conductance, high Cl- conductance.
             let (na, k, cl) = (1e-3, 2e-3, 3e-3);
             let mut segment = passive_channels(Siemens(na), Siemens(k), Siemens(cl));
-            for _ in 1..10000 {
+            for _ in 1..10 {
                 dbg!(&segment.membrane_potential.0);
                 segment.step(&BODY_TEMPERATURE, &INTERSTICIAL_FLUID, &interval);
             }

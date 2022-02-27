@@ -35,6 +35,34 @@ impl Membrane {
             .sum()
     }
 
+    /// A quick snapshot of the per_square_cm conductances of each
+    /// ion.
+    pub fn conductances(&self) -> (f32, f32, f32, f32) {
+        let mut k = 0.0;
+        let mut na = 0.0;
+        let mut cl = 0.0;
+        let mut ca = 0.0;
+        self.membrane_channels.iter().for_each(|membrane_channel| {
+            let gating_coefficient = membrane_channel.channel.conductance_coefficient();
+            k += membrane_channel.siemens_per_square_cm
+                * gating_coefficient
+                * membrane_channel.channel.ion_selectivity.k;
+
+            na += membrane_channel.siemens_per_square_cm
+                * gating_coefficient
+                * membrane_channel.channel.ion_selectivity.na;
+
+            ca += membrane_channel.siemens_per_square_cm
+                * gating_coefficient
+                * membrane_channel.channel.ion_selectivity.ca;
+
+            cl += membrane_channel.siemens_per_square_cm
+                * gating_coefficient
+                * membrane_channel.channel.ion_selectivity.cl;
+        });
+        (k, na, cl, ca)
+    }
+
     // pub fn input_resistance_per_square_cm(
     //     &self,
     //     k_reversal: &MilliVolts,
