@@ -16,7 +16,6 @@ pub struct Segment {
     pub input_current: MicroAmpsPerSquareCm,
 }
 
-
 /// A cylindical neuron segment shape.
 #[derive(Clone, Debug)]
 pub struct Geometry {
@@ -239,7 +238,7 @@ pub mod examples {
     mod tests {
         use super::examples::{giant_squid_axon, k_channels_only, simple_leak};
         use super::*;
-        use crate::neuron::channel::{cl_reversal};
+        use crate::neuron::channel::cl_reversal;
         use crate::neuron::membrane::{Membrane, MembraneChannel};
         use crate::neuron::solution::{EXAMPLE_CYTOPLASM, INTERSTICIAL_FLUID};
         use std::io;
@@ -257,7 +256,7 @@ pub mod examples {
             let mut write_record = |t: f32, s: &Segment| {
                 let (k, na, cl, ca) = s.membrane.conductances();
                 wtr.write_record(&[
-                    format!("{0:.5}", t),
+                    format!("{0:.2}", t * 1000.0),
                     s.membrane_potential.0.to_string(),
                     s.input_current.0.to_string(),
                     k.to_string(),
@@ -290,10 +289,12 @@ pub mod examples {
             let mut t = 0.0;
 
             let mut segment = giant_squid_axon();
+            segment.membrane_potential = MilliVolts(-79.0);
             let interval = Interval(0.00001);
             // segment.membrane_potential = MilliVolts(-60.0);
 
             // 1 ms pre-stim.
+            segment.input_current = MicroAmpsPerSquareCm(0.0);
             while t < 0.001 {
                 write_record(t, &segment);
                 segment.step(&BODY_TEMPERATURE, &INTERSTICIAL_FLUID, &interval);
@@ -303,8 +304,8 @@ pub mod examples {
             // assert!((segment.membrane_potential.0 - (-76.0)).abs() < 1.0);
 
             // Now turn on current injection for 0.1 milliseconds.
-            segment.input_current = MicroAmpsPerSquareCm(10.0);
-            while t < 0.0011 {
+            segment.input_current = MicroAmpsPerSquareCm(0.0);
+            while t < 0.0500 {
                 write_record(t, &segment);
                 segment.step(&BODY_TEMPERATURE, &INTERSTICIAL_FLUID, &interval);
                 t += interval.0;
@@ -312,7 +313,7 @@ pub mod examples {
 
             // And turn it back off. Run for 100 ms.
             segment.input_current = MicroAmpsPerSquareCm(0.0);
-            while t < 0.002 {
+            while t < 0.050 {
                 write_record(t, &segment);
                 segment.step(&BODY_TEMPERATURE, &INTERSTICIAL_FLUID, &interval);
                 t += interval.0;
@@ -332,9 +333,9 @@ pub mod examples {
                 &BODY_TEMPERATURE,
             );
 
-            let interval = Interval(0.01);
+            let interval = Interval(0.001);
 
-            for _ in 1..1000 {
+            for _ in 1..10 {
                 dbg!(&segment.membrane_potential.0);
                 segment.step(&BODY_TEMPERATURE, &INTERSTICIAL_FLUID, &interval);
             }
@@ -408,7 +409,7 @@ pub mod examples {
                 &BODY_TEMPERATURE,
             );
 
-            let interval = Interval(0.01);
+            let interval = Interval(0.001);
 
             // Choose three initial membrane potentials, the segment should
             // equillibrate to the K reversal potential.
@@ -425,6 +426,79 @@ pub mod examples {
                 dbg!(initial_potential);
                 assert!((segment.membrane_potential.0 - expected_resting_potential.0).abs() < 1.0);
             }
+        }
+
+        #[test]
+        pub fn giant_squid_one_membrane_voltage_step() {
+            let interval = Interval(1e-4);
+            let mut segment = giant_squid_axon();
+            let area = segment.surface_area();
+
+            let v_m_0 = segment.membrane_potential.clone();
+            let e_k = k_reversal(
+                &segment.intracellular_solution,
+                &INTERSTICIAL_FLUID,
+                &BODY_TEMPERATURE,
+            );
+            let g_k = segment.membrane.membrane_channels[0].siemens_per_square_cm
+                * segment.membrane.membrane_channels[0]
+                    .channel
+                    .conductance_coefficient()
+                * area;
+
+            let e_na = na_reversal(
+                &segment.intracellular_solution,
+                &INTERSTICIAL_FLUID,
+                &BODY_TEMPERATURE,
+            );
+            let g_na = segment.membrane.membrane_channels[1].siemens_per_square_cm
+                * segment.membrane.membrane_channels[1]
+                    .channel
+                    .conductance_coefficient()
+                * area;
+
+            let e_cl = cl_reversal(
+                &segment.intracellular_solution,
+                &INTERSTICIAL_FLUID,
+                &BODY_TEMPERATURE,
+            );
+            let g_cl = segment.membrane.membrane_channels[2].siemens_per_square_cm
+                * segment.membrane.membrane_channels[2]
+                    .channel
+                    .conductance_coefficient()
+                * area;
+            let ionic_current_amps =
+                (g_k * (v_m_0.0 - e_k.0) + g_na * (v_m_0.0 - e_na.0) + g_cl * (v_m_0.0 - e_cl.0))
+                    * 1e-3;
+            let dv_dt_millivolts =
+                -1.0 * ionic_current_amps / (segment.membrane.capacitance.0 * area) * 1000.0;
+            dbg!(dv_dt_millivolts);
+            let expected_v =
+                MilliVolts(segment.membrane_potential.0 + dv_dt_millivolts * interval.0);
+
+            segment.step(&BODY_TEMPERATURE, &INTERSTICIAL_FLUID, &interval);
+            dbg!(&segment.membrane_potential);
+            assert!((segment.membrane_potential.0 - expected_v.0).abs() < 1e-10);
+
+            for _ in 0..100000 {
+                segment.step(&BODY_TEMPERATURE, &INTERSTICIAL_FLUID, &interval);
+                dbg!(&segment.membrane_potential);
+                let act = segment.membrane.membrane_channels[1]
+                    .channel
+                    .clone()
+                    .activation
+                    .unwrap()
+                    .magnitude;
+                let inact = segment.membrane.membrane_channels[1]
+                    .channel
+                    .clone()
+                    .inactivation
+                    .unwrap()
+                    .magnitude;
+                dbg!(act);
+                dbg!(inact);
+            }
+            assert!(false)
         }
 
         #[test]
@@ -460,7 +534,7 @@ pub mod examples {
             // Example 2: High Na+ conductance, low Cl- conductance.
             let (na, k, cl) = (3e-3, 2e-3, 1e-3);
             let mut segment = passive_channels(Siemens(na), Siemens(k), Siemens(cl));
-            for _ in 1..10000 {
+            for _ in 1..10 {
                 dbg!(&segment.membrane_potential.0);
                 segment.step(&BODY_TEMPERATURE, &INTERSTICIAL_FLUID, &interval);
             }

@@ -280,8 +280,8 @@ pub mod common_channels {
                 },
                 time_constant: TimeConstant {
                     v_at_max_tau: MilliVolts(-38.0),
-                    c_base: 0.04,
-                    c_amp: 0.46,
+                    c_base: 0.04e-3,
+                    c_amp: 0.46e-3,
                     sigma: 30.0,
                 },
             }),
@@ -293,8 +293,8 @@ pub mod common_channels {
                 },
                 time_constant: TimeConstant {
                     v_at_max_tau: MilliVolts(-67.0),
-                    c_base: 1.2,
-                    c_amp: 7.4,
+                    c_base: 0.0012, // TODO are these right?
+                    c_amp: 0.0074,
                     sigma: 20.0,
                 },
             }),
@@ -311,8 +311,8 @@ pub mod common_channels {
                 },
                 time_constant: TimeConstant {
                     v_at_max_tau: MilliVolts(-79.0),
-                    c_base: 1.1,
-                    c_amp: 4.7,
+                    c_base: 1.1e-3,
+                    c_amp: 4.7e-3,
                     sigma: 50.0,
                 },
             }),
@@ -351,6 +351,20 @@ mod tests {
         }
         .steady_state(&membrane_potential);
         assert!((na_channel.activation.unwrap().magnitude - expected_magnitude).abs() < EPSILON);
+    }
+
+    #[test]
+    fn na_channel_inactivates() {
+        let builder_voltage = MilliVolts(-60.0);
+        let membrane_potential = MilliVolts(80.0);
+        let mut na_channel =
+            crate::neuron::channel::common_channels::giant_squid::NA_CHANNEL
+            .build(&builder_voltage);
+        let interval = Interval(0.001);
+        for n in 0..1000 {
+            na_channel.step(&membrane_potential, &interval);
+        } 
+        assert!(na_channel.inactivation.unwrap().magnitude < 0.001);
     }
 
     #[test]
