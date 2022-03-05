@@ -56,7 +56,6 @@ impl Segment {
                 &self.membrane_potential,
             ) * self.surface_area()
                 + self.input_current.0 * 1e-6 * surface_area;
-        dbg!(&current);
         let capacitance = self.membrane.capacitance.0 * surface_area;
         current / capacitance
     }

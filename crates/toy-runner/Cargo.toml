@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 axum = "^0.4.8"
+chrono = "^0.4.13"
 reuron-commands = { path = "../reuron-commands" }
 reuron = { path = "../reuron" }
 tokio = { version = "^1.0.1", features = ["full"] }
