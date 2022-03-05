@@ -1,0 +1,13 @@
+[package]
+name = "toy-runner"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+axum = "^0.4.8"
+reuron-commands = { path = "../reuron-commands" }
+reuron = { path = "../reuron" }
+tokio = { version = "^1.0.1", features = ["full"] }
+tokio-test = "0.4.2"
