@@ -12,3 +12,6 @@ reuron-commands = { path = "../reuron-commands" }
 reuron = { path = "../reuron" }
 tokio = { version = "^1.0.1", features = ["full"] }
 tokio-test = "0.4.2"
+serde = "^1.0"
+serde_dhall = "^0.11"
+dhall = "^0.11"

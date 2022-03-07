@@ -1,13 +1,17 @@
-use axum::{routing::post, Router};
-use reuron::dimension::{Interval, Timestamp};
+use axum::{routing::post, Router, extract::Extension};
+use reuron::dimension::{Interval, Timestamp, MilliVolts, MicroAmpsPerSquareCm};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime};
+use serde::Deserialize;
+use serde_dhall;
 
 use crate::neuron::solution::INTERSTICIAL_FLUID;
 use reuron::constants::BODY_TEMPERATURE;
-use reuron::neuron;
+use reuron::neuron::{self, Neuron};
 use reuron::neuron::segment::examples::giant_squid_axon;
-// use reuron_commands::*;
+use reuron_commands::*;
+
+use toy_runner::ring_buffer::RingBuffer;
 
 #[derive(Debug)]
 struct State {
@@ -15,36 +19,74 @@ struct State {
     time_coefficient: f32,
     simulation_interval: Interval,
     display_rate: f32,
-    segment: reuron::neuron::segment::Segment,
+    neuron: reuron::neuron::Neuron,
     simulation_batch_size: usize,
     steps: u64,
     batches: u64,
+    waiting_fraction: RingBuffer<f32>,
 }
 
 fn initial_state() -> State {
+    let mut s =
     State {
         time: Timestamp(0.0),
         steps: 0,
         batches: 0,
-        time_coefficient: 0.001,
+        time_coefficient: 0.01,
         simulation_interval: Interval(10e-6),
-        segment: giant_squid_axon(),
-        simulation_batch_size: 100,
-        display_rate: 10.0,
+        neuron: neuron::examples::squid_with_passive_attachment(),
+        simulation_batch_size: 10,
+        display_rate: 20.0,
+        waiting_fraction: RingBuffer::new(10, 0.0),
+    };
+    s.neuron.segments[0].input_current = MicroAmpsPerSquareCm(10.0);
+    s
+}
+
+async fn handle_dhall_command(Extension(state): Extension<Arc<Mutex<State>>>, body: String) {
+    let command : Command = serde_dhall::from_str(&body).parse().unwrap();
+    println!("Parsing command {:?}", command);
+    {
+        let mut state = state.lock().unwrap();
+
+        match command {
+            Command::SetTimeCoefficient(c) => {
+                state.time_coefficient = c;
+            },
+            Command::SetInterval(i) => {
+                state.simulation_interval = Interval(i);
+            },
+            _ => {}
+        };
     }
 }
+
 
 #[tokio::main]
 async fn main() {
     let state = Arc::new(Mutex::new(initial_state()));
     let watcher_state = state.clone();
     let _watcher = tokio::task::spawn(watch(watcher_state));
-    // let runner = tokio::task::spawn(async move { run(state) });
-    run(state).await;
+    let _runner = tokio::task::spawn(run(state.clone()));
+
+    let app = Router::new().route("/", post(handle_dhall_command)).layer(Extension(state));
+
+    axum::Server::bind(&"0.0.0.0:8000".parse().unwrap()).serve(app.into_make_service()).await.unwrap();
+
+    // run(state).await;
 
     // let (res1, res2) = tokio::join!(runner, watcher);
     // res1.expect("should join");
     // res2.expect("should join");
+}
+
+fn quick_plot_v(v: &MilliVolts) -> String {
+    let mut s : Vec<u8> = Vec::from("     .       ".as_bytes());
+    let ind = ((v.0 + 150.0) / 20.0) as usize;
+    if ind > 0 && ind < s.len() {
+        s[ind] = '|' as u8;
+    }
+    String::from_utf8(s).unwrap()
 }
 
 async fn watch(state: Arc<Mutex<State>>) {
@@ -54,11 +96,16 @@ async fn watch(state: Arc<Mutex<State>>) {
         let wait_interval = {
             let state = state.lock().unwrap();
             println!(
-                "step {:.10}, batch {:.5}, {:.2} ms: {:.1} mV",
-                state.steps,
-                state.batches,
+                "step {:.10}, batch {:.5}, avg_waiting_fraction: {:.2} ms: {}, {}, {:.2}, {:.2} mV",
+                // state.steps,
+                // state.batches,
+                0,
+                0,
+                state.waiting_fraction.contents().into_iter().sum::<f32>() / state.waiting_fraction.len() as f32,
+                quick_plot_v(&state.neuron.segments[0].membrane_potential),
+                quick_plot_v(&state.neuron.segments[1].membrane_potential),
                 state.time.0 * 1e3,
-                state.segment.membrane_potential.0
+                state.neuron.segments[0].membrane_potential.0,
             );
 
             let inter_display_interval = Duration::from_micros((1e6 / state.display_rate) as u64);
@@ -92,6 +139,9 @@ async fn run(state: Arc<Mutex<State>>) {
             let mut state = state.lock().unwrap();
 
             state.batches += 1;
+
+            // In the next batch, Interval * BatchSize simulation seconds will pass,
+            // We want (Interval * BatchSize) / time_coefficient wall clock seconds to pass.
             let inter_batch_wall_clock_interval = Duration::from_micros(
                 (1e6 * state.simulation_batch_size as f32 * state.simulation_interval.0 as f32
                     / state.time_coefficient) as u64,
@@ -106,16 +156,20 @@ async fn run(state: Arc<Mutex<State>>) {
                 state.steps += 1;
                 state.time = Timestamp(state.time.0 + state.simulation_interval.0);
                 state
-                    .segment
+                    .neuron
                     .step(&BODY_TEMPERATURE, &INTERSTICIAL_FLUID, &interval);
             }
             most_recent_simulation_wall_clock_time = next_target_simulation_time;
 
             now = SystemTime::now();
+            let wait_interval = next_target_simulation_time.duration_since(now);
 
-            next_target_simulation_time.duration_since(now)
+            let this_waiting_fraction = wait_interval.clone().map(|i| i.as_micros() as f32 / inter_batch_wall_clock_interval.as_micros() as f32).unwrap_or(0.0);
+            state.waiting_fraction.write(this_waiting_fraction);
+
+            wait_interval
+
         };
-        dbg!(&wait_interval);
 
         match wait_interval {
             Ok(interval) if interval > Duration::ZERO => {
@@ -125,7 +179,6 @@ async fn run(state: Arc<Mutex<State>>) {
                 println!("warning: clock is behind by {:?}", i);
             }
             Err(e) => {
-                println!("warning: clock monotonicity error: {:?}", e);
             }
         };
     }

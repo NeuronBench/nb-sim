@@ -1,5 +1,5 @@
 // use crate::constants::BODY_TEMPERATURE;
-use crate::dimension::{Diameter, Interval, Kelvin, MicroAmpsPerSquareCm, MilliVolts};
+use crate::dimension::{Diameter, Interval, Kelvin, MicroAmpsPerSquareCm, MilliVolts, Farads};
 use crate::neuron::channel::{ca_reversal, cl_reversal, k_reversal, na_reversal};
 use crate::neuron::membrane::Membrane;
 use crate::neuron::solution::Solution;
@@ -19,14 +19,13 @@ pub struct Segment {
 /// A cylindical neuron segment shape.
 #[derive(Clone, Debug)]
 pub struct Geometry {
-    diameter_start: Diameter,
-    diameter_end: Diameter,
-    length: f32,
+    pub diameter: Diameter,
+    pub length: f32,
 }
 
 impl Segment {
     pub fn surface_area(&self) -> f32 {
-        (self.geometry.diameter_start.0 + self.geometry.diameter_end.0) / 2.0 * self.geometry.length
+        (self.geometry.diameter.0) * self.geometry.length
     }
 
     pub fn dv_dt(&self, temperature: &Kelvin, extracellular_solution: &Solution) -> f32 {
@@ -58,6 +57,10 @@ impl Segment {
                 + self.input_current.0 * 1e-6 * surface_area;
         let capacitance = self.membrane.capacitance.0 * surface_area;
         current / capacitance
+    }
+
+    pub fn capacitance(&self) -> Farads {
+        Farads(self.membrane.capacitance.0 * self.surface_area())
     }
 
     pub fn step(
@@ -103,8 +106,7 @@ pub mod examples {
                 ca_concentration: Molar(0.1e-6),
             },
             geometry: Geometry {
-                diameter_start: Diameter(1.0),
-                diameter_end: Diameter(1.0),
+                diameter: Diameter(1.0),
                 length: 3.0,
             },
             input_current: MicroAmpsPerSquareCm(0.0),
@@ -137,8 +139,7 @@ pub mod examples {
         Segment {
             intracellular_solution: EXAMPLE_CYTOPLASM,
             geometry: Geometry {
-                diameter_start: Diameter(0.01),
-                diameter_end: Diameter(0.01),
+                diameter: Diameter(0.01),
                 length: 1000.0,
             },
             input_current: MicroAmpsPerSquareCm(0.0),
@@ -165,8 +166,7 @@ pub mod examples {
                 ca_concentration: Molar(0.1e-6),
             },
             geometry: Geometry {
-                diameter_start: Diameter(1.0),
-                diameter_end: Diameter(1.0),
+                diameter: Diameter(1.0),
                 length: 3.0,
             },
             membrane_potential: initial_membrane_potential.clone(),
@@ -193,8 +193,7 @@ pub mod examples {
             intracellular_solution: EXAMPLE_CYTOPLASM,
             input_current: MicroAmpsPerSquareCm(0.0),
             geometry: Geometry {
-                diameter_start: Diameter(2.0),
-                diameter_end: Diameter(2.0),
+                diameter: Diameter(2.0),
                 length: 2.0,
             },
             membrane_potential: initial_membrane_potential.clone(),
