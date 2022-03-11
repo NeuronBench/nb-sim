@@ -4,13 +4,15 @@ pub mod segment;
 pub mod solution;
 
 use crate::constants::CONDUCTANCE_PER_SQUARE_CM;
-use crate::dimension::{Interval, Kelvin, MilliVolts};
+use crate::dimension::{Diameter, Interval, Kelvin, MilliVolts};
 use crate::neuron::solution::Solution;
+
+use std::f32::consts::PI;
 
 #[derive(Clone, Debug)]
 pub struct Neuron {
     pub segments: Vec<segment::Segment>,
-    pub junctions: Vec<(usize, usize)>,
+    pub junctions: Vec<(usize, usize, Diameter)>,
 }
 
 impl Neuron {
@@ -31,24 +33,22 @@ impl Neuron {
             .iter_mut()
             .for_each(|s| s.step(temperature, extracellular_solution, interval));
 
-        for (m, n) in self.junctions.iter_mut() {
-            let (voltage_m, diameter_m, capacitance_m) = {
+        for (m, n, pore_diameter) in self.junctions.iter_mut() {
+            let (voltage_m, capacitance_m) = {
                 let segment_m = &self.segments[m.clone()];
                 (
                     segment_m.membrane_potential.clone(),
-                    segment_m.geometry.diameter.clone(),
                     segment_m.capacitance(),
                 )
             };
-            let (voltage_n, diameter_n, capacitance_n) = {
+            let (voltage_n, capacitance_n) = {
                 let segment_n = &self.segments[n.clone()];
                 (
                     segment_n.membrane_potential.clone(),
-                    segment_n.geometry.diameter.clone(),
                     segment_n.capacitance(),
                 )
             };
-            let mutual_conductance = diameter_m.0.min(diameter_n.0) * CONDUCTANCE_PER_SQUARE_CM;
+            let mutual_conductance = pore_diameter.0 * PI * CONDUCTANCE_PER_SQUARE_CM;
             let m_to_n_current = mutual_conductance * (voltage_m.0 - voltage_n.0) * 1e-3;
 
             self.segments[m.clone()].membrane_potential = MilliVolts(
@@ -64,12 +64,30 @@ impl Neuron {
 }
 
 pub mod examples {
+    use crate::dimension::{Diameter, MicroAmpsPerSquareCm};
     use crate::neuron::segment::examples::{giant_squid_axon, simple_leak};
     use crate::neuron::Neuron;
     pub fn squid_with_passive_attachment() -> Neuron {
+        let active_segment = giant_squid_axon();
+        let mut active_segment_2 = giant_squid_axon();
+        active_segment_2.input_current = MicroAmpsPerSquareCm(-1.0);
+        let passive_segment = simple_leak();
+        let junction_diameter = active_segment.geometry.diameter.clone();
+        let no_junction = Diameter(0.0);
         Neuron {
-            segments: vec![giant_squid_axon(), simple_leak()],
-            junctions: vec![(0, 1)],
+            segments: vec![
+                active_segment,
+                passive_segment.clone(),
+                active_segment_2.clone(),
+                passive_segment,
+                active_segment_2,
+            ],
+            junctions: vec![
+                (0, 1, junction_diameter.clone()),
+                (1, 2, junction_diameter.clone()),
+                (2, 3, junction_diameter.clone()),
+                (3, 4, junction_diameter),
+            ],
         }
     }
 }

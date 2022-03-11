@@ -4,6 +4,8 @@ use crate::neuron::channel::{ca_reversal, cl_reversal, k_reversal, na_reversal};
 use crate::neuron::membrane::Membrane;
 use crate::neuron::solution::Solution;
 
+use std::f32::consts::PI;
+
 #[derive(Clone, Debug)]
 pub struct Segment {
     /// The ion concentrations inside the segment.
@@ -25,7 +27,7 @@ pub struct Geometry {
 
 impl Segment {
     pub fn surface_area(&self) -> f32 {
-        (self.geometry.diameter.0) * self.geometry.length
+        (self.geometry.diameter.0) * PI * self.geometry.length
     }
 
     pub fn dv_dt(&self, temperature: &Kelvin, extracellular_solution: &Solution) -> f32 {
