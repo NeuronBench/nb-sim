@@ -1,5 +1,7 @@
 // use crate::constants::BODY_TEMPERATURE;
-use crate::dimension::{Diameter, Interval, Kelvin, MicroAmpsPerSquareCm, MilliVolts, Farads};
+use crate::dimension::{
+    Diameter, Farads, Interval, Kelvin, MicroAmps, MicroAmpsPerSquareCm, MilliVolts,
+};
 use crate::neuron::channel::{ca_reversal, cl_reversal, k_reversal, na_reversal};
 use crate::neuron::membrane::Membrane;
 use crate::neuron::solution::Solution;
@@ -16,6 +18,7 @@ pub struct Segment {
     pub membrane: Membrane,
     pub membrane_potential: MilliVolts,
     pub input_current: MicroAmpsPerSquareCm,
+    pub synaptic_current: MicroAmps,
 }
 
 /// A cylindical neuron segment shape.
@@ -56,6 +59,7 @@ impl Segment {
                 ),
                 &self.membrane_potential,
             ) * self.surface_area()
+                + self.synaptic_current.0 * 1e-6
                 + self.input_current.0 * 1e-6 * surface_area;
         let capacitance = self.membrane.capacitance.0 * surface_area;
         current / capacitance
@@ -112,6 +116,7 @@ pub mod examples {
                 length: 3.0,
             },
             input_current: MicroAmpsPerSquareCm(0.0),
+            synaptic_current: MicroAmps(0.0),
             membrane_potential: initial_membrane_potential.clone(),
             membrane: Membrane {
                 membrane_channels: vec![
@@ -140,6 +145,7 @@ pub mod examples {
         let initial_membrane_potential = MilliVolts(-80.0);
         Segment {
             intracellular_solution: EXAMPLE_CYTOPLASM,
+            synaptic_current: MicroAmps(0.0),
             geometry: Geometry {
                 diameter: Diameter(0.01),
                 length: 1000.0,
@@ -161,6 +167,7 @@ pub mod examples {
         let initial_membrane_potential = MilliVolts(-80.0);
         Segment {
             input_current: MicroAmpsPerSquareCm(0.0),
+            synaptic_current: MicroAmps(0.0),
             intracellular_solution: Solution {
                 na_concentration: Molar(5e-3),
                 k_concentration: Molar(140e-3),
@@ -194,6 +201,7 @@ pub mod examples {
         Segment {
             intracellular_solution: EXAMPLE_CYTOPLASM,
             input_current: MicroAmpsPerSquareCm(0.0),
+            synaptic_current: MicroAmps(0.0),
             geometry: Geometry {
                 diameter: Diameter(2.0),
                 length: 2.0,

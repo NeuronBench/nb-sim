@@ -357,13 +357,12 @@ mod tests {
     fn na_channel_inactivates() {
         let builder_voltage = MilliVolts(-60.0);
         let membrane_potential = MilliVolts(80.0);
-        let mut na_channel =
-            crate::neuron::channel::common_channels::giant_squid::NA_CHANNEL
+        let mut na_channel = crate::neuron::channel::common_channels::giant_squid::NA_CHANNEL
             .build(&builder_voltage);
         let interval = Interval(0.001);
         for n in 0..1000 {
             na_channel.step(&membrane_potential, &interval);
-        } 
+        }
         assert!(na_channel.inactivation.unwrap().magnitude < 0.001);
     }
 

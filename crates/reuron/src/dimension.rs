@@ -54,3 +54,6 @@ pub struct Farads(pub f32);
 
 #[derive(Debug, Clone)]
 pub struct MicroAmpsPerSquareCm(pub f32);
+
+#[derive(Debug, Clone)]
+pub struct MicroAmps(pub f32);

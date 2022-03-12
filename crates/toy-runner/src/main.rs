@@ -81,10 +81,10 @@ async fn main() {
 }
 
 fn quick_plot_v(v: &MilliVolts) -> String {
-    let mut s : Vec<u8> = Vec::from("     .       ".as_bytes());
-    let ind = ((v.0 + 150.0) / 20.0) as usize;
+    let mut s : Vec<u8> = Vec::from("|                           ".as_bytes());
+    let ind = ((v.0 + 150.0) / 10.0) as usize;
     if ind > 0 && ind < s.len() {
-        s[ind] = '|' as u8;
+        s[ind] = 'o' as u8;
     }
     String::from_utf8(s).unwrap()
 }
@@ -96,19 +96,18 @@ async fn watch(state: Arc<Mutex<State>>) {
         let wait_interval = {
             let state = state.lock().unwrap();
             println!(
-                "step {:.10}, batch {:.5}, avg_wait: {:.1} {}, {}, {}, {}, {}, {:.2}, {:.2} mV",
+                // "step {:.10}, batch {:.5}, avg_wait: {:.1} {}, {}, {}, {}, {}, {:.2}, {:.2} mV",
+                "{} {} {} {} {} | {:.2} ms",
                 // state.steps,
                 // state.batches,
-                0,
-                0,
-                state.waiting_fraction.contents().into_iter().sum::<f32>() / state.waiting_fraction.len() as f32,
+                // state.waiting_fraction.contents().into_iter().sum::<f32>() / state.waiting_fraction.len() as f32,
                 quick_plot_v(&state.neuron.segments[0].membrane_potential),
                 quick_plot_v(&state.neuron.segments[1].membrane_potential),
                 quick_plot_v(&state.neuron.segments[2].membrane_potential),
                 quick_plot_v(&state.neuron.segments[3].membrane_potential),
                 quick_plot_v(&state.neuron.segments[4].membrane_potential),
                 state.time.0 * 1e3,
-                state.neuron.segments[1].membrane_potential.0,
+                // state.neuron.segments[1].membrane_potential.0,
             );
 
             let inter_display_interval = Duration::from_micros((1e6 / state.display_rate) as u64);
