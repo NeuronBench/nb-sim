@@ -145,10 +145,12 @@ pub struct TransmitterPump {
 impl TransmitterPump {
     pub fn target_concentration(&self, v: &MilliVolts) -> Molar {
         Molar(
-            1.0 / (1.0
-                + ((self.params.target_concentration_v_at_half_max.0 - v.0)
-                    / self.params.target_concentration_v_slope)
-                    .exp()),
+            self.params.target_concentration_min.0
+                + (self.params.target_concentration_max.0 - self.params.target_concentration_min.0)
+                    / (1.0
+                        + ((self.params.target_concentration_v_at_half_max.0 - v.0)
+                            / self.params.target_concentration_v_slope)
+                            .exp()),
         )
     }
 
@@ -162,10 +164,137 @@ impl TransmitterPump {
 
 #[derive(Clone, Debug)]
 pub struct TransmitterPumpParams {
+    pub target_concentration_max: Molar,
+    pub target_concentration_min: Molar,
     pub target_concentration_v_at_half_max: MilliVolts,
     pub target_concentration_v_slope: f32,
     pub time_constant_v_at_max_tau: MilliVolts,
     pub time_constant_c_base: f32,
     pub time_constant_c_amp: f32,
     pub time_constant_sigma: f32,
+}
+
+pub mod examples {
+    use super::*;
+    use crate::dimension::{MilliVolts, Molar};
+    use crate::neuron::channel::common_channels::giant_squid::NA_CHANNEL;
+    use crate::neuron::solution::INTERSTICIAL_FLUID;
+
+    // Note: The numbers here are totally made up.
+    pub fn glutamate_removal() -> TransmitterPump {
+        TransmitterPump {
+            transmitter: Transmitter::Glutamate,
+            scale: 1.0,
+            params: TransmitterPumpParams {
+                target_concentration_max: Molar(1.1e-4),
+                target_concentration_min: Molar(1e-4),
+                target_concentration_v_at_half_max: MilliVolts(0.0),
+                target_concentration_v_slope: 1.0,
+                time_constant_c_amp: 1e-6,
+                time_constant_c_base: 1e-3,
+                time_constant_sigma: 1.0,
+                time_constant_v_at_max_tau: MilliVolts(0.0),
+            },
+        }
+    }
+
+    // Note: The numbers here are totally made up.
+    pub fn glutamate_release() -> TransmitterPump {
+        TransmitterPump {
+            transmitter: Transmitter::Glutamate,
+            scale: 1.0,
+            params: TransmitterPumpParams {
+                target_concentration_max: Molar(1.1e-2),
+                target_concentration_min: Molar(1e-4),
+                target_concentration_v_at_half_max: MilliVolts(0.0),
+                target_concentration_v_slope: 1.0,
+                time_constant_c_amp: 1e-6,
+                time_constant_c_base: 1e-3,
+                time_constant_sigma: 1.0,
+                time_constant_v_at_max_tau: MilliVolts(0.0),
+            },
+        }
+    }
+
+    // Note: The numbers here are totally made up.
+    pub fn gaba_removal() -> TransmitterPump {
+        TransmitterPump {
+            transmitter: Transmitter::Gaba,
+            scale: 1.0,
+            params: TransmitterPumpParams {
+                target_concentration_max: Molar(1.1e-4),
+                target_concentration_min: Molar(1e-4),
+                target_concentration_v_at_half_max: MilliVolts(0.0),
+                target_concentration_v_slope: 1.0,
+                time_constant_c_amp: 1e-6,
+                time_constant_c_base: 1e-3,
+                time_constant_sigma: 1.0,
+                time_constant_v_at_max_tau: MilliVolts(0.0),
+            },
+        }
+    }
+
+    // Note: The numbers here are totally made up.
+    pub fn gaba_release() -> TransmitterPump {
+        TransmitterPump {
+            transmitter: Transmitter::Gaba,
+            scale: 1.0,
+            params: TransmitterPumpParams {
+                target_concentration_max: Molar(1.1e-2),
+                target_concentration_min: Molar(1e-4),
+                target_concentration_v_at_half_max: MilliVolts(0.0),
+                target_concentration_v_slope: 1.0,
+                time_constant_c_amp: 1e-6,
+                time_constant_c_base: 1e-3,
+                time_constant_sigma: 1.0,
+                time_constant_v_at_max_tau: MilliVolts(0.0),
+            },
+        }
+    }
+
+    // Note: The numbers here are totally made up.
+    pub fn ampa_receptor(initial_voltage: &MilliVolts) -> Receptor {
+        Receptor {
+            membrane_channel: MembraneChannel {
+                channel: NA_CHANNEL.build(initial_voltage),
+                siemens_per_square_cm: 100.0,
+            },
+            neurotransmitter_sensitivity: Sensitivity {
+                transmitter: Transmitter::Glutamate,
+                concentration_at_half_max: Molar(1e-3), // TODO: determine the right value.
+                slope: 1.0,                             // TODO: determine the right value.
+            },
+        }
+    }
+    pub fn excitatory_synapse(initial_voltage: &MilliVolts) -> Synapse {
+        Synapse {
+            cleft_solution: INTERSTICIAL_FLUID,
+            transmitter_concentrations: TransmitterConcentrations {
+                glutamate: Molar(0.1e-3),
+                gaba: Molar(0.1e-3),
+            },
+            presynaptic_pumps: vec![glutamate_removal(), glutamate_release()],
+            postsynaptic_receptors: vec![ampa_receptor(initial_voltage)],
+            surface_area: Diameter(1e-6),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::examples;
+    use super::*;
+    use crate::constants::BODY_TEMPERATURE;
+
+    #[test]
+    fn excited_synapse_releases_glutamate() {
+        let segment_1 = crate::neuron::segment::examples::giant_squid_axon();
+        let segment_2 = crate::neuron::segment::examples::giant_squid_axon();
+        let initial_voltage = segment_1.membrane_potential.clone();
+        let mut synapse = examples::excitatory_synapse(&initial_voltage);
+        let interval = Interval(1e-6);
+        for n in 0..1000 {
+            synapse.step(&BODY_TEMPERATURE, &segment_1, &segment_2, &interval);
+        }
+    }
 }
