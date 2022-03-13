@@ -3,6 +3,7 @@ pub mod membrane;
 pub mod segment;
 pub mod solution;
 pub mod synapse;
+pub mod network;
 
 use crate::constants::CONDUCTANCE_PER_SQUARE_CM;
 use crate::dimension::{Diameter, Interval, Kelvin, MilliVolts};
