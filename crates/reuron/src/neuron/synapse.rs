@@ -67,7 +67,7 @@ impl Synapse {
             .postsynaptic_receptors
             .iter()
             .map(|receptor| {
-                let channel_current = receptor.membrane_channel.channel_current_per_cm(
+                let channel_current_per_cm = receptor.membrane_channel.channel_current_per_cm(
                     &k_reversal(
                         &postsynaptic_segment.intracellular_solution,
                         &self.cleft_solution,
@@ -93,7 +93,9 @@ impl Synapse {
                 let gating_coefficient = receptor
                     .neurotransmitter_sensitivity
                     .gating_coefficient(&self.transmitter_concentrations);
-                channel_current * gating_coefficient
+                dbg!(channel_current_per_cm);
+                dbg!(gating_coefficient);
+                channel_current_per_cm * gating_coefficient
             })
             .sum::<f32>();
 
@@ -177,7 +179,7 @@ pub struct TransmitterPumpParams {
 pub mod examples {
     use super::*;
     use crate::dimension::{MilliVolts, Molar};
-    use crate::neuron::channel::common_channels::giant_squid::NA_CHANNEL;
+    use crate::neuron::channel::common_channels::AMPA_CHANNEL;
     use crate::neuron::solution::INTERSTICIAL_FLUID;
 
     // Note: The numbers here are totally made up.
@@ -256,13 +258,13 @@ pub mod examples {
     pub fn ampa_receptor(initial_voltage: &MilliVolts) -> Receptor {
         Receptor {
             membrane_channel: MembraneChannel {
-                channel: NA_CHANNEL.build(initial_voltage),
+                channel: AMPA_CHANNEL.build(initial_voltage),
                 siemens_per_square_cm: 100.0,
             },
             neurotransmitter_sensitivity: Sensitivity {
                 transmitter: Transmitter::Glutamate,
                 concentration_at_half_max: Molar(1e-3), // TODO: determine the right value.
-                slope: 1.0,                             // TODO: determine the right value.
+                slope: 1e-3,                            // TODO: determine the right value.
             },
         }
     }
@@ -285,16 +287,45 @@ mod tests {
     use super::examples;
     use super::*;
     use crate::constants::BODY_TEMPERATURE;
+    use crate::neuron::solution::INTERSTICIAL_FLUID;
 
     #[test]
     fn excited_synapse_releases_glutamate() {
-        let segment_1 = crate::neuron::segment::examples::giant_squid_axon();
-        let segment_2 = crate::neuron::segment::examples::giant_squid_axon();
-        let initial_voltage = segment_1.membrane_potential.clone();
+        let mut segment_1 = crate::neuron::segment::examples::giant_squid_axon();
+        let mut segment_2 = crate::neuron::segment::examples::giant_squid_axon();
+        let initial_voltage = MilliVolts(-70.0);
+        segment_1.membrane_potential = initial_voltage.clone();
+        segment_2.membrane_potential = initial_voltage.clone();
+        segment_2.input_current = MicroAmpsPerSquareCm(-15.0);
         let mut synapse = examples::excitatory_synapse(&initial_voltage);
+
+        // Before glutamate builds up in the synapse, synaptic current should be
+        // small.
+        dbg!(synapse.current(&BODY_TEMPERATURE, &segment_2));
+        assert!(synapse.current(&BODY_TEMPERATURE, &segment_2).0 < 1.0);
+
         let interval = Interval(1e-6);
-        for n in 0..1000 {
+        for n in 0..2000 {
+            if (n % 100 == 0) {
+                let m_g = &synapse.transmitter_concentrations.glutamate.0;
+                let coeff = &synapse.postsynaptic_receptors[0]
+                    .neurotransmitter_sensitivity
+                    .gating_coefficient(&synapse.transmitter_concentrations);
+                let i = synapse.current(&BODY_TEMPERATURE, &segment_2).0;
+                let v_1 = &segment_1.membrane_potential;
+                let v_2 = &segment_2.membrane_potential;
+                dbg!(v_1.0);
+                dbg!(v_2.0);
+                dbg!(m_g);
+                dbg!(coeff);
+                dbg!(i);
+            }
+            segment_1.step(&BODY_TEMPERATURE, &INTERSTICIAL_FLUID, &interval);
+            segment_2.step(&BODY_TEMPERATURE, &INTERSTICIAL_FLUID, &interval);
             synapse.step(&BODY_TEMPERATURE, &segment_1, &segment_2, &interval);
         }
+
+        dbg!(synapse.current(&BODY_TEMPERATURE, &segment_2));
+        assert!(synapse.current(&BODY_TEMPERATURE, &segment_2).0 == 1.0);
     }
 }

@@ -44,6 +44,7 @@ pub const CL: IonSelectivity = IonSelectivity {
     cl: 1.0,
 };
 
+/// The reversal potential for one ion species.
 pub fn reversal_potential(
     internal_concentration: &Molar,
     external_concentration: &Molar,
@@ -143,7 +144,7 @@ impl Channel {
             .for_each(|inactivation| inactivation.step(membrane_potential, interval));
     }
 
-    /// The
+    /// The product of the various gates in the channel.
     pub fn conductance_coefficient(&self) -> f32 {
         let activation_coefficient = self.activation.as_ref().map_or(1.0, |gate_state| {
             gate_state
@@ -265,6 +266,9 @@ impl TimeConstant {
 
 pub mod common_channels {
 
+    use crate::dimension::MilliVolts;
+    use crate::neuron::channel::*;
+
     pub mod giant_squid {
         use crate::dimension::MilliVolts;
         use crate::neuron::channel::*;
@@ -326,21 +330,34 @@ pub mod common_channels {
             inactivation_parameters: None,
         };
     }
+
+    pub const AMPA_CHANNEL: ChannelBuilder = ChannelBuilder {
+        // These permeabilities were chosen to bring the AMPA channel
+        // reversal potential to nearly 0 mV.
+        ion_selectivity: IonSelectivity {
+            na: 0.50,
+            k: 0.50,
+            cl: 0.0,
+            ca: 0.0,
+        },
+        activation_parameters: None,
+        inactivation_parameters: None,
+    };
 }
 
 #[cfg(test)]
 mod tests {
     use crate::constants::*;
     use crate::dimension::*;
+    use crate::neuron::channel::common_channels;
+    use crate::neuron::channel::IonSelectivity;
     use crate::neuron::channel::*;
     use crate::neuron::solution::*;
-
     #[test]
     fn activations_tend_toward_v_inf() {
         let builder_voltage = MilliVolts(0.0);
         let membrane_potential = MilliVolts(-60.0);
-        let mut na_channel = crate::neuron::channel::common_channels::giant_squid::NA_CHANNEL
-            .build(&builder_voltage);
+        let mut na_channel = common_channels::giant_squid::NA_CHANNEL.build(&builder_voltage);
         let interval = Interval(0.01);
         for i in 0..1000 {
             na_channel.step(&membrane_potential, &interval);
@@ -357,8 +374,7 @@ mod tests {
     fn na_channel_inactivates() {
         let builder_voltage = MilliVolts(-60.0);
         let membrane_potential = MilliVolts(80.0);
-        let mut na_channel = crate::neuron::channel::common_channels::giant_squid::NA_CHANNEL
-            .build(&builder_voltage);
+        let mut na_channel = common_channels::giant_squid::NA_CHANNEL.build(&builder_voltage);
         let interval = Interval(0.001);
         for n in 0..1000 {
             na_channel.step(&membrane_potential, &interval);

@@ -90,6 +90,7 @@ pub struct MembraneChannel {
     pub siemens_per_square_cm: f32,
 }
 
+// TODO: Return MicroAmpsPerSquareCm.
 impl MembraneChannel {
     pub fn channel_current_per_cm(
         &self,

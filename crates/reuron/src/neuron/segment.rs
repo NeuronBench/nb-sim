@@ -59,7 +59,7 @@ impl Segment {
                 ),
                 &self.membrane_potential,
             ) * self.surface_area()
-                + self.synaptic_current.0 * 1e-6
+                - self.synaptic_current.0 * 1e-6
                 + self.input_current.0 * 1e-6 * surface_area;
         let capacitance = self.membrane.capacitance.0 * surface_area;
         current / capacitance
@@ -98,6 +98,7 @@ pub mod examples {
     use super::*;
     use crate::constants::*;
     use crate::dimension::*;
+    use crate::neuron::channel::common_channels;
     use crate::neuron::channel::{self, ChannelBuilder, CL, K, NA};
     use crate::neuron::membrane::*;
     use crate::neuron::solution::{EXAMPLE_CYTOPLASM, INTERSTICIAL_FLUID};
@@ -550,5 +551,32 @@ pub mod examples {
             dbg!(&expected_voltage);
             assert!((segment.membrane_potential.0 - expected_voltage.0).abs() < 1e-3);
         }
+    }
+
+    #[test]
+    fn ampa_receptor_reversal_potential_is_zero() {
+        let interval = Interval(1e-6);
+        let mut ampa_segment = Segment {
+            intracellular_solution: EXAMPLE_CYTOPLASM,
+            synaptic_current: MicroAmps(0.0),
+            geometry: Geometry {
+                diameter: Diameter(1e-3),
+                length: 1e-3,
+            },
+            input_current: MicroAmpsPerSquareCm(0.0),
+            membrane_potential: MilliVolts(-80.0),
+            membrane: Membrane {
+                membrane_channels: vec![MembraneChannel {
+                    channel: common_channels::AMPA_CHANNEL.build(&MilliVolts(-80.0)),
+                    siemens_per_square_cm: 0.3e-3,
+                }],
+                capacitance: FaradsPerSquareCm(1e-6),
+            },
+        };
+        assert!((ampa_segment.membrane_potential.0 - -80.0).abs() < 1.0);
+        for _ in 1..100000 {
+            ampa_segment.step(&BODY_TEMPERATURE, &INTERSTICIAL_FLUID, &interval);
+        }
+        assert!((ampa_segment.membrane_potential.0).abs() < 1.0);
     }
 }
