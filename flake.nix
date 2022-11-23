@@ -26,7 +26,12 @@
         };
       };
       devShell = pkgs.mkShell {
-        packages = [ pkgs.wasm-bindgen-cli rust pkgs.autoconf pkgs.pkgconfig ];
+        packages = [
+          pkgs.wasm-bindgen-cli
+          rust
+          pkgs.autoconf
+          pkgs.pkgconfig
+        ];
         PKG_CONFIG_PATH = "${pkgs.openssl.dev}/lib/pkgconfig";
       };
     }
