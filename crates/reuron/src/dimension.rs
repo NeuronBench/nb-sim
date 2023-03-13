@@ -1,4 +1,6 @@
-#[derive(Debug, Clone)]
+use bevy::prelude::Component;
+
+#[derive(Component, Debug, Clone)]
 pub struct Diameter(pub f32);
 
 impl Diameter {
@@ -7,7 +9,7 @@ impl Diameter {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Component, Debug, Clone)]
 pub struct P3 {
     pub x: f32,
     pub y: f32,

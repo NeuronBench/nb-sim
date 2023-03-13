@@ -1,6 +1,8 @@
+use bevy::prelude::Component;
+
 use crate::dimension::Molar;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Component, Debug)]
 pub struct Solution {
     pub ca_concentration: Molar,
     pub k_concentration: Molar,

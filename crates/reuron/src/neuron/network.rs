@@ -1,10 +1,7 @@
 use crate::dimension::{Interval, Kelvin, MicroAmps};
-use crate::neuron::segment::Segment;
 use crate::neuron::synapse::Synapse;
 use crate::neuron::Neuron;
 use crate::neuron::Solution;
-
-use std::collections::HashMap;
 
 // TODO: Give Neurons and Segments Id's, and index by Id.
 pub struct NetworkSegmentIndex {

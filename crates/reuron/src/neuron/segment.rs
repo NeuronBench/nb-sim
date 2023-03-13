@@ -1,4 +1,5 @@
 // use crate::constants::BODY_TEMPERATURE;
+use bevy::prelude::Component;
 use crate::dimension::{
     Diameter, Farads, Interval, Kelvin, MicroAmps, MicroAmpsPerSquareCm, MilliVolts,
 };
@@ -22,7 +23,7 @@ pub struct Segment {
 }
 
 /// A cylindical neuron segment shape.
-#[derive(Clone, Debug)]
+#[derive(Clone, Component, Debug)]
 pub struct Geometry {
     pub diameter: Diameter,
     pub length: f32,
@@ -96,12 +97,10 @@ impl Segment {
 
 pub mod examples {
     use super::*;
-    use crate::constants::*;
     use crate::dimension::*;
-    use crate::neuron::channel::common_channels;
     use crate::neuron::channel::{self, ChannelBuilder, CL, K, NA};
     use crate::neuron::membrane::*;
-    use crate::neuron::solution::{EXAMPLE_CYTOPLASM, INTERSTICIAL_FLUID};
+    use crate::neuron::solution::{EXAMPLE_CYTOPLASM};
 
     pub fn giant_squid_axon() -> Segment {
         let initial_membrane_potential = MilliVolts(-70.0);
