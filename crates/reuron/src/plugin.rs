@@ -1,8 +1,9 @@
 use bevy::prelude::*;
 use std::iter::zip;
 use std::fmt::{self, Display};
+use std::time::Duration;
 
-use crate::dimension::{MicroAmpsPerSquareCm, FaradsPerSquareCm, MilliVolts, Diameter, Interval, Kelvin};
+use crate::dimension::{MicroAmpsPerSquareCm, FaradsPerSquareCm, MilliVolts, Diameter, Interval, Kelvin, Timestamp};
 use crate::constants::{BODY_TEMPERATURE};
 use crate::neuron::segment::Geometry;
 use crate::neuron::solution::{Solution, INTERSTICIAL_FLUID, EXAMPLE_CYTOPLASM};
@@ -15,23 +16,48 @@ impl Plugin for ReuronPlugin {
     fn build(&self, app: &mut App) {
         app
             .insert_resource(default_env())
-            .add_system(create_example_neuron)
+            .insert_resource(Timestamp(0.0))
+            .insert_resource(StdoutRenderTimer {
+                timer: Timer::new(Duration::from_millis(100), TimerMode::Repeating)
+            })
+            .insert_resource(SystemCounts::zero())
+            .add_startup_system(create_example_neuron)
+            .add_system(update_timestamp)
             .add_system(update_membrane_conductances)
             .add_system(apply_channel_currents)
-            .add_system(apply_external_currents)
+            .add_system(apply_input_currents)
             .add_system(print_voltages);
     }
 }
 
+#[derive(Resource)]
+pub struct StdoutRenderTimer {
+    timer: Timer,
+}
+
 #[derive(Component)]
 pub struct Segment;
+
+
+#[derive(Debug, Resource)]
+pub struct SystemCounts {
+    n_membrane_conductances: u64,
+    n_channel_currents: u64,
+    n_input_currents: u64,
+    n_print: u64,
+}
+
+impl SystemCounts {
+    pub fn zero() -> SystemCounts {
+        SystemCounts { n_membrane_conductances: 0, n_channel_currents: 0, n_input_currents: 0, n_print:0 }
+    }
+}
 
 #[derive(Bundle)]
 pub struct SegmentBundle {
     pub intracellular_solution: Solution,
     pub membrane_voltage: MembraneVoltage,
     pub geometry: Geometry,
-    pub input_current: InputCurrent,
 }
 
 #[derive(Component)]
@@ -69,17 +95,20 @@ fn default_env() -> Env {
     Env {
         temperature: BODY_TEMPERATURE,
         extracellular_solution: INTERSTICIAL_FLUID,
-        interval: Interval(0.000001)
+        interval: Interval(0.00001)
     }
+}
+
+fn update_timestamp(env: Res<Env>, mut timestamp: ResMut<Timestamp>) {
+  timestamp.0 = timestamp.0 + env.interval.0;
 }
 
 fn create_example_neuron(mut commands: Commands) {
     let v0 = MilliVolts(-70.0);
     let mk_segment = || SegmentBundle {
         intracellular_solution: EXAMPLE_CYTOPLASM,
-        membrane_voltage: MembraneVoltage(MilliVolts(-70.0)),
+        membrane_voltage: MembraneVoltage(MilliVolts(-88.0)),
         geometry: Geometry { diameter: Diameter(0.01), length: 1000.0 },
-        input_current: InputCurrent(MicroAmpsPerSquareCm(0.0)),
     };
     let membrane = membrane::Membrane {
         capacitance: FaradsPerSquareCm(1e-6),
@@ -102,9 +131,12 @@ fn create_example_neuron(mut commands: Commands) {
         ]
     };
     let segments : Vec<Entity> =
-        (0..4)
-        .map(|_| {
-            let segment = commands.spawn((mk_segment(), Membrane(membrane.clone()))).id();
+        (0..10000000)
+        .map(|i| {
+            let segment = commands.spawn((Segment, mk_segment(), Membrane(membrane.clone()))).id();
+            if i == 0 {
+                commands.entity(segment).insert(InputCurrent(MicroAmpsPerSquareCm(50.0)));
+            }
             segment
         })
         .collect();
@@ -118,8 +150,12 @@ fn create_example_neuron(mut commands: Commands) {
         });
 }
 
-fn update_membrane_conductances(mut query: Query<(&Segment, &MembraneVoltage, &mut Membrane)>, env: Res<Env>) {
-
+fn update_membrane_conductances(
+    mut query: Query<(&Segment, &MembraneVoltage, &mut Membrane)>,
+    env: Res<Env>,
+    mut counts: ResMut<SystemCounts>
+) {
+    counts.n_membrane_conductances += 1;
     for (_, membrane_voltage, mut membrane) in &mut query {
         membrane
             .0
@@ -139,7 +175,10 @@ fn apply_channel_currents(
         &Membrane,
         &mut MembraneVoltage
     )>,
-    env: Res<Env>) {
+    env: Res<Env>,
+    mut counts: ResMut<SystemCounts>
+) {
+    counts.n_channel_currents += 1;
     for (_, solution, geometry, membrane, mut membrane_voltage) in &mut query {
         let surface_area =
             geometry.diameter.0 * std::f32::consts::PI * geometry.length;
@@ -169,28 +208,42 @@ fn apply_channel_currents(
         let capacitance = membrane.0.capacitance.0 * surface_area;
         let dv_dt : f32 = current / capacitance;
 
-        membrane_voltage.0.0 += (1000.0 * dv_dt * env.interval.0);
+        membrane_voltage.0.0 += 1000.0 * dv_dt * env.interval.0;
     }
 }
 
-fn apply_external_currents(
+fn apply_input_currents(
     mut query: Query<(&Segment, &Geometry, &Membrane, &InputCurrent, &mut MembraneVoltage)>,
-    env : Res<Env>
+    env : Res<Env>,
+    mut counts: ResMut<SystemCounts>
+
 ){
+    counts.n_input_currents += 1;
     for (_, geometry, membrane, input_current, mut membrane_voltage) in &mut query {
         let surface_area =
             geometry.diameter.0 * std::f32::consts::PI * geometry.length;
         let capacitance = membrane.0.capacitance.0 * surface_area;
-        let dv_dt = input_current.0.0 * surface_area / capacitance;
-        membrane_voltage.0.0 += (1000.0 * dv_dt * env.interval.0);
+        let current = input_current.0.0 * 1e-6 * surface_area;
+        let dv_dt = current / capacitance;
+        membrane_voltage.0.0 += 1000.0 * dv_dt * env.interval.0;
     }
 }
 
 
 fn print_voltages(
-    query: Query<&MembraneVoltage>
+    timestamp: Res<Timestamp>,
+    mut stdout_render_timer: ResMut<StdoutRenderTimer>,
+    query: Query<&MembraneVoltage>,
+    time: Res<Time>,
+    mut counts: ResMut<SystemCounts>
 ) {
-    for (membrane_voltage) in &query {
-        println!("Voltage: {membrane_voltage}")
+    counts.n_print += 1;
+    stdout_render_timer.timer.tick(time.delta());
+
+    if stdout_render_timer.timer.just_finished() {
+        println!("{:.6} Counts: {counts:?}", timestamp.0);
+        for membrane_voltage in &query {
+            // println!("Voltage: {membrane_voltage}");
+        }
     }
 }

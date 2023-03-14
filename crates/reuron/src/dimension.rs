@@ -1,4 +1,4 @@
-use bevy::prelude::Component;
+use bevy::prelude::{Component, Resource};
 
 #[derive(Component, Debug, Clone)]
 pub struct Diameter(pub f32);
@@ -27,7 +27,7 @@ impl P3 {
 }
 
 /// Seconds since UNIX epoch.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Resource)]
 pub struct Timestamp(pub f32);
 
 #[derive(Debug, Clone)]
