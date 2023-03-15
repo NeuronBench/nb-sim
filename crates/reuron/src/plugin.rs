@@ -23,8 +23,8 @@ impl Plugin for ReuronPlugin {
             .insert_resource(SystemCounts::zero())
             .add_startup_system(create_example_neuron)
             .add_system(update_timestamp)
-            .add_system(update_membrane_conductances)
             .add_system(apply_channel_currents)
+            .add_system(update_membrane_conductances)
             .add_system(apply_input_currents)
             .add_system(print_voltages);
     }
@@ -95,7 +95,7 @@ fn default_env() -> Env {
     Env {
         temperature: BODY_TEMPERATURE,
         extracellular_solution: INTERSTICIAL_FLUID,
-        interval: Interval(0.00001)
+        interval: Interval(20e-6)
     }
 }
 
@@ -107,17 +107,12 @@ fn create_example_neuron(mut commands: Commands) {
     let v0 = MilliVolts(-70.0);
     let mk_segment = || SegmentBundle {
         intracellular_solution: EXAMPLE_CYTOPLASM,
-        membrane_voltage: MembraneVoltage(MilliVolts(-88.0)),
-        geometry: Geometry { diameter: Diameter(0.01), length: 1000.0 },
+        membrane_voltage: MembraneVoltage(v0.clone()),
+        geometry: Geometry { diameter: Diameter(1.0), length: 3.0 },
     };
     let membrane = membrane::Membrane {
         capacitance: FaradsPerSquareCm(1e-6),
         membrane_channels: vec![
-            membrane::MembraneChannel {
-                channel: channel::common_channels::giant_squid::LEAK_CHANNEL
-                    .build(&v0),
-                siemens_per_square_cm: 36e-3,
-            },
             membrane::MembraneChannel {
                 channel: channel::common_channels::giant_squid::K_CHANNEL
                     .build(&v0),
@@ -128,14 +123,19 @@ fn create_example_neuron(mut commands: Commands) {
                     .build(&v0),
                 siemens_per_square_cm: 120e-3,
             },
+            membrane::MembraneChannel {
+                channel: channel::common_channels::giant_squid::LEAK_CHANNEL
+                    .build(&v0),
+                siemens_per_square_cm: 0.3e-3,
+            },
         ]
     };
     let segments : Vec<Entity> =
-        (0..10000000)
+        (0..400)
         .map(|i| {
             let segment = commands.spawn((Segment, mk_segment(), Membrane(membrane.clone()))).id();
             if i == 0 {
-                commands.entity(segment).insert(InputCurrent(MicroAmpsPerSquareCm(50.0)));
+                commands.entity(segment).insert(InputCurrent(MicroAmpsPerSquareCm(1.0)));
             }
             segment
         })
@@ -240,10 +240,11 @@ fn print_voltages(
     counts.n_print += 1;
     stdout_render_timer.timer.tick(time.delta());
 
+    // let fps = counts.n_print as f64 / time.elapsed_seconds_f64();
     if stdout_render_timer.timer.just_finished() {
-        println!("{:.6} Counts: {counts:?}", timestamp.0);
+        // println!("{:.6} Counts: {counts:?}. FPS: {}", timestamp.0, fps);
         for membrane_voltage in &query {
-            // println!("Voltage: {membrane_voltage}");
+            println!("SimulationTime: {} ms. Voltage: {membrane_voltage}", counts.n_print / 100 );
         }
     }
 }

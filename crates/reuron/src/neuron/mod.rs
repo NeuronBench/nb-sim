@@ -75,7 +75,7 @@ pub mod examples {
         active_segment_2.input_current = MicroAmpsPerSquareCm(-1.0);
         let passive_segment = simple_leak();
         let junction_diameter = active_segment.geometry.diameter.clone();
-        let no_junction = Diameter(0.0);
+        // let no_junction = Diameter(0.0);
         Neuron {
             segments: vec![
                 active_segment,
