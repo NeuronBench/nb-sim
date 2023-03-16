@@ -4,7 +4,7 @@ use std::fmt::{self, Display};
 use std::time::Duration;
 
 use crate::dimension::{MicroAmpsPerSquareCm, FaradsPerSquareCm, MilliVolts, Diameter, Interval, Kelvin, Timestamp};
-use crate::constants::{BODY_TEMPERATURE};
+use crate::constants::{BODY_TEMPERATURE, CONDUCTANCE_PER_SQUARE_CM};
 use crate::neuron::segment::Geometry;
 use crate::neuron::solution::{Solution, INTERSTICIAL_FLUID, EXAMPLE_CYTOPLASM};
 use crate::neuron::membrane;
@@ -17,6 +17,7 @@ impl Plugin for ReuronPlugin {
         app
             .insert_resource(default_env())
             .insert_resource(Timestamp(0.0))
+            .init_resource::<MembraneMaterials>()
             .insert_resource(StdoutRenderTimer {
                 timer: Timer::new(Duration::from_millis(100), TimerMode::Repeating)
             })
@@ -26,6 +27,8 @@ impl Plugin for ReuronPlugin {
             .add_system(apply_channel_currents)
             .add_system(update_membrane_conductances)
             .add_system(apply_input_currents)
+            .add_system(apply_junction_currents)
+            .add_system(apply_voltage_to_materials)
             .add_system(print_voltages);
     }
 }
@@ -58,12 +61,16 @@ pub struct SegmentBundle {
     pub intracellular_solution: Solution,
     pub membrane_voltage: MembraneVoltage,
     pub geometry: Geometry,
+
+    #[bundle]
+    pub pbr: PbrBundle,
 }
 
 #[derive(Component)]
 pub struct Junction {
     first_segment: Entity,
     second_segment: Entity,
+    pore_diameter: Diameter,
 }
 
 #[derive(Component)]
@@ -103,12 +110,27 @@ fn update_timestamp(env: Res<Env>, mut timestamp: ResMut<Timestamp>) {
   timestamp.0 = timestamp.0 + env.interval.0;
 }
 
-fn create_example_neuron(mut commands: Commands) {
+fn create_example_neuron(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    materials: Res<MembraneMaterials>,
+) {
     let v0 = MilliVolts(-70.0);
-    let mk_segment = || SegmentBundle {
+    let mut mk_segment = |i: u32| SegmentBundle {
         intracellular_solution: EXAMPLE_CYTOPLASM,
         membrane_voltage: MembraneVoltage(v0.clone()),
-        geometry: Geometry { diameter: Diameter(1.0), length: 3.0 },
+        geometry: Geometry { diameter: Diameter(1.0), length: 1.0 },
+        pbr: PbrBundle {
+            mesh: meshes.add(shape::Cylinder {
+                radius: 0.5,
+                height: 0.95,
+                resolution: 12,
+                segments:2,
+            }.into()),
+            material: materials.from_voltage(&MilliVolts(-80.0)),
+            transform: Transform::from_xyz(0.0, 1.0 * i as f32, 0.0),
+            ..default()
+            }
     };
     let membrane = membrane::Membrane {
         capacitance: FaradsPerSquareCm(1e-6),
@@ -133,10 +155,15 @@ fn create_example_neuron(mut commands: Commands) {
     let segments : Vec<Entity> =
         (0..400)
         .map(|i| {
-            let segment = commands.spawn((Segment, mk_segment(), Membrane(membrane.clone()))).id();
-            if i == 0 {
-                commands.entity(segment).insert(InputCurrent(MicroAmpsPerSquareCm(1.0)));
-            }
+            let segment = commands.spawn(
+                (Segment
+                , mk_segment(i)
+                , Membrane(membrane.clone())
+                )).id();
+            let input_current = if i == 0 {10.0} else {-1.0};
+            commands
+                .entity(segment)
+                .insert(InputCurrent(MicroAmpsPerSquareCm(input_current)));
             segment
         })
         .collect();
@@ -145,7 +172,8 @@ fn create_example_neuron(mut commands: Commands) {
         .for_each(|(x,y)| {
             commands.spawn(Junction{
                 first_segment: x,
-                second_segment: y.clone()
+                second_segment: y.clone(),
+                pore_diameter: Diameter(1.0),
             });
         });
 }
@@ -229,6 +257,39 @@ fn apply_input_currents(
     }
 }
 
+fn apply_junction_currents(
+    commands: Commands,
+    mut junctions_query: Query<&Junction>,
+    mut segments_query: Query<(&Segment, &Geometry, &Membrane, &mut MembraneVoltage)>,
+    env: Res<Env>,
+) {
+    let interval_seconds = env.interval.0;
+    for Junction {first_segment, second_segment, pore_diameter} in &mut junctions_query {
+        let results = segments_query.get_many_mut([first_segment.clone(), second_segment.clone()]);
+        match results {
+            Ok([(_,geom1,membrane1, mut vm1), (_,geom2, membrane2, mut vm2)]) => {
+                let capacitance1 = membrane1.0.capacitance.0 * geom1.surface_area();
+                let capacitance2 = membrane2.0.capacitance.0 * geom2.surface_area();
+                let mutual_conductance = pore_diameter.0 * std::f32::consts::PI * CONDUCTANCE_PER_SQUARE_CM;
+                let first_to_second_current = mutual_conductance * (vm1.0.0 - vm2.0.0) * 1e-3;
+                vm1.0.0 -= first_to_second_current / capacitance1 * interval_seconds;
+                vm2.0.0 += first_to_second_current / capacitance2 * interval_seconds;
+            },
+            Ok(_) => panic!("wrong number of results"),
+            Err(e) => panic!("Other error {e}"),
+
+        }
+    }
+}
+
+fn apply_voltage_to_materials(
+    membrane_materials: Res<MembraneMaterials>,
+    mut query: Query<(&MembraneVoltage, &mut Handle<StandardMaterial>)>
+) {
+    for (v, mut material) in &mut query {
+        *material = membrane_materials.from_voltage(&v.0);
+    }
+}
 
 fn print_voltages(
     timestamp: Res<Timestamp>,
@@ -243,8 +304,43 @@ fn print_voltages(
     // let fps = counts.n_print as f64 / time.elapsed_seconds_f64();
     if stdout_render_timer.timer.just_finished() {
         // println!("{:.6} Counts: {counts:?}. FPS: {}", timestamp.0, fps);
-        for membrane_voltage in &query {
-            println!("SimulationTime: {} ms. Voltage: {membrane_voltage}", counts.n_print / 100 );
+        if let Some(membrane_voltage) = &query.iter().next() {
+            println!("SimulationTime: {} ms. First Voltage: {membrane_voltage}", counts.n_print / 100 );
         }
+        println!("");
+    }
+}
+
+
+#[derive(Resource)]
+pub struct MembraneMaterials {
+    pub handles: Vec<Handle<StandardMaterial>>,
+    pub voltage_range: (MilliVolts,MilliVolts),
+    pub len: usize,
+}
+
+impl FromWorld for MembraneMaterials {
+  fn from_world(world: &mut World) -> Self {
+      let mut material_assets = world.get_resource_mut::<Assets<StandardMaterial>>().expect("Can get Assets");
+      let len = 100;
+      let voltage_range = (MilliVolts(-100.0), MilliVolts(100.0));
+      let handles = (0..len).map(|i| {
+          let intensity_range = 1.0;
+          let intensity = i as f32 / len as f32 * intensity_range;
+          let color = Color::rgb(intensity, intensity, intensity);
+          let handle = material_assets.add(color.into());
+          handle
+      }).collect();
+      MembraneMaterials { handles, voltage_range, len}
+  }
+}
+
+impl MembraneMaterials {
+
+    pub fn from_voltage(&self, v: &MilliVolts) -> Handle<StandardMaterial> {
+        let v_min = self.voltage_range.0.0;
+        let v_max = self.voltage_range.1.0;
+        let index = (((v.0 - v_min) / (v_max - v_min)) * self.len as f32) as usize;
+        self.handles[index].clone()
     }
 }

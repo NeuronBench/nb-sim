@@ -69,6 +69,7 @@ pub mod examples {
     use crate::dimension::{Diameter, MicroAmpsPerSquareCm};
     use crate::neuron::segment::examples::{giant_squid_axon, simple_leak};
     use crate::neuron::Neuron;
+    use crate::neuron::segment::Segment;
     pub fn squid_with_passive_attachment() -> Neuron {
         let active_segment = giant_squid_axon();
         let mut active_segment_2 = giant_squid_axon();
@@ -76,14 +77,19 @@ pub mod examples {
         let passive_segment = simple_leak();
         let junction_diameter = active_segment.geometry.diameter.clone();
         // let no_junction = Diameter(0.0);
-        Neuron {
-            segments: vec![
+        let some_segments : Vec<Segment> = vec![
                 active_segment,
                 passive_segment.clone(),
                 active_segment_2.clone(),
                 passive_segment,
                 active_segment_2,
-            ],
+            ];
+        let mut segments = vec![];
+        for _ in 0..300 {
+            segments.extend(some_segments.clone());
+        };
+        Neuron {
+            segments: segments,
             junctions: vec![
                 (0, 1, junction_diameter.clone()),
                 (1, 2, junction_diameter.clone()),

@@ -29,6 +29,12 @@ pub struct Geometry {
     pub length: f32,
 }
 
+impl Geometry {
+    pub fn surface_area(&self) -> f32 {
+        self.diameter.0 * PI * self.length
+    }
+}
+
 impl Segment {
     pub fn surface_area(&self) -> f32 {
         (self.geometry.diameter.0) * PI * self.geometry.length
