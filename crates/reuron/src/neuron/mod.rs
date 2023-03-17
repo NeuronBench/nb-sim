@@ -9,12 +9,20 @@ use crate::constants::CONDUCTANCE_PER_SQUARE_CM;
 use crate::dimension::{Diameter, Interval, Kelvin, MilliVolts};
 use crate::neuron::solution::Solution;
 
+use bevy::prelude::{Component, Entity};
 use std::f32::consts::PI;
 
 #[derive(Clone, Debug)]
 pub struct Neuron {
     pub segments: Vec<segment::Segment>,
     pub junctions: Vec<(usize, usize, Diameter)>,
+}
+
+#[derive(Component)]
+pub struct Junction {
+    pub first_segment: Entity,
+    pub second_segment: Entity,
+    pub pore_diameter: Diameter,
 }
 
 impl Neuron {

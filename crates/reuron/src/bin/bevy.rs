@@ -18,7 +18,7 @@ pub fn main() {
         .add_system(bevy::window::close_on_esc)
         .add_startup_system(setup_scene)
         .add_startup_system(setup_swc_neuron)
-        .insert_resource(ClearColor(Color::rgb(0.3,0.2,0.2)))
+        .insert_resource(ClearColor(Color::rgb(0.2,0.2,0.2)))
         .run();
 }
 
@@ -64,7 +64,7 @@ fn setup_scene(
     });
 
     commands.spawn((Camera3dBundle {
-        transform: Transform::from_xyz(-100.0,100.5, 500.0).looking_at(Vec3::ZERO, Vec3::Y),
+        transform: Transform::from_xyz(-400.0,400.5, 2000.0).looking_at(Vec3::ZERO, Vec3::Y),
         ..default()
     }, MyCamera));
 }

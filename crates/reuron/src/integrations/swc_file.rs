@@ -4,9 +4,11 @@ use std::fs;
 use std::path::Path;
 use std::collections::{HashSet, HashMap};
 
-use crate::dimension::{FaradsPerSquareCm, MilliVolts, Diameter};
+use crate::dimension::{FaradsPerSquareCm, MilliVolts, Diameter, MicroAmpsPerSquareCm};
 use crate::neuron::membrane::{self, Membrane, MembraneChannel, MembraneVoltage, MembraneMaterials};
-use crate::neuron::segment::{ecs::Segment, Geometry};
+use crate::neuron::Junction;
+use crate::neuron::segment::{ecs::Segment, ecs::InputCurrent, Geometry};
+use crate::neuron::solution::EXAMPLE_CYTOPLASM;
 use crate::neuron::channel;
 
 #[derive(Clone, Debug)]
@@ -55,7 +57,7 @@ impl SwcFile {
         let microns_to_screen = 1.0;
         let entry_map = self.as_map();
         let soma = self.soma().expect("Soma should exist");
-        let mut entities : HashMap<i32, Entity> = HashMap::new();
+        let mut entities_and_parents : HashMap<i32, (Entity, i32, Diameter)> = HashMap::new();
         let mut children_map = self.get_children();
         // let mut previous_segment = None;
         for e in self.entries.iter() {
@@ -92,7 +94,9 @@ impl SwcFile {
                 None => dendrite_membrane(),
             };
             let look_target = match entry_map.get(parent) {
-                None => Vec3::ZERO,
+                None => {
+                    Vec3::ZERO
+                },
                 Some(p) => {
                     let p_x = (p.x_microns - soma.x_microns) * microns_to_screen;
                     let p_y = (p.y_microns - soma.y_microns) * microns_to_screen;
@@ -100,47 +104,68 @@ impl SwcFile {
                     Vec3::new(p_x, p_y, p_z)
                 }
             };
+            let mut transform = Transform::from_xyz(x_screen,y_screen,z_screen);
+            transform.look_at(look_target, Vec3::Y);
+            transform.rotate_local_x(std::f32::consts::PI / 2.0);
+            let input_current = if e.id > 3000 {
+                MicroAmpsPerSquareCm(1.0)
+            } else {
+                MicroAmpsPerSquareCm(-10.00)
+            };
             let entity = commands.spawn(
                 (Segment,
+                 EXAMPLE_CYTOPLASM,
                  membrane,
                  MembraneVoltage(v0.clone()),
                  Geometry {
                      diameter: Diameter(radius_cm * 2.0),
                      length: length_cm,
                  },
+                 InputCurrent(input_current),
                  PbrBundle {
                      mesh: meshes.add(shape::Cylinder {
-                         radius: radius_screen,
+                         radius: radius_screen * 5.0,
                          height: length_screen,
                          resolution: 12,
                          segments:4,
                      }.into()),
                      material: materials.from_voltage(&v0),
-                     transform: Transform::from_xyz(x_screen, y_screen, z_screen).looking_at(
-                         look_target,
-                         Vec3::Y
-                     ),
+                     transform,
                      ..default()
                  }
                 )
             ).id();
-            println!("spawned swc entity: {x_screen} {y_screen} {z_screen}");
-            entities.insert(id.clone(), entity);
+            println!("inserting entry {:?}", id);
+            entities_and_parents.insert(id.clone(), (entity, e.parent, Diameter(radius_cm * 2.0)));
         }
-        entities.get(&1).expect("entity 1 should be the soma").clone()
+
+        for (entry_id, (entity, parent_id, diameter)) in entities_and_parents.iter() {
+            match entities_and_parents.get(&parent_id) {
+                None => { println!("Entry {:?} with parent {:?} has no parent entry", entry_id, parent_id); },
+                Some((parent_entity,_,parent_diameter)) => {
+                    let d = Diameter( diameter.0.min(parent_diameter.0) );
+                    // println!("d: {:?}", d2);
+                    // let d = Diameter(0.0001);
+                    commands.spawn(Junction {first_segment: parent_entity.clone(), second_segment: entity.clone(), pore_diameter: d});
+                }
+            }
+        }
+
+        entities_and_parents.get(&1).expect("entity 1 should be the soma").0.clone()
     }
 
-    pub fn simplify(self) -> Self {
+    pub fn simplify(mut self) -> Self {
 
-        let children_map = self.get_children();
-        let entries_map = self.as_map().clone();
+        let entries_copy = self.clone();
+        let children_map = entries_copy.get_children();
+        let entries_map = entries_copy.as_map();
         let should_keep : HashSet<i32> = self.entries.iter().filter_map(|e| {
             // Keep the soma.
             let is_first = e.id == 1;
             // Keep all branches and leaves (nodes with multiple children or zero children).
             let is_branch_or_leaf = !children_map.get(&e.id).map_or(false, |l| l.len() == 1);
             // Keep 1/10 of all nodes no matter what.
-            let is_downsample = e.id % 10 == 0;
+            let is_downsample = e.id % 3 == 0;
             if is_first || is_branch_or_leaf || is_downsample {
                 Some(e.id)
             } else {
@@ -151,9 +176,8 @@ impl SwcFile {
         // For each entry, check if its parent is tombstoned.
         // If so, set the entry's parent to its current grandparent.
         // Repeat this process until the current parent is not tombstoned.
-        for (mut entry) in self.entries.clone().into_iter() {
+        for (mut entry) in self.entries.iter_mut() {
             while !(should_keep.contains(&entry.parent) || entry.parent == -1) {
-                println!("id {} has parent {} that is not should_keep", entry.id, entry.parent);
                 entry.parent = entries_map.get(&entry.parent).expect("parent should exist").parent;
             }
         }
@@ -271,7 +295,7 @@ fn soma_membrane() -> Membrane {
 }
 
 fn axon_membrane() -> Membrane {
-    let v0 = MilliVolts(-80.0);
+    let v0 = MilliVolts(-88.0);
     Membrane {
         capacitance: FaradsPerSquareCm(1e-6),
         membrane_channels: vec![

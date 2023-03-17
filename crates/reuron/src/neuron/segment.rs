@@ -23,8 +23,13 @@ pub struct Segment {
 }
 
 pub mod ecs {
+    use crate::dimension::MicroAmpsPerSquareCm;
+
     #[derive(bevy::ecs::component::Component)]
     pub struct Segment;
+
+    #[derive(bevy::ecs::component::Component)]
+    pub struct InputCurrent(pub MicroAmpsPerSquareCm);
 }
 
 /// A cylindical neuron segment shape.

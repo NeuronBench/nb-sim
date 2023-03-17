@@ -143,7 +143,7 @@ impl FromWorld for MembraneMaterials {
       let handles = (0..len).map(|i| {
           let intensity_range = 1.0;
           let intensity = i as f32 / len as f32 * intensity_range;
-          let color = Color::rgb(intensity, intensity, intensity);
+          let color = Color::rgb(intensity, 0.0, 1.0 - intensity);
           let handle = material_assets.add(color.into());
           handle
       }).collect();
@@ -157,7 +157,7 @@ impl MembraneMaterials {
         let v_min = self.voltage_range.0.0;
         let v_max = self.voltage_range.1.0;
         let index = (((v.0 - v_min) / (v_max - v_min)) * self.len as f32) as usize;
-        self.handles[index].clone()
+        self.handles[index.min(self.len - 1)].clone()
     }
 }
 #[cfg(test)]

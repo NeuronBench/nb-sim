@@ -5,7 +5,8 @@ use std::time::Duration;
 
 use crate::dimension::{MicroAmpsPerSquareCm, FaradsPerSquareCm, MilliVolts, Diameter, Interval, Kelvin, Timestamp};
 use crate::constants::{BODY_TEMPERATURE, CONDUCTANCE_PER_SQUARE_CM};
-use crate::neuron::segment::{Geometry, ecs::Segment};
+use crate::neuron::Junction;
+use crate::neuron::segment::{Geometry, ecs::Segment, ecs::InputCurrent};
 use crate::neuron::solution::{Solution, INTERSTICIAL_FLUID, EXAMPLE_CYTOPLASM};
 use crate::neuron::membrane::{self, Membrane, MembraneMaterials, MembraneVoltage};
 use crate::neuron::channel::{self, ca_reversal, cl_reversal, k_reversal, na_reversal};
@@ -22,7 +23,7 @@ impl Plugin for ReuronPlugin {
                 timer: Timer::new(Duration::from_millis(100), TimerMode::Repeating)
             })
             .insert_resource(SystemCounts::zero())
-            .add_startup_system(create_example_neuron)
+            // .add_startup_system(create_example_neuron)
             .add_system(update_timestamp)
             .add_system(apply_channel_currents)
             .add_system(update_membrane_conductances)
@@ -63,16 +64,6 @@ pub struct SegmentBundle {
     pub pbr: PbrBundle,
 }
 
-#[derive(Component)]
-pub struct Junction {
-    first_segment: Entity,
-    second_segment: Entity,
-    pore_diameter: Diameter,
-}
-
-#[derive(Component)]
-pub struct InputCurrent(MicroAmpsPerSquareCm);
-
 impl Display for MembraneVoltage {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
       write!(f, "{} mV", self.0.0)
@@ -93,7 +84,7 @@ fn default_env() -> Env {
     Env {
         temperature: BODY_TEMPERATURE,
         extracellular_solution: INTERSTICIAL_FLUID,
-        interval: Interval(20e-6)
+        interval: Interval(10e-6)
     }
 }
 
@@ -267,8 +258,12 @@ fn apply_junction_currents(
                 let capacitance2 = membrane2.capacitance.0 * geom2.surface_area();
                 let mutual_conductance = pore_diameter.0 * std::f32::consts::PI * CONDUCTANCE_PER_SQUARE_CM;
                 let first_to_second_current = mutual_conductance * (vm1.0.0 - vm2.0.0) * 1e-3;
-                vm1.0.0 -= first_to_second_current / capacitance1 * interval_seconds;
-                vm2.0.0 += first_to_second_current / capacitance2 * interval_seconds;
+                println!("cap1: {capacitance1}, cap2: {capacitance2} vm1:{:?} vm2:{:?}", vm1.0.0, vm2.0.0);
+                let dv_dt1 = -1.0 * first_to_second_current / capacitance1;
+                let dv_dt2= -1.0 * first_to_second_current / capacitance1;
+                vm1.0.0 += dv_dt1 * 0.001 * iinterval_seconds;
+                vm2.0.0 += dv_dt2 * 0.001 * interval_seconds;
+                println!("dv1: {:?} mv, dv2: {:?} mv", dv_dt1, dv_dt2);
             },
             Ok(_) => panic!("wrong number of results"),
             Err(e) => panic!("Other error {e}"),
@@ -301,6 +296,12 @@ fn print_voltages(
         // println!("{:.6} Counts: {counts:?}. FPS: {}", timestamp.0, fps);
         if let Some(membrane_voltage) = &query.iter().next() {
             println!("SimulationTime: {} ms. First Voltage: {membrane_voltage}", timestamp.0 );
+        }
+        if let Some(membrane_voltage) = &query.iter().next() {
+            println!("SimulationTime: {} ms. Second Voltage: {membrane_voltage}", timestamp.0 );
+        }
+        if let Some(membrane_voltage) = &query.iter().next() {
+            println!("SimulationTime: {} ms. Third Voltage: {membrane_voltage}", timestamp.0 );
         }
         println!("");
     }
