@@ -116,7 +116,7 @@ fn create_example_neuron(
     materials: Res<MembraneMaterials>,
 ) {
     let v0 = MilliVolts(-70.0);
-    let mut mk_segment = |i: u32| SegmentBundle {
+    let mut mk_segment = |col:u32, i: u32| SegmentBundle {
         intracellular_solution: EXAMPLE_CYTOPLASM,
         membrane_voltage: MembraneVoltage(v0.clone()),
         geometry: Geometry { diameter: Diameter(1.0), length: 1.0 },
@@ -128,7 +128,7 @@ fn create_example_neuron(
                 segments:2,
             }.into()),
             material: materials.from_voltage(&MilliVolts(-80.0)),
-            transform: Transform::from_xyz(0.0, 1.0 * i as f32, 0.0),
+            transform: Transform::from_xyz(5.0 * col as f32, 1.0 * i as f32, 0.0),
             ..default()
             }
     };
@@ -153,29 +153,34 @@ fn create_example_neuron(
         ]
     };
     let segments : Vec<Entity> =
-        (0..400)
-        .map(|i| {
-            let segment = commands.spawn(
-                (Segment
-                , mk_segment(i)
-                , Membrane(membrane.clone())
-                )).id();
-            let input_current = if i == 0 {10.0} else {-1.0};
-            commands
-                .entity(segment)
-                .insert(InputCurrent(MicroAmpsPerSquareCm(input_current)));
-            segment
+        (0..10).map(|col| {
+            let col_segments = (0..40)
+                .map(|i| {
+                    let segment = commands.spawn(
+                        (Segment
+                            , mk_segment(col, i)
+                            , Membrane(membrane.clone())
+                        )).id();
+                    let input_current = if i == 0 {30.0 * col as f32 as f32} else {-1.0};
+                    commands
+                        .entity(segment)
+                        .insert(InputCurrent(MicroAmpsPerSquareCm(input_current)));
+                    segment
+                }).collect::<Vec<_>>();
+
+            zip(col_segments.clone(), col_segments[1..].iter())
+                .into_iter()
+                .for_each(|(x,y)| {
+                    commands.spawn(Junction{
+                        first_segment: x,
+                        second_segment: y.clone(),
+                        pore_diameter: Diameter(1.0),
+                    });
+                });
+            col_segments
         })
+        .flatten()
         .collect();
-    zip(segments.clone(), segments[1..].iter())
-        .into_iter()
-        .for_each(|(x,y)| {
-            commands.spawn(Junction{
-                first_segment: x,
-                second_segment: y.clone(),
-                pore_diameter: Diameter(1.0),
-            });
-        });
 }
 
 fn update_membrane_conductances(

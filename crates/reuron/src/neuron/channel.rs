@@ -323,6 +323,26 @@ pub mod common_channels {
             inactivation_parameters: None,
         };
 
+        /// This is just a made-up channel. Not based on
+        /// any real numbers.
+        pub const CA_CHANNEL: ChannelBuilder = ChannelBuilder {
+            ion_selectivity: CA,
+            activation_parameters: Some(Gating {
+                gates: 2,
+                steady_state_magnitude: Magnitude {
+                    v_at_half_max: MilliVolts(0.0),
+                    slope: 15.0
+                },
+                time_constant: TimeConstant {
+                    v_at_max_tau: MilliVolts(0.0),
+                    c_base: 0.04e-3,
+                    c_amp: 0.5e-3,
+                    sigma: 30.0,
+                },
+            }),
+            inactivation_parameters: None,
+        };
+
         /// The Gaint Squid axon's leak current.
         pub const LEAK_CHANNEL: ChannelBuilder = ChannelBuilder {
             ion_selectivity: CL,
