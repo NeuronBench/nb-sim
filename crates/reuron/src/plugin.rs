@@ -23,13 +23,15 @@ impl Plugin for ReuronPlugin {
                 timer: Timer::new(Duration::from_millis(100), TimerMode::Repeating)
             })
             .insert_resource(SystemCounts::zero())
-            // .add_startup_system(create_example_neuron)
+            .add_startup_system(create_example_neuron)
             .add_system(update_timestamp)
+
             .add_system(apply_channel_currents)
             .add_system(update_membrane_conductances)
             .add_system(apply_input_currents)
             .add_system(apply_junction_currents)
             .add_system(apply_voltage_to_materials)
+
             .add_system(print_voltages);
     }
 }
@@ -258,10 +260,10 @@ fn apply_junction_currents(
                 let capacitance2 = membrane2.capacitance.0 * geom2.surface_area();
                 let mutual_conductance = pore_diameter.0 * std::f32::consts::PI * CONDUCTANCE_PER_SQUARE_CM;
                 let first_to_second_current = mutual_conductance * (vm1.0.0 - vm2.0.0) * 1e-3;
-                println!("cap1: {capacitance1}, cap2: {capacitance2} vm1:{:?} vm2:{:?}", vm1.0.0, vm2.0.0);
+                // println!("cap1: {capacitance1}, cap2: {capacitance2} vm1:{:?} vm2:{:?}", vm1.0.0, vm2.0.0);
                 let dv_dt1 = -1.0 * first_to_second_current / capacitance1;
                 let dv_dt2= -1.0 * first_to_second_current / capacitance1;
-                vm1.0.0 += dv_dt1 * 0.001 * iinterval_seconds;
+                vm1.0.0 += dv_dt1 * 0.001 * interval_seconds;
                 vm2.0.0 += dv_dt2 * 0.001 * interval_seconds;
                 println!("dv1: {:?} mv, dv2: {:?} mv", dv_dt1, dv_dt2);
             },

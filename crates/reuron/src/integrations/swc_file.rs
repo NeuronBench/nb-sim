@@ -165,7 +165,7 @@ impl SwcFile {
             // Keep all branches and leaves (nodes with multiple children or zero children).
             let is_branch_or_leaf = !children_map.get(&e.id).map_or(false, |l| l.len() == 1);
             // Keep 1/10 of all nodes no matter what.
-            let is_downsample = e.id % 3 == 0;
+            let is_downsample = e.id % 20 == 0;
             if is_first || is_branch_or_leaf || is_downsample {
                 Some(e.id)
             } else {
@@ -189,6 +189,22 @@ impl SwcFile {
             .collect();
         SwcFile {
             entries: filtered_entries
+        }
+    }
+
+    pub fn sample() -> Self {
+        let mk_entry = |id: i32| -> SwcEntry {
+            SwcEntry { id: id,
+                       x_microns: 0.0,
+                       y_microns: 0.0,
+                       z_microns: 10000.0 * id as f32,
+                       radius_microns: 10000.0,
+                       segment_type: Some(if id == 1 { SegmentType::Soma } else {SegmentType::Axon}),
+                       parent: if id == 1 { -1  } else { id - 1 }
+                     }
+        };
+        SwcFile {
+            entries: (1..10).map(mk_entry).collect()
         }
     }
 }

@@ -29,8 +29,9 @@ fn setup_swc_neuron(
     segments_query: Query<(&Segment, &GlobalTransform)>,
     materials: Res<MembraneMaterials>,
 ) {
-  let swc_neuron = SwcFile::read_file("/Users/greghale/Downloads/H17.03.010.11.13.06_651089035_m.swc").expect("should parse");
-  let soma_entity = swc_neuron.simplify().spawn(commands, meshes, materials);
+  // let swc_neuron = SwcFile::read_file("/home/greghale/Downloads/H17.03.010.11.13.06_651089035_m.swc").expect("should parse");
+  // let soma_entity = swc_neuron.simplify().spawn(commands, meshes, materials);
+  // let soma_entity = SwcFile::sample().spawn(commands, meshes, materials);
   // let soma_transform = segments_query.get_component::<GlobalTransform>(soma_entity).expect("soma exists");
   // println!("Soma translation: {:?}", soma_transform.translation());
   // let (_, mut camera_transform) = camera_query.get_single().expect("just one camera");
