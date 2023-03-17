@@ -1,16 +1,20 @@
 // use crate::constants::{gas_constant, inverse_faraday};
+use bevy::prelude::{Assets, Color, Component, FromWorld, Handle, Resource, StandardMaterial, World};
 use crate::dimension::{FaradsPerSquareCm, MilliVolts};
 use crate::neuron::channel::Channel;
 
 /// The more static properties of a cell membrane: its permeability to
 /// various ions. This may change with the development of the neuron,
 /// but it is fairly static, compared to [`MembraneChannelState`].
-#[derive(Clone, Debug)]
+#[derive(Clone, Component, Debug)]
 pub struct Membrane {
     /// The concentration of channels in this membrane.
     pub membrane_channels: Vec<MembraneChannel>,
     pub capacitance: FaradsPerSquareCm,
 }
+
+#[derive(Component)]
+pub struct MembraneVoltage(pub MilliVolts);
 
 impl Membrane {
     pub fn current_per_square_cm(
@@ -123,6 +127,39 @@ impl MembraneChannel {
     }
 }
 
+/// A collection of segment PBR materials for Bevy rendering.
+#[derive(Resource)]
+pub struct MembraneMaterials {
+    pub handles: Vec<Handle<StandardMaterial>>,
+    pub voltage_range: (MilliVolts,MilliVolts),
+    pub len: usize,
+}
+
+impl FromWorld for MembraneMaterials {
+  fn from_world(world: &mut World) -> Self {
+      let mut material_assets = world.get_resource_mut::<Assets<StandardMaterial>>().expect("Can get Assets");
+      let len = 100;
+      let voltage_range = (MilliVolts(-100.0), MilliVolts(100.0));
+      let handles = (0..len).map(|i| {
+          let intensity_range = 1.0;
+          let intensity = i as f32 / len as f32 * intensity_range;
+          let color = Color::rgb(intensity, intensity, intensity);
+          let handle = material_assets.add(color.into());
+          handle
+      }).collect();
+      MembraneMaterials { handles, voltage_range, len}
+  }
+}
+
+impl MembraneMaterials {
+
+    pub fn from_voltage(&self, v: &MilliVolts) -> Handle<StandardMaterial> {
+        let v_min = self.voltage_range.0.0;
+        let v_max = self.voltage_range.1.0;
+        let index = (((v.0 - v_min) / (v_max - v_min)) * self.len as f32) as usize;
+        self.handles[index].clone()
+    }
+}
 #[cfg(test)]
 mod tests {
     use super::*;

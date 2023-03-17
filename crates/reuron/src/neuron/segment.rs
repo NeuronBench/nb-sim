@@ -22,6 +22,11 @@ pub struct Segment {
     pub synaptic_current: MicroAmps,
 }
 
+pub mod ecs {
+    #[derive(bevy::ecs::component::Component)]
+    pub struct Segment;
+}
+
 /// A cylindical neuron segment shape.
 #[derive(Clone, Component, Debug)]
 pub struct Geometry {

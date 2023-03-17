@@ -2,13 +2,11 @@ use axum::{routing::post, Router, extract::Extension};
 use reuron::dimension::{Interval, Timestamp, MilliVolts, MicroAmpsPerSquareCm};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime};
-use serde::Deserialize;
 use serde_dhall;
 
 use crate::neuron::solution::INTERSTICIAL_FLUID;
 use reuron::constants::BODY_TEMPERATURE;
-use reuron::neuron::{self, Neuron};
-use reuron::neuron::segment::examples::giant_squid_axon;
+use reuron::neuron;
 use reuron_commands::*;
 
 use toy_runner::ring_buffer::RingBuffer;
@@ -151,8 +149,6 @@ async fn run(state: Arc<Mutex<State>>) {
             let next_target_simulation_time =
                 most_recent_simulation_wall_clock_time + inter_batch_wall_clock_interval;
 
-            let batch_start_time = SystemTime::now();
-
             let interval = state.simulation_interval.clone();
             for _ in 0..state.simulation_batch_size {
                 state.steps += 1;
@@ -181,6 +177,7 @@ async fn run(state: Arc<Mutex<State>>) {
                 println!("warning: clock is behind by {:?}", i);
             }
             Err(e) => {
+                println!("Clock error: {e}");
             }
         };
     }

@@ -1,9 +1,12 @@
 use bevy::prelude::*;
-use bevy::diagnostic::{LogDiagnosticsPlugin, FrameTimeDiagnosticsPlugin};
+// use bevy::diagnostic::{LogDiagnosticsPlugin, FrameTimeDiagnosticsPlugin};
 use bevy::pbr::CascadeShadowConfigBuilder;
 use std::f32::consts::PI;
 
 use reuron::plugin::ReuronPlugin;
+use reuron::integrations::swc_file::SwcFile;
+use reuron::neuron::segment::ecs::Segment;
+use reuron::neuron::membrane::MembraneMaterials;
 
 #[derive(Component)]
 struct MyCamera;
@@ -11,19 +14,32 @@ struct MyCamera;
 pub fn main() {
   App::new()
         .add_plugins(DefaultPlugins)
-//         .add_plugin(LogDiagnosticsPlugin::default())
-//         .add_plugin(FrameTimeDiagnosticsPlugin::default())
         .add_plugin(ReuronPlugin)
         .add_system(bevy::window::close_on_esc)
         .add_startup_system(setup_scene)
+        .add_startup_system(setup_swc_neuron)
         .insert_resource(ClearColor(Color::rgb(0.3,0.2,0.2)))
         .run();
 }
 
-fn setup_scene(
+fn setup_swc_neuron(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>
+    mut camera_query: Query<(&MyCamera, &mut Transform)>,
+    segments_query: Query<(&Segment, &GlobalTransform)>,
+    materials: Res<MembraneMaterials>,
+) {
+  let swc_neuron = SwcFile::read_file("/Users/greghale/Downloads/H17.03.010.11.13.06_651089035_m.swc").expect("should parse");
+  let soma_entity = swc_neuron.simplify().spawn(commands, meshes, materials);
+  // let soma_transform = segments_query.get_component::<GlobalTransform>(soma_entity).expect("soma exists");
+  // println!("Soma translation: {:?}", soma_transform.translation());
+  // let (_, mut camera_transform) = camera_query.get_single().expect("just one camera");
+  // camera_transform = &camera_transform.looking_at(soma_transform.translation(), Vec3::Y);
+}
+
+
+fn setup_scene(
+    mut commands: Commands,
 ) {
     commands.insert_resource(AmbientLight {
         color: Color::rgb(1.0,1.0,1.0),
@@ -48,7 +64,7 @@ fn setup_scene(
     });
 
     commands.spawn((Camera3dBundle {
-        transform: Transform::from_xyz(-50.0,50.5, 100.0).looking_at(Vec3::ZERO, Vec3::Y),
+        transform: Transform::from_xyz(-100.0,100.5, 500.0).looking_at(Vec3::ZERO, Vec3::Y),
         ..default()
     }, MyCamera));
 }
