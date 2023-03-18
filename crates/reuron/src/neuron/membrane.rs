@@ -144,7 +144,9 @@ impl FromWorld for MembraneMaterials {
           let intensity_range = 1.0;
           let intensity = i as f32 / len as f32 * intensity_range;
           let color = Color::rgb(intensity, 0.0, 1.0 - intensity);
-          let handle = material_assets.add(color.into());
+          let mut material : StandardMaterial = color.clone().into();
+          material.emissive = Color::rgb_linear(93.99 * intensity, 90.32 * intensity,2.0 * intensity);
+          let handle = material_assets.add(material);
           handle
       }).collect();
       MembraneMaterials { handles, voltage_range, len}

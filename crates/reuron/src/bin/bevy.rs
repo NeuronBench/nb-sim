@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy::core_pipeline::bloom::BloomSettings;
 // use bevy::diagnostic::{LogDiagnosticsPlugin, FrameTimeDiagnosticsPlugin};
 use bevy::pbr::CascadeShadowConfigBuilder;
 use bevy_mod_picking::{
@@ -71,8 +72,20 @@ fn setup_scene(
         ..default()
     });
 
-    commands.spawn((Camera3dBundle {
-        transform: Transform::from_xyz(-400.0,400.5, 2000.0).looking_at(Vec3::ZERO, Vec3::Y),
-        ..default()
-    }, MyCamera, PickingCameraBundle::default()));
+    commands.spawn(
+        (Camera3dBundle {
+            transform: Transform::from_xyz(-400.0,400.5, 2000.0).looking_at(Vec3::ZERO, Vec3::Y),
+            camera: Camera {
+                hdr: true,
+                ..default()
+            },
+            ..default()
+            },
+         MyCamera,
+         PickingCameraBundle::default(),
+         BloomSettings {
+             intensity: 0.5,
+             ..default()
+         }
+        ));
 }
