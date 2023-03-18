@@ -35,10 +35,25 @@ fn setup_swc_neuron(
     mut meshes: ResMut<Assets<Mesh>>,
     mut camera_query: Query<(&MyCamera, &mut Transform)>,
     segments_query: Query<(&Segment, &GlobalTransform)>,
-    materials: Res<MembraneMaterials>,
+    mut materials: Res<MembraneMaterials>,
 ) {
-  let swc_neuron = SwcFile::read_file("/Users/greghale/Downloads/H17.03.010.11.13.06_651089035_m.swc").expect("should parse");
-  let soma_entity = swc_neuron.simplify().spawn(commands, meshes, materials);
+  let swc_neuron_1 = SwcFile::read_file("/Users/greghale/Downloads/H17.03.010.11.13.06_651089035_m.swc").expect("should parse");
+  let swc_neuron_2 = SwcFile::read_file("/Users/greghale/Downloads/H17.03.010.11.13.01_656411100_m.swc").expect("should parse");
+
+  let location_cm = Vec3::new(0.0, 0.0, 0.0);
+  let soma_entity = swc_neuron_1.clone().simplify().spawn(location_cm, &mut commands, &mut meshes, &mut materials);
+
+  let location_cm = Vec3::new(500.0, 0.0, 0.0);
+  let soma_entity = swc_neuron_2.clone().simplify().spawn(location_cm, &mut commands, &mut meshes, &mut materials);
+
+  let location_cm = Vec3::new(500.0, 800.0, 0.0);
+  let soma_entity = swc_neuron_1.simplify().spawn(location_cm, &mut commands, &mut meshes, &mut materials);
+
+  for i in 0..10 {
+    let location_cm = Vec3::new(500.0, 200.0, -2000.0 + 300.0 * i as f32);
+    let soma_entity = swc_neuron_2.clone().simplify().spawn(location_cm, &mut commands, &mut meshes, &mut materials);
+  }
+
   // let soma_entity = SwcFile::sample().spawn(commands, meshes, materials);
   // let soma_transform = segments_query.get_component::<GlobalTransform>(soma_entity).expect("soma exists");
   // println!("Soma translation: {:?}", soma_transform.translation());

@@ -11,6 +11,7 @@ use crate::neuron::Junction;
 use crate::neuron::segment::{ecs::Segment, ecs::InputCurrent, Geometry};
 use crate::neuron::solution::EXAMPLE_CYTOPLASM;
 use crate::neuron::channel;
+use crate::neuron::ecs::Neuron;
 
 #[derive(Clone, Debug)]
 pub struct SwcFile {
@@ -50,9 +51,10 @@ impl SwcFile {
 
     pub fn spawn(
         &self,
-        mut commands: Commands,
-        mut meshes: ResMut<Assets<Mesh>>,
-        materials: Res<MembraneMaterials>
+        soma_location_cm: Vec3,
+        mut commands: &mut Commands,
+        mut meshes: &mut ResMut<Assets<Mesh>>,
+        materials: &mut Res<MembraneMaterials>,
     ) -> Entity {
         let v0 = MilliVolts(-80.0);
         let microns_to_screen = 1.0;
@@ -60,7 +62,13 @@ impl SwcFile {
         let soma = self.soma().expect("Soma should exist");
         let mut entities_and_parents : HashMap<i32, (Entity, i32, Diameter)> = HashMap::new();
         let mut children_map = self.get_children();
-        // let mut previous_segment = None;
+        let neuron = commands.spawn(
+            (Neuron,
+             Transform::from_translation(soma_location_cm),
+             GlobalTransform::default(),
+             Visibility::default(),
+             ComputedVisibility::default(),
+            )).id();
         for e in self.entries.iter() {
             let SwcEntry { id,
                            segment_type,
@@ -109,15 +117,21 @@ impl SwcFile {
                     Vec3::new(p_x, p_y, p_z)
                 }
             };
-            let mut transform = Transform::from_xyz(x_screen,y_screen,z_screen);
+
+            let mut transform = Transform::from_xyz(x_screen, y_screen, z_screen);
             transform.look_at(look_target, Vec3::Y);
             transform.rotate_local_x(std::f32::consts::PI / 2.0);
+            transform.translation -= transform.local_y() * length_screen * 0.5;
+
+
+            // shift.mul_transform(transform);
+
             let input_current = if e.segment_type == Some(SegmentType::ApicalDendrite) {
                 MicroAmpsPerSquareCm(-1.0)
             } else {
                 MicroAmpsPerSquareCm(-1.00)
             };
-            let entity = commands.spawn(
+            let segment = commands.spawn(
                 (Segment,
                  EXAMPLE_CYTOPLASM,
                  membrane,
@@ -135,14 +149,14 @@ impl SwcFile {
                          segments:4,
                      }.into()),
                      material: materials.from_voltage(&v0),
-                     transform,
+                     transform: transform,
                      ..default()
                  },
                  PickableBundle::default(),
                 )
             ).id();
-            println!("inserting entry {:?}", id);
-            entities_and_parents.insert(id.clone(), (entity, e.parent, Diameter(1.0)));
+            commands.entity(neuron).push_children(&[segment]);
+            entities_and_parents.insert(id.clone(), (segment, e.parent, Diameter(1.0)));
         }
 
         for (entry_id, (entity, parent_id, diameter)) in entities_and_parents.iter() {
@@ -150,9 +164,12 @@ impl SwcFile {
                 None => { println!("Entry {:?} with parent {:?} has no parent entry", entry_id, parent_id); },
                 Some((parent_entity,_,parent_diameter)) => {
                     let d = Diameter( diameter.0.min(parent_diameter.0) );
-                    // println!("d: {:?}", d2);
-                    // let d = Diameter(0.0001);
-                    commands.spawn(Junction {first_segment: parent_entity.clone(), second_segment: entity.clone(), pore_diameter: d});
+                    let junction = commands.spawn(Junction {
+                        first_segment: parent_entity.clone(),
+                        second_segment: entity.clone(),
+                        pore_diameter: d
+                    }).id();
+                    commands.entity(neuron).push_children(&[junction]);
                 }
             }
         }
@@ -171,7 +188,7 @@ impl SwcFile {
             // Keep all branches and leaves (nodes with multiple children or zero children).
             let is_branch_or_leaf = !children_map.get(&e.id).map_or(false, |l| l.len() == 1);
             // Keep 1/10 of all nodes no matter what.
-            let is_downsample = e.id % 4 == 0;
+            let is_downsample = e.id % 20 == 0;
             if is_first || is_branch_or_leaf || is_downsample {
                 Some(e.id)
             } else {

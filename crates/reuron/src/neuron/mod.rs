@@ -18,6 +18,12 @@ pub struct Neuron {
     pub junctions: Vec<(usize, usize, Diameter)>,
 }
 
+pub mod ecs {
+    use bevy::prelude::Component;
+    #[derive(Component)]
+    pub struct Neuron;
+}
+
 #[derive(Component)]
 pub struct Junction {
     pub first_segment: Entity,
