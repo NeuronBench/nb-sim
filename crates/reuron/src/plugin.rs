@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy_mod_picking::{PickableBundle, PickingEvent};
 use std::iter::zip;
 use std::fmt::{self, Display};
 use std::time::Duration;
@@ -25,6 +26,7 @@ impl Plugin for ReuronPlugin {
             .insert_resource(SystemCounts::zero())
             // .add_startup_system(create_example_neuron)
             .add_system(update_timestamp)
+            .add_system(stimulate_picked_segments)
 
             .add_system(apply_channel_currents)
             .add_system(update_membrane_conductances)
@@ -307,3 +309,57 @@ fn print_voltages(
     }
 }
 
+#[derive(Component)]
+pub struct Stimulator { stimulator_segment: Entity }
+
+fn stimulate_picked_segments(
+    mut commands: Commands,
+    mut events: EventReader<PickingEvent>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    segments_query: Query<(&Segment, &GlobalTransform)>,
+    stimulators_query: Query<&Stimulator>,
+) {
+    for event in events.iter() {
+        match event {
+            PickingEvent::Selection(e) => {},
+            PickingEvent::Hover(e) => {},
+            PickingEvent::Clicked(e) => {
+
+                match segments_query.get(e.clone()) {
+                    Ok((_, segment_transform)) => {
+                        println!("Adding current");
+                        commands.spawn(
+                            (Stimulator { stimulator_segment: e.clone() },
+                             PbrBundle {
+                                mesh: meshes.add(shape::UVSphere{
+                                    radius: 20.0,
+                                    sectors: 20,
+                                    stacks: 20
+                                }.into()),
+                                material: materials.add(Color::rgb(0.5,0.5,0.5).into()),
+                                transform: Transform::from_translation(segment_transform.translation()),
+                                ..default()
+                              },
+                             PickableBundle::default(),
+                            ));
+                        commands.entity(*e).insert(InputCurrent(MicroAmpsPerSquareCm(50.0)));
+                    },
+                    Err(_) => {}
+                }
+                match stimulators_query.get(e.clone()) {
+                    Ok(Stimulator{ stimulator_segment }) => {
+                        match segments_query.get( stimulator_segment.clone() ) {
+                            Ok(segment) => {
+                                commands.entity(stimulator_segment.clone()).remove::<InputCurrent>();
+                                commands.entity(e.clone()).despawn();
+                            }
+                            Err(_) => {}
+                        }
+                    }
+                    Err(_) => {}
+                }
+            }
+        }
+    }
+}

@@ -8,6 +8,7 @@ resolver = "2"
 wasm-bindgen = "^0.2.79"
 csv = "^1.1.6"
 bevy = "0.10.0"
+bevy_mod_picking = { git = "https://github.com/Fincap/bevy_mod_picking", branch = "migrate-bevy-0.10.0" }
 
 [[bin]]
 name = "tmp-demo"

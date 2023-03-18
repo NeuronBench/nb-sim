@@ -745,6 +745,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy_mod_picking"
+version = "0.11.0"
+source = "git+https://github.com/Fincap/bevy_mod_picking?branch=migrate-bevy-0.10.0#670a4b86f53386d1545377130f71a09689444b67"
+dependencies = [
+ "bevy",
+ "bevy_mod_raycast",
+]
+
+[[package]]
+name = "bevy_mod_raycast"
+version = "0.7.0"
+source = "git+https://github.com/soerenmeier/bevy_mod_raycast?branch=bevy-0.10#3ec796f2a891cd86e1d3df0adb3956f9ff4abe65"
+dependencies = [
+ "bevy",
+]
+
+[[package]]
 name = "bevy_pbr"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3313,6 +3330,7 @@ name = "reuron"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "bevy_mod_picking",
  "csv",
  "wasm-bindgen",
 ]

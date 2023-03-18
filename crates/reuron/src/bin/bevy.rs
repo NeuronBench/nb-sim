@@ -1,6 +1,10 @@
 use bevy::prelude::*;
 // use bevy::diagnostic::{LogDiagnosticsPlugin, FrameTimeDiagnosticsPlugin};
 use bevy::pbr::CascadeShadowConfigBuilder;
+use bevy_mod_picking::{
+    DebugCursorPickingPlugin, DebugEventsPickingPlugin, DefaultPickingPlugins, PickableBundle,
+    PickingCameraBundle
+};
 use std::f32::consts::PI;
 
 use reuron::plugin::ReuronPlugin;
@@ -14,6 +18,9 @@ struct MyCamera;
 pub fn main() {
   App::new()
         .add_plugins(DefaultPlugins)
+        .add_plugins(DefaultPickingPlugins)
+        .add_plugin(DebugCursorPickingPlugin)
+        .add_plugin(DebugEventsPickingPlugin)
         .add_plugin(ReuronPlugin)
         .add_system(bevy::window::close_on_esc)
         .add_startup_system(setup_scene)
@@ -29,7 +36,7 @@ fn setup_swc_neuron(
     segments_query: Query<(&Segment, &GlobalTransform)>,
     materials: Res<MembraneMaterials>,
 ) {
-  let swc_neuron = SwcFile::read_file("/home/greghale/Downloads/H17.03.010.11.13.06_651089035_m.swc").expect("should parse");
+  let swc_neuron = SwcFile::read_file("/Users/greghale/Downloads/H17.03.010.11.13.06_651089035_m.swc").expect("should parse");
   let soma_entity = swc_neuron.simplify().spawn(commands, meshes, materials);
   // let soma_entity = SwcFile::sample().spawn(commands, meshes, materials);
   // let soma_transform = segments_query.get_component::<GlobalTransform>(soma_entity).expect("soma exists");
@@ -67,5 +74,5 @@ fn setup_scene(
     commands.spawn((Camera3dBundle {
         transform: Transform::from_xyz(-400.0,400.5, 2000.0).looking_at(Vec3::ZERO, Vec3::Y),
         ..default()
-    }, MyCamera));
+    }, MyCamera, PickingCameraBundle::default()));
 }

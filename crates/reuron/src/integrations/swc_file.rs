@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy_mod_picking::PickableBundle;
 use std::str::FromStr;
 use std::fs;
 use std::path::Path;
@@ -112,7 +113,7 @@ impl SwcFile {
             transform.look_at(look_target, Vec3::Y);
             transform.rotate_local_x(std::f32::consts::PI / 2.0);
             let input_current = if e.segment_type == Some(SegmentType::ApicalDendrite) {
-                MicroAmpsPerSquareCm(30.0)
+                MicroAmpsPerSquareCm(-1.0)
             } else {
                 MicroAmpsPerSquareCm(-1.00)
             };
@@ -136,7 +137,8 @@ impl SwcFile {
                      material: materials.from_voltage(&v0),
                      transform,
                      ..default()
-                 }
+                 },
+                 PickableBundle::default(),
                 )
             ).id();
             println!("inserting entry {:?}", id);
