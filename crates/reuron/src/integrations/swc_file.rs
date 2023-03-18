@@ -81,6 +81,10 @@ impl SwcFile {
             let length_screen = length_cm * 10000.0 * microns_to_screen;
             let radius_cm = radius_microns * 0.0001;
             let radius_screen = radius_cm * 10000.0 * microns_to_screen;
+            println!("x_screen: {:?}", x_screen);
+            println!("y_screen: {:?}", y_screen);
+            println!("z_screen: {:?}", z_screen);
+            println!("radius_screen: {:?}", radius_screen);
             let membrane = match segment_type {
                 Some(SegmentType::Soma) => soma_membrane(),
                 Some(SegmentType::Axon) => if parent.clone() == -1 {
@@ -107,10 +111,10 @@ impl SwcFile {
             let mut transform = Transform::from_xyz(x_screen,y_screen,z_screen);
             transform.look_at(look_target, Vec3::Y);
             transform.rotate_local_x(std::f32::consts::PI / 2.0);
-            let input_current = if e.id > 3000 {
-                MicroAmpsPerSquareCm(1.0)
+            let input_current = if e.segment_type == Some(SegmentType::ApicalDendrite) {
+                MicroAmpsPerSquareCm(30.0)
             } else {
-                MicroAmpsPerSquareCm(-10.00)
+                MicroAmpsPerSquareCm(-1.00)
             };
             let entity = commands.spawn(
                 (Segment,
@@ -118,8 +122,8 @@ impl SwcFile {
                  membrane,
                  MembraneVoltage(v0.clone()),
                  Geometry {
-                     diameter: Diameter(radius_cm * 2.0),
-                     length: length_cm,
+                     diameter: Diameter(1.0),
+                     length: 1.0,
                  },
                  InputCurrent(input_current),
                  PbrBundle {
@@ -136,7 +140,7 @@ impl SwcFile {
                 )
             ).id();
             println!("inserting entry {:?}", id);
-            entities_and_parents.insert(id.clone(), (entity, e.parent, Diameter(radius_cm * 2.0)));
+            entities_and_parents.insert(id.clone(), (entity, e.parent, Diameter(1.0)));
         }
 
         for (entry_id, (entity, parent_id, diameter)) in entities_and_parents.iter() {
@@ -165,7 +169,7 @@ impl SwcFile {
             // Keep all branches and leaves (nodes with multiple children or zero children).
             let is_branch_or_leaf = !children_map.get(&e.id).map_or(false, |l| l.len() == 1);
             // Keep 1/10 of all nodes no matter what.
-            let is_downsample = e.id % 20 == 0;
+            let is_downsample = e.id % 4 == 0;
             if is_first || is_branch_or_leaf || is_downsample {
                 Some(e.id)
             } else {
@@ -195,16 +199,16 @@ impl SwcFile {
     pub fn sample() -> Self {
         let mk_entry = |id: i32| -> SwcEntry {
             SwcEntry { id: id,
-                       x_microns: 0.0,
-                       y_microns: 0.0,
-                       z_microns: 10000.0 * id as f32,
-                       radius_microns: 10000.0,
+                       x_microns: 2.0,
+                       y_microns: 2.0,
+                       z_microns: 3.0 * (id - 2) as f32,
+                       radius_microns: 0.1,
                        segment_type: Some(if id == 1 { SegmentType::Soma } else {SegmentType::Axon}),
                        parent: if id == 1 { -1  } else { id - 1 }
                      }
         };
         SwcFile {
-            entries: (1..10).map(mk_entry).collect()
+            entries: (1..50).map(mk_entry).collect()
         }
     }
 }
