@@ -43,13 +43,13 @@ fn setup_swc_neuron(
   let location_cm = Vec3::new(0.0, 0.0, 0.0);
   let soma_entity = swc_neuron_1.clone().simplify().spawn(location_cm, &mut commands, &mut meshes, &mut materials);
 
-  let location_cm = Vec3::new(500.0, 0.0, 0.0);
-  let soma_entity = swc_neuron_2.clone().simplify().spawn(location_cm, &mut commands, &mut meshes, &mut materials);
+  // let location_cm = Vec3::new(500.0, 0.0, 0.0);
+  // let soma_entity = swc_neuron_2.clone().simplify().spawn(location_cm, &mut commands, &mut meshes, &mut materials);
 
-  let location_cm = Vec3::new(500.0, 800.0, 0.0);
-  let soma_entity = swc_neuron_1.simplify().spawn(location_cm, &mut commands, &mut meshes, &mut materials);
+  // let location_cm = Vec3::new(500.0, 800.0, 0.0);
+  // let soma_entity = swc_neuron_1.simplify().spawn(location_cm, &mut commands, &mut meshes, &mut materials);
 
-  for i in 0..10 {
+  for i in 0..0 {
     let location_cm = Vec3::new(500.0, 200.0, -2000.0 + 300.0 * i as f32);
     let soma_entity = swc_neuron_2.clone().simplify().spawn(location_cm, &mut commands, &mut meshes, &mut materials);
   }
@@ -89,7 +89,7 @@ fn setup_scene(
 
     commands.spawn(
         (Camera3dBundle {
-            transform: Transform::from_xyz(-400.0,400.5, 2000.0).looking_at(Vec3::ZERO, Vec3::Y),
+            transform: Transform::from_xyz(-200.0,200.5, 1000.0).looking_at(Vec3::ZERO, Vec3::Y),
             camera: Camera {
                 hdr: true,
                 ..default()

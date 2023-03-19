@@ -6,7 +6,7 @@ use std::path::Path;
 use std::collections::{HashSet, HashMap};
 
 use crate::dimension::{FaradsPerSquareCm, MilliVolts, Diameter, MicroAmpsPerSquareCm};
-use crate::neuron::membrane::{self, Membrane, MembraneChannel, MembraneVoltage, MembraneMaterials};
+use crate::neuron::membrane::{self, Membrane, MembraneVoltage, MembraneMaterials};
 use crate::neuron::Junction;
 use crate::neuron::segment::{ecs::Segment, ecs::InputCurrent, Geometry};
 use crate::neuron::solution::EXAMPLE_CYTOPLASM;
@@ -90,10 +90,6 @@ impl SwcFile {
             let length_screen = length_cm * 10000.0 * microns_to_screen;
             let radius_cm = radius_microns * 0.0001;
             let radius_screen = radius_cm * 10000.0 * microns_to_screen;
-            println!("x_screen: {:?}", x_screen);
-            println!("y_screen: {:?}", y_screen);
-            println!("z_screen: {:?}", z_screen);
-            println!("radius_screen: {:?}", radius_screen);
             let membrane = match segment_type {
                 Some(SegmentType::Soma) => soma_membrane(),
                 Some(SegmentType::Axon) => if parent.clone() == -1 {
@@ -101,10 +97,10 @@ impl SwcFile {
                 } else {
                     axon_membrane()
                 }
-                Some(SegmentType::Dendrite) => dendrite_membrane(),
+                Some(SegmentType::Dendrite) => basal_dendrite_membrane(),
                 Some(SegmentType::ApicalDendrite) => apical_dendrite_membrane(),
-                Some(SegmentType::Custom) => dendrite_membrane(),
-                None => dendrite_membrane(),
+                Some(SegmentType::Custom) => basal_dendrite_membrane(),
+                None => basal_dendrite_membrane(),
             };
             let look_target = match entry_map.get(parent) {
                 None => {
@@ -129,7 +125,7 @@ impl SwcFile {
             let input_current = if e.segment_type == Some(SegmentType::ApicalDendrite) {
                 MicroAmpsPerSquareCm(-1.0)
             } else {
-                MicroAmpsPerSquareCm(-1.00)
+                MicroAmpsPerSquareCm(-1.0)
             };
             let segment = commands.spawn(
                 (Segment,
@@ -188,7 +184,7 @@ impl SwcFile {
             // Keep all branches and leaves (nodes with multiple children or zero children).
             let is_branch_or_leaf = !children_map.get(&e.id).map_or(false, |l| l.len() == 1);
             // Keep 1/10 of all nodes no matter what.
-            let is_downsample = e.id % 20 == 0;
+            let is_downsample = e.id % 10 == 0;
             if is_first || is_branch_or_leaf || is_downsample {
                 Some(e.id)
             } else {
@@ -199,7 +195,7 @@ impl SwcFile {
         // For each entry, check if its parent is tombstoned.
         // If so, set the entry's parent to its current grandparent.
         // Repeat this process until the current parent is not tombstoned.
-        for (mut entry) in self.entries.iter_mut() {
+        for mut entry in self.entries.iter_mut() {
             while !(should_keep.contains(&entry.parent) || entry.parent == -1) {
                 entry.parent = entries_map.get(&entry.parent).expect("parent should exist").parent;
             }
@@ -309,8 +305,10 @@ impl SegmentType {
 #[derive(Clone, Debug)]
 pub struct ParseError(String);
 
+// pas, Ca_HVA, SKv3_1, SK_E2, Ca_LVAst, Ih, NaTs2_t, CaDynamics_E2
+// TODO: implement the above
 fn soma_membrane() -> Membrane {
-    let v0 = MilliVolts(-80.0);
+    let v0 = MilliVolts(-88.0);
     Membrane {
         capacitance: FaradsPerSquareCm(1e-6),
         membrane_channels: vec![
@@ -327,12 +325,13 @@ fn soma_membrane() -> Membrane {
             membrane::MembraneChannel {
                 channel: channel::common_channels::giant_squid::LEAK_CHANNEL
                     .build(&v0),
-                siemens_per_square_cm: 0.3e-3,
+                siemens_per_square_cm: 3e-5,
             },
         ]
     }
 }
 
+// pas, Ca_HVA, SKv3_1, SK_E2, CaDynamics_E2, Nap_Et2, K_Pst, K_Tst, Ca_LVAst, NaTa_t
 fn axon_membrane() -> Membrane {
     let v0 = MilliVolts(-88.0);
     Membrane {
@@ -357,6 +356,7 @@ fn axon_membrane() -> Membrane {
     }
 }
 
+// pas, Ca_HVA, SKv3_1, SK_E2, CaDynamics_E2, Nap_Et2, K_Pst, K_Tst, Ca_LVAst, NaTa_t
 fn axon_initial_segment_membrane() -> Membrane {
     let v0 = MilliVolts(-80.0);
     Membrane {
@@ -381,49 +381,51 @@ fn axon_initial_segment_membrane() -> Membrane {
     }
 }
 
-fn dendrite_membrane() -> Membrane {
-    let v0 = MilliVolts(-80.0);
+// pas, Ih
+fn basal_dendrite_membrane() -> Membrane {
+    let v0 = MilliVolts(-88.0);
     Membrane {
-        capacitance: FaradsPerSquareCm(1e-6),
+        capacitance: FaradsPerSquareCm(2e-6),
         membrane_channels: vec![
-            membrane::MembraneChannel {
-                channel: channel::common_channels::giant_squid::K_CHANNEL
-                    .build(&v0),
-                siemens_per_square_cm: 36e-3,
-            },
-            membrane::MembraneChannel {
-                channel: channel::common_channels::giant_squid::NA_CHANNEL
-                    .build(&v0),
-                siemens_per_square_cm: 120e-3,
-            },
             membrane::MembraneChannel {
                 channel: channel::common_channels::giant_squid::LEAK_CHANNEL
                     .build(&v0),
-                siemens_per_square_cm: 0.3e-3,
+                siemens_per_square_cm: 0.03e-3,
+            },
+            membrane::MembraneChannel {
+                channel: channel::common_channels::rat_ca1::HCN_CHANNEL_DENDRITE
+                    .build(&v0),
+                siemens_per_square_cm: 0.08e-3,
             },
         ]
     }
 }
 
+// pas, Im, NaTs2_t, SKv3_1, Ih
 fn apical_dendrite_membrane() -> Membrane {
-    let v0 = MilliVolts(-80.0);
+    let v0 = MilliVolts(-88.0);
     Membrane {
-        capacitance: FaradsPerSquareCm(1e-6),
+        capacitance: FaradsPerSquareCm(2e-6),
         membrane_channels: vec![
-            membrane::MembraneChannel {
-                channel: channel::common_channels::giant_squid::K_CHANNEL
-                    .build(&v0),
-                siemens_per_square_cm: 36e-3,
-            },
-            membrane::MembraneChannel {
-                channel: channel::common_channels::giant_squid::NA_CHANNEL
-                    .build(&v0),
-                siemens_per_square_cm: 120e-3,
-            },
             membrane::MembraneChannel {
                 channel: channel::common_channels::giant_squid::LEAK_CHANNEL
                     .build(&v0),
-                siemens_per_square_cm: 0.3e-3,
+                siemens_per_square_cm: 0.03e-3,
+            },
+            membrane::MembraneChannel {
+                channel: channel::common_channels::rat_ca1::HCN_CHANNEL_DENDRITE
+                    .build(&v0),
+                siemens_per_square_cm: 0.08e-3,
+            },
+            membrane::MembraneChannel {
+                channel: channel::common_channels::rat_thalamocortical::NA_TRANSIENT
+                    .build(&v0),
+                siemens_per_square_cm: 0.023
+            },
+            membrane::MembraneChannel {
+                channel: channel::common_channels::rat_thalamocortical::K_SLOW
+                    .build(&v0),
+                siemens_per_square_cm: 0.040
             },
         ]
     }

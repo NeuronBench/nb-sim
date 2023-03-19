@@ -80,7 +80,7 @@ impl Neuron {
 }
 
 pub mod examples {
-    use crate::dimension::{Diameter, MicroAmpsPerSquareCm};
+    use crate::dimension::{MicroAmpsPerSquareCm};
     use crate::neuron::segment::examples::{giant_squid_axon, simple_leak};
     use crate::neuron::Neuron;
     use crate::neuron::segment::Segment;

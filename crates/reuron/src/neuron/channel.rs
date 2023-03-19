@@ -219,9 +219,14 @@ impl GateState {
             .parameters
             .steady_state_magnitude
             .steady_state(membrane_potential);
-        let tau = self.parameters.time_constant.tau(membrane_potential);
-        let df_dt = (v_inf - self.magnitude) / tau;
-        self.magnitude = self.magnitude + df_dt * interval.0;
+        let maybe_tau = self.parameters.time_constant.tau(membrane_potential);
+        match maybe_tau {
+            None => {self.magnitude = v_inf;},
+            Some(tau) => {
+                let df_dt = (v_inf - self.magnitude) / tau;
+                self.magnitude = self.magnitude + df_dt * interval.0;
+            }
+        }
     }
 }
 
@@ -249,18 +254,37 @@ impl Magnitude {
 }
 
 #[derive(Clone, Debug)]
-pub struct TimeConstant {
-    pub v_at_max_tau: MilliVolts,
-    pub c_base: f32,
-    pub c_amp: f32,
-    pub sigma: f32,
+pub enum TimeConstant {
+    Instantaneous,
+    Sigmoid { v_at_max_tau: MilliVolts, c_base: f32, c_amp: f32, sigma: f32 },
+    LinearExp { coef: f32, v_offset: MilliVolts, inner_coef: f32 },
 }
 
+// #[derive(Clone, Debug)]
+// pub struct TimeConstant {
+//     pub v_at_max_tau: MilliVolts,
+//     pub c_base: f32,
+//     pub c_amp: f32,
+//     pub sigma: f32,
+// }
+
 impl TimeConstant {
-    pub fn tau(&self, v: &MilliVolts) -> f32 {
-        let numerator = -1.0 * (self.v_at_max_tau.0 - v.0).powi(2);
-        let denominator = self.sigma.powi(2);
-        self.c_base + self.c_amp * (numerator / denominator).exp()
+    pub fn tau(&self, v: &MilliVolts) -> Option<f32> {
+        match self {
+            TimeConstant::Sigmoid { v_at_max_tau, c_base, c_amp, sigma } => {
+                let numerator = -1.0 * (v_at_max_tau.0 - v.0).powi(2);
+                let denominator = sigma.powi(2);
+                let tau = c_base + c_amp * (numerator / denominator).exp();
+                println!("sigmoid tau: {tau}");
+                Some(tau)
+            },
+            TimeConstant::Instantaneous => None,
+            TimeConstant::LinearExp { coef, v_offset, inner_coef } => {
+                let tau = coef * ((v_offset.0 - v.0) * inner_coef).exp() * 0.001;
+                println!("linear tau: {tau} v: {:?}", v.0);
+                Some(tau)
+            }
+        }
     }
 }
 
@@ -269,9 +293,121 @@ pub mod common_channels {
     use crate::dimension::MilliVolts;
     use crate::neuron::channel::*;
 
+    pub mod rat_thalamocortical {
+        use crate::dimension::MilliVolts;
+        use crate::neuron::channel::*;
+
+        /// Rat transient Na+ channel.
+        pub const NA_TRANSIENT: ChannelBuilder = ChannelBuilder {
+            ion_selectivity: NA,
+            activation_parameters: Some(Gating {
+                gates: 1,
+                steady_state_magnitude: Magnitude {
+                    v_at_half_max: MilliVolts(-30.0),
+                    slope: 5.5,
+                },
+                time_constant: TimeConstant::Instantaneous,
+            }),
+            inactivation_parameters: Some(Gating {
+                gates: 1,
+                steady_state_magnitude: Magnitude {
+                    v_at_half_max: MilliVolts(-70.0),
+                    slope: -5.8,
+                },
+                time_constant: TimeConstant::LinearExp {
+                    coef: 3.0, v_offset: MilliVolts(-40.0), inner_coef: 1.0/33.0
+                },
+            }),
+        };
+
+        /// Rat transient Na+ channel.
+        pub const K_SLOW: ChannelBuilder = ChannelBuilder {
+            ion_selectivity: K,
+            activation_parameters: Some(Gating {
+                gates: 1,
+                steady_state_magnitude: Magnitude {
+                    v_at_half_max: MilliVolts(-3.0),
+                    slope: 10.0,
+                },
+                time_constant: TimeConstant::Sigmoid {
+                    v_at_max_tau: MilliVolts(-50.0),
+                    c_base: 0.005,
+                    c_amp: 0.047,
+                    sigma: 0.030,
+                },
+            }),
+            inactivation_parameters: Some(Gating {
+                gates: 1,
+                steady_state_magnitude: Magnitude {
+                    v_at_half_max: MilliVolts(-51.0),
+                    slope: -12.0,
+                },
+                time_constant: TimeConstant::Sigmoid {
+                    v_at_max_tau: MilliVolts(-50.0),
+                    c_base: 0.360,
+                    c_amp: 0.1000,
+                    sigma: 50.0,
+                },
+            }),
+        };
+
+    }
+
+    pub mod rat_ca1 {
+        use crate::dimension::MilliVolts;
+        use crate::neuron::channel::*;
+
+        pub const HCN_CHANNEL_DENDRITE: ChannelBuilder = ChannelBuilder {
+            ion_selectivity: IonSelectivity {
+                na: 0.55,
+                k: 0.45,
+                cl: 0.0,
+                ca: 0.0,
+            },
+            activation_parameters: None,
+            inactivation_parameters: Some(Gating {
+                gates: 1,
+                steady_state_magnitude: Magnitude {
+                    v_at_half_max: MilliVolts(-90.0),
+                    slope: -8.5,
+                },
+                time_constant: TimeConstant::Sigmoid {
+                    v_at_max_tau: MilliVolts(-75.0),
+                    c_base: 10e-3,
+                    c_amp: 40e-3,
+                    sigma: 20.0
+                }
+            }),
+        };
+
+        pub const HCN_CHANNEL_SOMA: ChannelBuilder = ChannelBuilder {
+            ion_selectivity: IonSelectivity {
+                na: 0.35,
+                k: 0.65,
+                cl: 0.0,
+                ca: 0.0,
+            },
+            activation_parameters: None,
+            inactivation_parameters: Some(Gating {
+                gates: 1,
+                steady_state_magnitude: Magnitude {
+                    v_at_half_max: MilliVolts(-82.0),
+                    slope: -9.0,
+                },
+                time_constant: TimeConstant::Sigmoid {
+                    v_at_max_tau: MilliVolts(-75.0),
+                    c_base: 10e-3,
+                    c_amp: 50e-3,
+                    sigma: 20.0
+                }
+            }),
+        };
+    }
+
     pub mod giant_squid {
         use crate::dimension::MilliVolts;
         use crate::neuron::channel::*;
+
 
         /// The Giant Squid axon's Na+ channel.
         pub const NA_CHANNEL: ChannelBuilder = ChannelBuilder {
@@ -282,7 +418,7 @@ pub mod common_channels {
                     v_at_half_max: MilliVolts(-40.0),
                     slope: 15.0,
                 },
-                time_constant: TimeConstant {
+                time_constant: TimeConstant::Sigmoid {
                     v_at_max_tau: MilliVolts(-38.0),
                     c_base: 0.04e-3,
                     c_amp: 0.46e-3,
@@ -295,7 +431,7 @@ pub mod common_channels {
                     v_at_half_max: MilliVolts(-62.0),
                     slope: -7.0,
                 },
-                time_constant: TimeConstant {
+                time_constant: TimeConstant::Sigmoid {
                     v_at_max_tau: MilliVolts(-67.0),
                     c_base: 0.0012, // TODO are these right?
                     c_amp: 0.0074,
@@ -313,7 +449,7 @@ pub mod common_channels {
                     v_at_half_max: MilliVolts(-53.0),
                     slope: 15.0,
                 },
-                time_constant: TimeConstant {
+                time_constant: TimeConstant::Sigmoid {
                     v_at_max_tau: MilliVolts(-79.0),
                     c_base: 1.1e-3,
                     c_amp: 4.7e-3,
@@ -333,7 +469,7 @@ pub mod common_channels {
                     v_at_half_max: MilliVolts(0.0),
                     slope: 15.0
                 },
-                time_constant: TimeConstant {
+                time_constant: TimeConstant::Sigmoid {
                     v_at_max_tau: MilliVolts(0.0),
                     c_base: 0.04e-3,
                     c_amp: 0.5e-3,
