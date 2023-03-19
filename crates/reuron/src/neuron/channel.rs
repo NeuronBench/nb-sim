@@ -275,13 +275,11 @@ impl TimeConstant {
                 let numerator = -1.0 * (v_at_max_tau.0 - v.0).powi(2);
                 let denominator = sigma.powi(2);
                 let tau = c_base + c_amp * (numerator / denominator).exp();
-                println!("sigmoid tau: {tau}");
                 Some(tau)
             },
             TimeConstant::Instantaneous => None,
             TimeConstant::LinearExp { coef, v_offset, inner_coef } => {
                 let tau = coef * ((v_offset.0 - v.0) * inner_coef).exp() * 0.001;
-                println!("linear tau: {tau} v: {:?}", v.0);
                 Some(tau)
             }
         }
