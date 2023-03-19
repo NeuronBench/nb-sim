@@ -25,15 +25,62 @@ impl Plugin for ReuronPlugin {
             })
             .insert_resource(SystemCounts::zero())
             // .add_startup_system(create_example_neuron)
-            .add_system(update_timestamp)
+            // .add_system(update_timestamp)
             .add_system(stimulate_picked_segments)
 
-            .add_system(apply_channel_currents)
-            .add_system(update_membrane_conductances)
-            .add_system(apply_input_currents)
-            .add_system(apply_junction_currents)
-            .add_system(apply_voltage_to_materials)
+            // Because the Bevy frame rate is limited by winit to about 300,
+            // if we want to take more than 300 biophysics steps per second,
+            // (at 10us steps, this would be 1/333 of realtime), we have to
+            // apply the biophysics system multiple times per bevy frame.
+            // These 40 repetitions bring us up to nearly 1/10th realtime.
+            // TODO, find out how to pass a query to a for loop.
+            .add_system(step_biophysics)
+            .add_system(step_biophysics)
+            .add_system(step_biophysics)
+            .add_system(step_biophysics)
+            .add_system(step_biophysics)
+            .add_system(step_biophysics)
+            .add_system(step_biophysics)
+            .add_system(step_biophysics)
+            .add_system(step_biophysics)
+            .add_system(step_biophysics)
+            .add_system(step_biophysics)
+            .add_system(step_biophysics)
+            .add_system(step_biophysics)
+            .add_system(step_biophysics)
+            .add_system(step_biophysics)
+            .add_system(step_biophysics)
+            .add_system(step_biophysics)
+            .add_system(step_biophysics)
+            .add_system(step_biophysics)
+            .add_system(step_biophysics)
+            .add_system(step_biophysics)
+            .add_system(step_biophysics)
+            .add_system(step_biophysics)
+            .add_system(step_biophysics)
+            .add_system(step_biophysics)
+            .add_system(step_biophysics)
+            .add_system(step_biophysics)
+            .add_system(step_biophysics)
+            .add_system(step_biophysics)
+            .add_system(step_biophysics)
+            .add_system(step_biophysics)
+            .add_system(step_biophysics)
+            .add_system(step_biophysics)
+            .add_system(step_biophysics)
+            .add_system(step_biophysics)
+            .add_system(step_biophysics)
+            .add_system(step_biophysics)
+            .add_system(step_biophysics)
+            .add_system(step_biophysics)
+            .add_system(step_biophysics)
 
+            // .add_system(apply_channel_currents)
+            // .add_system(update_membrane_conductances)
+            // .add_system(apply_input_currents)
+            // .add_system(apply_junction_currents)
+
+            .add_system(apply_voltage_to_materials)
             .add_system(print_voltages);
     }
 }
@@ -61,6 +108,105 @@ impl SystemCounts {
             n_print:0
         }
     }
+}
+
+fn step_biophysics(
+  env: Res<Env>,
+  mut timestamp: ResMut<Timestamp>,
+  mut segments_query: Query<
+          (&Segment,
+           &Solution,
+           &Geometry,
+           &mut Membrane,
+           &mut MembraneVoltage,
+           Option<&InputCurrent>
+          )>,
+  junctions_query: Query<&Junction>
+){
+    timestamp.0 += timestamp.0 + env.interval.0;
+    for (_,
+         solution,
+         geometry,
+         mut membrane,
+         mut membrane_voltage,
+         maybe_input_current) in &mut segments_query {
+
+        // ***********************************
+        // ***** Apply channel currents. *****
+        // ***********************************
+        let surface_area = geometry.surface_area();
+
+        let current = -1.0 * membrane.current_per_square_cm(
+                &k_reversal(
+                    &solution,
+                    &env.extracellular_solution,
+                    &env.temperature,
+                ),
+                &na_reversal(
+                    &solution,
+                    &env.extracellular_solution,
+                    &env.temperature,
+                ),
+                &cl_reversal(
+                    &solution,
+                    &env.extracellular_solution,
+                    &env.temperature,
+                ),
+                &ca_reversal(
+                    &solution,
+                    &env.extracellular_solution,
+                    &env.temperature,
+                ),
+                &membrane_voltage.0,
+        ) * surface_area;
+        let capacitance = membrane.capacitance.0 * surface_area;
+        let dv_dt : f32 = current / capacitance;
+
+        membrane_voltage.0.0 += 1000.0 * dv_dt * env.interval.0;
+
+        // ***********************************
+        // ***** Update membrane conductances.
+        // ***********************************
+        membrane
+            .membrane_channels
+            .iter_mut()
+            .for_each(|membrane_channel| {
+            membrane_channel.channel.step(&membrane_voltage.0, &env.interval)
+            });
+
+        // ***********************************
+        // ***** Apply input currents. *******
+        // ***********************************
+        if let Some(input_current) = maybe_input_current {
+            let capacitance = membrane.capacitance.0 * surface_area;
+            let current = input_current.0.0 * 1e-6 * surface_area;
+            let dv_dt = current / capacitance;
+            membrane_voltage.0.0 += 1000.0 * dv_dt * env.interval.0;
+        }
+
+    }
+
+    for Junction {first_segment, second_segment, pore_diameter} in &junctions_query {
+        let interval_seconds = env.interval.0;
+
+        let results = segments_query.get_many_mut([first_segment.clone(), second_segment.clone()]);
+        match results {
+            Ok([(_,_,geom1,membrane1, mut vm1,_), (_,_,geom2, membrane2, mut vm2,_)]) => {
+                let capacitance1 = membrane1.capacitance.0 * geom1.surface_area();
+                let capacitance2 = membrane2.capacitance.0 * geom2.surface_area();
+
+                let mutual_conductance = pore_diameter.0 * std::f32::consts::PI * CONDUCTANCE_PER_SQUARE_CM;
+                let first_to_second_current = mutual_conductance * (vm1.0.0 - vm2.0.0) * 1e-3;
+
+                vm1.0.0 -= first_to_second_current / capacitance1 * interval_seconds;
+                vm2.0.0 += first_to_second_current / capacitance2 * interval_seconds;
+            },
+            Ok(_) => panic!("wrong number of results"),
+            Err(e) => panic!("Other error {e}"),
+
+        }
+    }
+
 }
 
 #[derive(Bundle)]
@@ -93,7 +239,7 @@ fn default_env() -> Env {
     Env {
         temperature: BODY_TEMPERATURE,
         extracellular_solution: INTERSTICIAL_FLUID,
-        interval: Interval(20e-6)
+        interval: Interval(10e-6)
     }
 }
 
@@ -191,6 +337,7 @@ fn update_membrane_conductances(
 }
 
 fn apply_channel_currents(
+    mut timestamp: ResMut<Timestamp>,
     mut query: Query<(
         &Segment,
         &Solution,
@@ -201,6 +348,7 @@ fn apply_channel_currents(
     env: Res<Env>,
     mut counts: ResMut<SystemCounts>
 ) {
+    timestamp.0 = timestamp.0 + env.interval.0;
     counts.n_channel_currents += 1;
     for (_, solution, geometry, membrane, mut membrane_voltage) in &mut query {
         let surface_area = geometry.surface_area();
@@ -251,7 +399,6 @@ fn apply_input_currents(
 }
 
 fn apply_junction_currents(
-    commands: Commands,
     mut junctions_query: Query<&Junction>,
     mut segments_query: Query<(&Segment, &Geometry, &Membrane, &mut MembraneVoltage)>,
     env: Res<Env>,

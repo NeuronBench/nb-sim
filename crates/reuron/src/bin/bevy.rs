@@ -12,6 +12,7 @@ use reuron::plugin::ReuronPlugin;
 use reuron::integrations::swc_file::SwcFile;
 use reuron::neuron::segment::ecs::Segment;
 use reuron::neuron::membrane::MembraneMaterials;
+use reuron::pan_orbit_camera::{PanOrbitCamera, pan_orbit_camera};
 
 #[derive(Component)]
 struct MyCamera;
@@ -27,6 +28,7 @@ pub fn main() {
         .add_startup_system(setup_scene)
         .add_startup_system(setup_swc_neuron)
         .insert_resource(ClearColor(Color::rgb(0.2,0.2,0.2)))
+        .add_system(pan_orbit_camera)
         .run();
 }
 
@@ -100,6 +102,10 @@ fn setup_scene(
          PickingCameraBundle::default(),
          BloomSettings {
              intensity: 0.5,
+             ..default()
+         },
+         PanOrbitCamera {
+             radius: 500.0,
              ..default()
          }
         ));
