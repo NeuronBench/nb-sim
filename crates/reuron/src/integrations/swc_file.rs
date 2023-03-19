@@ -56,7 +56,7 @@ impl SwcFile {
         mut meshes: &mut ResMut<Assets<Mesh>>,
         materials: &mut Res<MembraneMaterials>,
     ) -> Entity {
-        let v0 = MilliVolts(-80.0);
+        let v0 = MilliVolts(-88.0);
         let microns_to_screen = 1.0;
         let entry_map = self.as_map();
         let soma = self.soma().expect("Soma should exist");
@@ -90,6 +90,20 @@ impl SwcFile {
             let length_screen = length_cm * 10000.0 * microns_to_screen;
             let radius_cm = radius_microns * 0.0001;
             let radius_screen = radius_cm * 10000.0 * microns_to_screen;
+            let shape = match e.segment_type {
+                Some(SegmentType::Soma) => shape::UVSphere {
+                    radius: length_screen * 0.5,
+                    sectors: 12,
+                    stacks: 12,
+                }.into(),
+                _ => shape::Cylinder {
+                         radius: radius_screen * 5.0,
+                         height: length_screen,
+                         resolution: 12,
+                         segments:4,
+                     }.into(),
+            };
+
             let membrane = match segment_type {
                 Some(SegmentType::Soma) => soma_membrane(),
                 Some(SegmentType::Axon) => if parent.clone() == -1 {
@@ -119,9 +133,6 @@ impl SwcFile {
             transform.rotate_local_x(std::f32::consts::PI / 2.0);
             transform.translation -= transform.local_y() * length_screen * 0.5;
 
-
-            // shift.mul_transform(transform);
-
             let input_current = if e.segment_type == Some(SegmentType::ApicalDendrite) {
                 MicroAmpsPerSquareCm(-1.0)
             } else {
@@ -132,18 +143,15 @@ impl SwcFile {
                  EXAMPLE_CYTOPLASM,
                  membrane,
                  MembraneVoltage(v0.clone()),
-                 Geometry {
+                 Geometry::Cylinder {
                      diameter: Diameter(1.0),
                      length: 1.0,
-                 },
+                 }, // TODO use real geometry. But be careful not to get units wrong,
+                    // which has caused the model to become unstable
+
                  InputCurrent(input_current),
                  PbrBundle {
-                     mesh: meshes.add(shape::Cylinder {
-                         radius: radius_screen * 5.0,
-                         height: length_screen,
-                         resolution: 12,
-                         segments:4,
-                     }.into()),
+                     mesh: meshes.add(shape),
                      material: materials.from_voltage(&v0),
                      transform: transform,
                      ..default()
@@ -313,12 +321,12 @@ fn soma_membrane() -> Membrane {
         capacitance: FaradsPerSquareCm(1e-6),
         membrane_channels: vec![
             membrane::MembraneChannel {
-                channel: channel::common_channels::giant_squid::K_CHANNEL
+                channel: channel::common_channels::rat_thalamocortical::K_SLOW
                     .build(&v0),
                 siemens_per_square_cm: 36e-3,
             },
             membrane::MembraneChannel {
-                channel: channel::common_channels::giant_squid::NA_CHANNEL
+                channel: channel::common_channels::rat_thalamocortical::NA_TRANSIENT
                     .build(&v0),
                 siemens_per_square_cm: 120e-3,
             },
@@ -358,7 +366,7 @@ fn axon_membrane() -> Membrane {
 
 // pas, Ca_HVA, SKv3_1, SK_E2, CaDynamics_E2, Nap_Et2, K_Pst, K_Tst, Ca_LVAst, NaTa_t
 fn axon_initial_segment_membrane() -> Membrane {
-    let v0 = MilliVolts(-80.0);
+    let v0 = MilliVolts(-88.0);
     Membrane {
         capacitance: FaradsPerSquareCm(1e-6),
         membrane_channels: vec![

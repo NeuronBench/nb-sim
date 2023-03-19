@@ -54,7 +54,12 @@ pub struct SystemCounts {
 
 impl SystemCounts {
     pub fn zero() -> SystemCounts {
-        SystemCounts { n_membrane_conductances: 0, n_channel_currents: 0, n_input_currents: 0, n_print:0 }
+        SystemCounts {
+            n_membrane_conductances: 0,
+            n_channel_currents: 0,
+            n_input_currents: 0,
+            n_print:0
+        }
     }
 }
 
@@ -105,7 +110,7 @@ fn create_example_neuron(
     let mut mk_segment = |col:u32, i: u32| SegmentBundle {
         intracellular_solution: EXAMPLE_CYTOPLASM,
         membrane_voltage: MembraneVoltage(v0.clone()),
-        geometry: Geometry { diameter: Diameter(1.0), length: 1.0 },
+        geometry: Geometry::Cylinder { diameter: Diameter(1.0), length: 1.0 },
         pbr: PbrBundle {
             mesh: meshes.add(shape::Cylinder {
                 radius: 0.5,
@@ -198,8 +203,7 @@ fn apply_channel_currents(
 ) {
     counts.n_channel_currents += 1;
     for (_, solution, geometry, membrane, mut membrane_voltage) in &mut query {
-        let surface_area =
-            geometry.diameter.0 * std::f32::consts::PI * geometry.length;
+        let surface_area = geometry.surface_area();
         let current = -1.0 * membrane.current_per_square_cm(
                 &k_reversal(
                     &solution,
@@ -238,8 +242,7 @@ fn apply_input_currents(
 ){
     counts.n_input_currents += 1;
     for (_, geometry, membrane, input_current, mut membrane_voltage) in &mut query {
-        let surface_area =
-            geometry.diameter.0 * std::f32::consts::PI * geometry.length;
+        let surface_area = geometry.surface_area();
         let capacitance = membrane.capacitance.0 * surface_area;
         let current = input_current.0.0 * 1e-6 * surface_area;
         let dv_dt = current / capacitance;
