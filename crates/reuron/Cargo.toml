@@ -11,5 +11,5 @@ bevy = "0.10.0"
 bevy_mod_picking = { git = "https://github.com/Fincap/bevy_mod_picking", branch = "migrate-bevy-0.10.0" }
 
 [[bin]]
-name = "tmp-demo"
-path = "src/bin/tmp_demo.rs"
+name = "bevy"
+path = "src/bin/bevy.rs"

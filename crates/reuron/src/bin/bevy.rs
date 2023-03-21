@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use bevy::core_pipeline::bloom::BloomSettings;
-// use bevy::diagnostic::{LogDiagnosticsPlugin, FrameTimeDiagnosticsPlugin};
+use bevy::diagnostic::{LogDiagnosticsPlugin, FrameTimeDiagnosticsPlugin};
 use bevy::pbr::CascadeShadowConfigBuilder;
 use bevy_mod_picking::{
     DebugCursorPickingPlugin, DebugEventsPickingPlugin, DefaultPickingPlugins, PickableBundle,
@@ -18,18 +18,26 @@ use reuron::pan_orbit_camera::{PanOrbitCamera, pan_orbit_camera};
 struct MyCamera;
 
 pub fn main() {
-  App::new()
+ let mut app = App::new();
+ app
         .add_plugins(DefaultPlugins)
+
+        .add_plugin(LogDiagnosticsPlugin::default())
+        .add_plugin(FrameTimeDiagnosticsPlugin::default())
         .add_plugins(DefaultPickingPlugins)
         .add_plugin(DebugCursorPickingPlugin)
         .add_plugin(DebugEventsPickingPlugin)
         .add_plugin(ReuronPlugin)
         .add_system(bevy::window::close_on_esc)
         .add_startup_system(setup_scene)
-        .add_startup_system(setup_swc_neuron)
+        // .add_startup_system(setup_swc_neuron)
         .insert_resource(ClearColor(Color::rgb(0.2,0.2,0.2)))
-        .add_system(pan_orbit_camera)
-        .run();
+        .add_system(pan_orbit_camera);
+
+        #[cfg(target_arch = "wasm32")]
+        app.insert_resource(Msaa::Off);
+
+        app.run();
 }
 
 fn setup_swc_neuron(
@@ -100,10 +108,10 @@ fn setup_scene(
             },
          MyCamera,
          PickingCameraBundle::default(),
-         BloomSettings {
-             intensity: 0.5,
-             ..default()
-         },
+
+         #[cfg(not(target_arch = "wasm32"))]
+         BloomSettings::default(),
+
          PanOrbitCamera {
              radius: 500.0,
              ..default()

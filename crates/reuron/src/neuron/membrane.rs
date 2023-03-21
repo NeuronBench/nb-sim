@@ -145,7 +145,12 @@ impl FromWorld for MembraneMaterials {
           let intensity = i as f32 / len as f32 * intensity_range;
           let color = Color::rgb(intensity, 0.0, 1.0 - intensity);
           let mut material : StandardMaterial = color.clone().into();
-          material.emissive = Color::rgb_linear(20.0 * intensity, 20.0 * intensity * intensity,20.0 * intensity * intensity);
+          material.emissive = Color::rgb_linear(
+              30.0 * intensity,
+              30.0 * intensity * intensity,
+              30.0 * intensity * intensity
+          );
+          material.metallic = intensity;
           let handle = material_assets.add(material);
           handle
       }).collect();

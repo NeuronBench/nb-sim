@@ -134,9 +134,9 @@ impl SwcFile {
             transform.translation -= transform.local_y() * length_screen * 0.5;
 
             let input_current = if e.segment_type == Some(SegmentType::ApicalDendrite) {
-                MicroAmpsPerSquareCm(-1.0)
+                MicroAmpsPerSquareCm(-1.8)
             } else {
-                MicroAmpsPerSquareCm(-1.0)
+                MicroAmpsPerSquareCm(-1.8)
             };
             let segment = commands.spawn(
                 (Segment,
