@@ -1,5 +1,5 @@
 use crate::constants::{GAS_CONSTANT, INVERSE_FARADAY};
-use crate::dimension::{Interval, Kelvin, MilliVolts, Molar, Siemens, Volts};
+use crate::dimension::{Interval, Kelvin, MilliVolts, Molar};
 use crate::neuron::solution::Solution;
 
 /// The relative permeability of a channel to various ions.
@@ -288,7 +288,6 @@ impl TimeConstant {
 
 pub mod common_channels {
 
-    use crate::dimension::MilliVolts;
     use crate::neuron::channel::*;
 
     pub mod rat_thalamocortical {

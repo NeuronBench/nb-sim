@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use bevy::core_pipeline::bloom::BloomSettings;
 use bevy::diagnostic::{LogDiagnosticsPlugin, FrameTimeDiagnosticsPlugin};
 use bevy::pbr::CascadeShadowConfigBuilder;
+use bevy_egui::{egui, EguiPlugin};
 use bevy_mod_picking::{
     DebugCursorPickingPlugin, DebugEventsPickingPlugin, DefaultPickingPlugins, PickableBundle,
     PickingCameraBundle
@@ -9,6 +10,7 @@ use bevy_mod_picking::{
 use std::f32::consts::PI;
 
 use reuron::plugin::ReuronPlugin;
+use reuron::gui::run_gui;
 use reuron::integrations::swc_file::SwcFile;
 use reuron::neuron::segment::ecs::Segment;
 use reuron::neuron::membrane::MembraneMaterials;
@@ -21,7 +23,7 @@ pub fn main() {
  let mut app = App::new();
  app
         .add_plugins(DefaultPlugins)
-
+        .add_plugin(EguiPlugin)
         .add_plugin(LogDiagnosticsPlugin::default())
         .add_plugin(FrameTimeDiagnosticsPlugin::default())
         .add_plugins(DefaultPickingPlugins)
@@ -30,9 +32,10 @@ pub fn main() {
         .add_plugin(ReuronPlugin)
         .add_system(bevy::window::close_on_esc)
         .add_startup_system(setup_scene)
-        // .add_startup_system(setup_swc_neuron)
+        .add_startup_system(setup_swc_neuron)
         .insert_resource(ClearColor(Color::rgb(0.2,0.2,0.2)))
-        .add_system(pan_orbit_camera);
+        .add_system(pan_orbit_camera)
+        .add_system(run_gui);
 
         #[cfg(target_arch = "wasm32")]
         app.insert_resource(Msaa::Off);
@@ -47,11 +50,12 @@ fn setup_swc_neuron(
     segments_query: Query<(&Segment, &GlobalTransform)>,
     mut materials: Res<MembraneMaterials>,
 ) {
-  let swc_neuron_1 = SwcFile::read_file("/Users/greghale/Downloads/H17.03.010.11.13.06_651089035_m.swc").expect("should parse");
-  let swc_neuron_2 = SwcFile::read_file("/Users/greghale/Downloads/H17.03.010.11.13.01_656411100_m.swc").expect("should parse");
+  // let swc_neuron_1 = SwcFile::read_file("/Users/greghale/Downloads/H17.03.010.11.13.06_651089035_m.swc").expect("should parse");
+  let swc_neuron_2 = SwcFile::read_str(reuron::integrations::swc_file::sample::neuron()).expect("should parse");
 
   let location_cm = Vec3::new(0.0, 0.0, 0.0);
-  let soma_entity = swc_neuron_1.clone().simplify().spawn(location_cm, &mut commands, &mut meshes, &mut materials);
+  // let soma_entity = swc_neuron_1.clone().simplify().spawn(location_cm, &mut commands, &mut meshes, &mut materials);
+  let soma_entity = swc_neuron_2.clone().simplify().spawn(location_cm, &mut commands, &mut meshes, &mut materials);
 
   // let location_cm = Vec3::new(500.0, 0.0, 0.0);
   // let soma_entity = swc_neuron_2.clone().simplify().spawn(location_cm, &mut commands, &mut meshes, &mut materials);
@@ -59,10 +63,10 @@ fn setup_swc_neuron(
   // let location_cm = Vec3::new(500.0, 800.0, 0.0);
   // let soma_entity = swc_neuron_1.simplify().spawn(location_cm, &mut commands, &mut meshes, &mut materials);
 
-  for i in 0..0 {
-    let location_cm = Vec3::new(500.0, 200.0, -2000.0 + 300.0 * i as f32);
-    let soma_entity = swc_neuron_2.clone().simplify().spawn(location_cm, &mut commands, &mut meshes, &mut materials);
-  }
+  // for i in 0..0 {
+  //   let location_cm = Vec3::new(500.0, 200.0, -2000.0 + 300.0 * i as f32);
+  //   let soma_entity = swc_neuron_2.clone().simplify().spawn(location_cm, &mut commands, &mut meshes, &mut materials);
+  // }
 
   // let soma_entity = SwcFile::sample().spawn(commands, meshes, materials);
   // let soma_transform = segments_query.get_component::<GlobalTransform>(soma_entity).expect("soma exists");

@@ -22,7 +22,12 @@ impl SwcFile {
     pub fn read_file<P: AsRef<Path>>(fp: P) -> Result<Self, ParseError> {
         let contents =
             fs::read_to_string(fp).map_err(|e| ParseError(format!("Error opening file: {e}")))?;
-        let swc_lines = contents.lines().map(SwcEntry::from_line).collect::<Result<Vec<Option<_>>,_>>()?;
+        SwcFile::read_str(&contents)
+    }
+
+    pub fn read_str(s: &str) -> Result<Self, ParseError> {
+
+        let swc_lines = s.lines().map(SwcEntry::from_line).collect::<Result<Vec<Option<_>>,_>>()?;
         Ok(SwcFile {
             entries: swc_lines.into_iter().flatten().collect()
         })
@@ -436,5 +441,13 @@ fn apical_dendrite_membrane() -> Membrane {
                 siemens_per_square_cm: 0.040
             },
         ]
+    }
+}
+
+pub mod sample {
+    use std::include_str;
+
+    pub fn neuron() -> &'static str {
+        include_str!("../../sample_data/H17.03.010.11.13.01_656411100_m.swc")
     }
 }

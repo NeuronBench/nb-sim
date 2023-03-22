@@ -30,8 +30,11 @@ impl P3 {
 #[derive(Debug, Clone, Resource)]
 pub struct Timestamp(pub f32);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub struct Interval(pub f32);
+
+#[derive(Resource, Debug, Clone)]
+pub struct SimulationStepSeconds(pub f32);
 
 #[derive(Debug, Clone)]
 pub struct Siemens(pub f32);
@@ -59,3 +62,9 @@ pub struct MicroAmpsPerSquareCm(pub f32);
 
 #[derive(Debug, Clone)]
 pub struct MicroAmps(pub f32);
+
+#[derive(Debug, Clone)]
+pub struct Hz(pub f32);
+
+#[derive(Debug, Clone)]
+pub struct Phase(pub f32);
