@@ -57,13 +57,13 @@ pub struct FaradsPerSquareCm(pub f32);
 #[derive(Debug, Clone)]
 pub struct Farads(pub f32);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct MicroAmpsPerSquareCm(pub f32);
 
 #[derive(Debug, Clone)]
 pub struct MicroAmps(pub f32);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Hz(pub f32);
 
 #[derive(Debug, Clone)]

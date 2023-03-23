@@ -1,6 +1,6 @@
 use bevy::prelude::{Assets, Color, Component, FromWorld, Handle, Resource, StandardMaterial, World};
 use bevy_egui::egui::widgets::plot::{Plot, Line, PlotPoints};
-use bevy_egui::egui::Ui;
+use bevy_egui::egui::{self, Ui};
 use std::default::Default;
 
 use crate::dimension::{Interval, Hz, MicroAmpsPerSquareCm, Timestamp};
@@ -34,7 +34,7 @@ pub struct Envelope {
     pub offset: Interval,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum CurrentShape {
     SquareWave {
         on_current: MicroAmpsPerSquareCm,
@@ -90,7 +90,7 @@ impl Stimulator {
 
     pub fn plot(&self, ui: &mut Ui) {
         let currents : PlotPoints = (0..2000).map(|t| {
-            let timestamp = Timestamp(t.clone() as f32 * 0.001);
+            let timestamp = Timestamp(t.clone() as f32 * 0.0005);
             let current = self.current(timestamp.clone());
             // let current = timestamp.clone();
             [timestamp.0 as f64, current.0 as f64]
@@ -101,6 +101,53 @@ impl Stimulator {
             .auto_bounds_x()
             .auto_bounds_y()
             .show(ui, |plot_ui| plot_ui.line(line));
+    }
+
+    pub fn widget(&mut self, ui: &mut Ui) {
+        let Envelope { ref mut period, ref mut onset, ref mut offset } = &mut self.envelope;
+        let mut current_shape = &mut self.current_shape;
+
+        ui.add(egui::Slider::from_get_set(1.0..=10000.0, move |v: Option<f64>| {
+            if let Some(v) = v {
+                period.0 = v as f32 * 0.001;
+            }
+            period.0 as f64 * 1000.0
+        }).logarithmic(true).text("Period (ms)"));
+
+        ui.add(egui::Slider::from_get_set(1.0..=10000.0, move |v: Option<f64>| {
+            if let Some(v) = v {
+                onset.0 = v as f32 * 0.001;
+            }
+            onset.0 as f64 * 1000.0
+        }).logarithmic(true).text("Onset Time (ms)"));
+
+        ui.add(egui::Slider::from_get_set(1.0..=10000.0, move |v: Option<f64>| {
+            if let Some(v) = v {
+                offset.0 = v as f32 * 0.001;
+            }
+            offset.0 as f64 * 1000.0
+        }).logarithmic(true).text("Offsete Time (ms)"));
+
+        ui.horizontal(|ui| {
+            ui.selectable_value(current_shape, CurrentShape::SquareWave{
+                on_current: MicroAmpsPerSquareCm(50.0),
+                off_current: MicroAmpsPerSquareCm(-10.0)
+            }, "Square");
+            ui.selectable_value(current_shape, CurrentShape::LinearRamp{
+                start_current: MicroAmpsPerSquareCm(10.0),
+                end_current: MicroAmpsPerSquareCm(50.0),
+                off_current: MicroAmpsPerSquareCm(-10.0),
+            }, "Linear Ramp");
+            ui.selectable_value(current_shape, CurrentShape::FrequencyRamp{
+                on_amplitude: MicroAmpsPerSquareCm(50.0),
+                offset_current: MicroAmpsPerSquareCm(-10.0),
+                start_frequency: Hz(10.0),
+                end_frequency: Hz(100.0),
+            }, "Frequency Ramp");
+        });
+
+        self.plot(ui);
+
     }
 }
 

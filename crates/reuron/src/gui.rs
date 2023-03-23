@@ -12,10 +12,21 @@ pub fn run_gui(
     mut diagnostics: ResMut<Diagnostics>,
     timestamp: Res<Timestamp>,
     mut simulation_step: ResMut<SimulationStepSeconds>,
+    mut new_stimulators: ResMut<Stimulator>,
 ) {
     egui::Window::new("Reuron").show(contexts.ctx_mut(), |ui| {
         runtime_stats_header(ui, diagnostics, timestamp, simulation_step);
-        test_stimulator(ui);
+
+        let id = ui.make_persistent_id("stimulator_header");
+        egui::collapsing_header::CollapsingState::load_with_default_open(
+            ui.ctx(), id, false
+        ).show_header(ui, |ui| {
+            ui.label("Stimulation")
+        })
+        .body(|ui| {
+            new_stimulators.widget(ui);
+        });
+
     });
 }
 
@@ -74,7 +85,9 @@ pub fn runtime_stats_header(
                 }).logarithmic(false).text("Simulation step (microseconds)"));
 
 
+
         });
+
 
 }
 
