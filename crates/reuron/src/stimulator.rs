@@ -1,0 +1,166 @@
+use bevy::prelude::{Assets, Color, Component, FromWorld, Handle, Resource, StandardMaterial, World};
+use bevy_egui::egui::widgets::plot::{Plot, Line, PlotPoints};
+use bevy_egui::egui::Ui;
+use std::default::Default;
+
+use crate::dimension::{Interval, Hz, MicroAmpsPerSquareCm, Timestamp};
+
+#[derive(Debug, Clone, Component, Resource)]
+pub struct Stimulator {
+    pub envelope: Envelope,
+    pub current_shape: CurrentShape,
+}
+
+impl Default for Stimulator {
+    fn default() -> Self {
+        Stimulator {
+            envelope: Envelope {
+                period: Interval(0.1),
+                onset: Interval(0.0),
+                offset: Interval(0.050),
+            },
+            current_shape: CurrentShape::SquareWave {
+                on_current: MicroAmpsPerSquareCm(50.0),
+                off_current:MicroAmpsPerSquareCm(-10.0)
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Envelope {
+    pub period: Interval,
+    pub onset: Interval,
+    pub offset: Interval,
+}
+
+#[derive(Debug, Clone)]
+pub enum CurrentShape {
+    SquareWave {
+        on_current: MicroAmpsPerSquareCm,
+        off_current: MicroAmpsPerSquareCm
+    },
+    LinearRamp {
+        start_current: MicroAmpsPerSquareCm,
+        end_current: MicroAmpsPerSquareCm,
+        off_current: MicroAmpsPerSquareCm,
+    },
+    FrequencyRamp {
+        on_amplitude: MicroAmpsPerSquareCm,
+        offset_current: MicroAmpsPerSquareCm,
+        start_frequency: Hz,
+        end_frequency: Hz,
+    }
+
+}
+
+impl Stimulator {
+    pub fn current(&self, t: Timestamp) -> MicroAmpsPerSquareCm {
+
+        let cycle_start = Timestamp(t.0.div_euclid(self.envelope.period.0));
+        let cycle_time = Interval(t.0.rem_euclid(self.envelope.period.0));
+        let envelope_time = Interval(cycle_time.0 - self.envelope.onset.0);
+        let envelope_length = Interval(self.envelope.offset.0 - self.envelope.onset.0);
+        let window_completion = envelope_time.0 / envelope_length.0;
+        let in_envelope = window_completion >= 0.0 && window_completion <= 1.0;
+
+        match &self.current_shape {
+            CurrentShape::SquareWave { on_current, off_current } =>
+                if in_envelope { on_current.clone() } else { off_current.clone() },
+            CurrentShape::LinearRamp { start_current, end_current, off_current } =>
+                if in_envelope {
+                    let i = window_completion * (end_current.0 - start_current.0) + start_current.0;
+                    MicroAmpsPerSquareCm(i)
+                } else {
+                    off_current.clone()
+                },
+            CurrentShape::FrequencyRamp { on_amplitude, offset_current, start_frequency, end_frequency } => {
+                if in_envelope {
+                    let freq = window_completion * (end_frequency.0 - start_frequency.0) + start_frequency.0;
+                    let phase = freq * 2.0 * std::f32::consts::PI * envelope_time.0;
+                    let i = on_amplitude.0 * phase.sin() + offset_current.0.clone();
+                    MicroAmpsPerSquareCm(i)
+                } else {
+                    offset_current.clone()
+                }
+
+            }
+        }
+    }
+
+    pub fn plot(&self, ui: &mut Ui) {
+        let currents : PlotPoints = (0..2000).map(|t| {
+            let timestamp = Timestamp(t.clone() as f32 * 0.001);
+            let current = self.current(timestamp.clone());
+            // let current = timestamp.clone();
+            [timestamp.0 as f64, current.0 as f64]
+        }).collect();
+        let line = Line::new(currents);
+        Plot::new("stimulator_plot")
+            .view_aspect(2.0)
+            .auto_bounds_x()
+            .auto_bounds_y()
+            .show(ui, |plot_ui| plot_ui.line(line));
+    }
+}
+
+#[derive(Resource)]
+pub struct StimulatorMaterials {
+    pub handles: Vec<Handle<StandardMaterial>>,
+    pub current_range: (MicroAmpsPerSquareCm, MicroAmpsPerSquareCm),
+    pub len: usize,
+}
+
+impl FromWorld for StimulatorMaterials {
+    fn from_world(world: &mut World) -> Self {
+        let mut material_assets = world.get_resource_mut::<Assets<StandardMaterial>>().expect("Can get Assets");
+        let len = 200;
+        let current_range = (MicroAmpsPerSquareCm(-10.0),MicroAmpsPerSquareCm(10.0));
+        let mut handles = Vec::new();
+        let unselected_handles: Vec<_> = (0..100).map(|i| {
+          let intensity_range = 1.0;
+          let intensity = (i as f32) / len as f32 * intensity_range;
+          // let intensity = 1.0;
+          let color = Color::rgb(intensity, 0.0, 1.0 - intensity);
+          let mut material : StandardMaterial = color.clone().into();
+          material.emissive = Color::rgb_linear(
+              1.0 * intensity,
+              1.0 * intensity * intensity,
+              1.0 * intensity * intensity
+          );
+          let handle = material_assets.add(material);
+          handle
+        }).collect();
+        handles.extend(unselected_handles);
+        let selected_handles: Vec<_> = (0..100).map(|i| {
+          let intensity_range = 1.0;
+          let intensity = (i as f32 - 50.0) / len as f32 * intensity_range;
+          // let intensity = 1.0;
+          let color = Color::rgb(intensity, 0.0, 1.0 - intensity);
+          let mut material : StandardMaterial = color.clone().into();
+          material.emissive = Color::rgb_linear(
+              30.0 * intensity,
+              30.0 * intensity * intensity,
+              30.0 * intensity * intensity
+          );
+          let handle = material_assets.add(material);
+          handle
+        }).collect();
+        handles.extend(selected_handles);
+        StimulatorMaterials { handles, current_range, len }
+    }
+}
+
+impl StimulatorMaterials {
+    pub fn from_selected_and_current(
+        &self,
+        selected: bool,
+        current: &MicroAmpsPerSquareCm
+    ) -> Handle<StandardMaterial> {
+        let i_min = self.current_range.0.0;
+        let i_max = self.current_range.1.0;
+        let selected_offset = if selected { 100 } else { 0 };
+        let index = (((current.0 - i_min) / (i_max - i_min)).min(0.9) * self.len as f32 * 0.5).floor() as usize + selected_offset;
+        self.handles[index].clone()
+    }
+}

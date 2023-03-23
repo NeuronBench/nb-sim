@@ -15,7 +15,7 @@ use crate::dimension::{
     SimulationStepSeconds
 };
 use crate::constants::{BODY_TEMPERATURE, CONDUCTANCE_PER_SQUARE_CM, SIMULATION_STEPS_PER_FRAME};
-use crate::stimulator;
+use crate::stimulator::{StimulatorMaterials, Stimulator};
 use crate::neuron::Junction;
 use crate::neuron::segment::{Geometry, ecs::Segment, ecs::InputCurrent};
 use crate::neuron::solution::{Solution, INTERSTICIAL_FLUID, EXAMPLE_CYTOPLASM};
@@ -28,8 +28,10 @@ impl Plugin for ReuronPlugin {
     fn build(&self, mut app: &mut App) {
             app.insert_resource(default_env())
             .insert_resource(Timestamp(0.0))
-            .insert_resource(SimulationStepSeconds(1e-6))
+            .insert_resource(Stimulator::default())
+            .insert_resource(SimulationStepSeconds(1e-8))
             .init_resource::<MembraneMaterials>()
+            .init_resource::<StimulatorMaterials>()
             .insert_resource(StdoutRenderTimer {
                 timer: Timer::new(Duration::from_millis(100), TimerMode::Repeating)
             })
@@ -47,12 +49,10 @@ impl Plugin for ReuronPlugin {
               app.add_system(step_biophysics);
             }
 
-            // .add_system(apply_channel_currents)
-            // .add_system(update_membrane_conductances)
-            // .add_system(apply_input_currents)
-            // .add_system(apply_junction_currents)
+            app
+            .add_system(apply_voltage_to_materials)
+            .add_system(apply_current_to_stimulator_material)
 
-            app.add_system(apply_voltage_to_materials)
             .add_system(print_voltages);
     }
 }
@@ -74,17 +74,19 @@ fn step_biophysics(
            &Geometry,
            &mut Membrane,
            &mut MembraneVoltage,
-           Option<&InputCurrent>
+           Option<&InputCurrent>,
+           Option<&Stimulator>
           )>,
   junctions_query: Query<&Junction>
 ){
-    timestamp.0 += simulation_step.0;
     for (_,
          solution,
          geometry,
          mut membrane,
          mut membrane_voltage,
-         maybe_input_current) in &mut segments_query {
+         maybe_input_current,
+         maybe_stimulator
+        ) in &mut segments_query {
 
         // ***********************************
         // ***** Apply channel currents. *****
@@ -129,15 +131,19 @@ fn step_biophysics(
             membrane_channel.channel.step(&membrane_voltage.0, &Interval(simulation_step.0))
             });
 
-        // ***********************************
-        // ***** Apply input currents. *******
-        // ***********************************
-        if let Some(input_current) = maybe_input_current {
-            let capacitance = membrane.capacitance.0 * surface_area;
-            let current = input_current.0.0 * 1e-6 * surface_area;
-            let dv_dt = current / capacitance;
-            membrane_voltage.0.0 += 1000.0 * dv_dt * simulation_step.0;
-        }
+        // ***************************************************
+        // ***** Apply input currents and stimulators. *******
+        // ***************************************************
+        let input_current = maybe_input_current.map_or(0.0, |i| i.0.0);
+        let stimulator_current = maybe_stimulator.map_or(0.0, |stimulator|
+                                    stimulator.current(timestamp.clone()
+                                    ).0);
+        let mut current_microamps = input_current + stimulator_current;
+        let capacitance = membrane.capacitance.0 * surface_area;
+        let current = current_microamps * 1e-6 * surface_area;
+        let dv_dt = current / capacitance;
+        membrane_voltage.0.0 += 1000.0 * dv_dt * simulation_step.0;
+
 
     }
 
@@ -146,7 +152,7 @@ fn step_biophysics(
 
         let results = segments_query.get_many_mut([first_segment.clone(), second_segment.clone()]);
         match results {
-            Ok([(_,_,geom1,membrane1, mut vm1,_), (_,_,geom2, membrane2, mut vm2,_)]) => {
+            Ok([(_,_,geom1,membrane1, mut vm1,_,_), (_,_,geom2, membrane2, mut vm2,_,_)]) => {
                 let capacitance1 = membrane1.capacitance.0 * geom1.surface_area();
                 let capacitance2 = membrane2.capacitance.0 * geom2.surface_area();
 
@@ -161,6 +167,11 @@ fn step_biophysics(
 
         }
     }
+
+    // ***************************************
+    // ***** Advance stimulation time. *******
+    // ***************************************
+    timestamp.0 += simulation_step.0;
 
 }
 
@@ -382,6 +393,22 @@ fn apply_voltage_to_materials(
     }
 }
 
+fn apply_current_to_stimulator_material(
+    stimulator_materials: Res<StimulatorMaterials>,
+    segments_query: Query<(&Segment, &Stimulator)>,
+    timestamp: Res<Timestamp>,
+    mut stimulations_query: Query<(&Stimulation, &mut Handle<StandardMaterial>)>
+) {
+    for (Stimulation { stimulation_segment }, mut material) in &mut stimulations_query {
+        if let Ok(stimulator) = segments_query.get_component::<Stimulator>(*stimulation_segment) {
+            let current = stimulator.current(Timestamp(timestamp.0));
+            *material = stimulator_materials.from_selected_and_current(false, &current);
+        } else {
+            println!("Error, stimulation's segment not found.");
+        }
+    }
+}
+
 fn print_voltages(
     timestamp: Res<Timestamp>,
     mut stdout_render_timer: ResMut<StdoutRenderTimer>,
@@ -392,7 +419,7 @@ fn print_voltages(
 
     if stdout_render_timer.timer.just_finished() {
         if let Some(membrane_voltage) = &query.iter().next() {
-            println!("SimulationTime: {} ms. First Voltage: {membrane_voltage}", timestamp.0 );
+            println!("SimulationTime: {} ms. First Voltage: {membrane_voltage}", timestamp.0 * 1000.0);
         }
         if let Some(membrane_voltage) = &query.iter().next() {
             println!("SimulationTime: {} ms. Second Voltage: {membrane_voltage}", timestamp.0 );
@@ -405,15 +432,17 @@ fn print_voltages(
 }
 
 #[derive(Component)]
-pub struct Stimulator { stimulator_segment: Entity }
+pub struct Stimulation { stimulation_segment: Entity }
 
 fn stimulate_picked_segments(
     mut commands: Commands,
+    simulation_step: Res<SimulationStepSeconds>,
+    new_stimulators: Res<Stimulator>,
     mut events: EventReader<PickingEvent>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    segments_query: Query<(&Segment, &GlobalTransform)>,
-    stimulators_query: Query<&Stimulator>,
+    mut segments_query: Query<(&Segment, &GlobalTransform)>,
+    stimulations_query: Query<&Stimulation>,
 ) {
     for event in events.iter() {
         match event {
@@ -425,7 +454,7 @@ fn stimulate_picked_segments(
                     Ok((_, segment_transform)) => {
                         println!("Adding current");
                         commands.spawn(
-                            (Stimulator { stimulator_segment: e.clone() },
+                            (Stimulation { stimulation_segment: e.clone() },
                              PbrBundle {
                                 mesh: meshes.add(shape::UVSphere{
                                     radius: 20.0,
@@ -438,15 +467,15 @@ fn stimulate_picked_segments(
                               },
                              PickableBundle::default(),
                             ));
-                        commands.entity(*e).insert(InputCurrent(MicroAmpsPerSquareCm(50.0)));
+                        commands.entity(*e).insert(new_stimulators.clone());
                     },
                     Err(_) => {}
                 }
-                match stimulators_query.get(e.clone()) {
-                    Ok(Stimulator{ stimulator_segment }) => {
-                        match segments_query.get( stimulator_segment.clone() ) {
+                match stimulations_query.get(e.clone()) {
+                    Ok(Stimulation{ stimulation_segment, .. }) => {
+                        match segments_query.get( stimulation_segment.clone() ) {
                             Ok(segment) => {
-                                commands.entity(stimulator_segment.clone()).remove::<InputCurrent>();
+                                commands.entity(stimulation_segment.clone()).remove::<Stimulator>();
                                 commands.entity(e.clone()).despawn();
                             }
                             Err(_) => {}
