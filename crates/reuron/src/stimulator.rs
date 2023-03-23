@@ -146,6 +146,86 @@ impl Stimulator {
             }, "Frequency Ramp");
         });
 
+        match &mut current_shape {
+            CurrentShape::SquareWave {ref mut on_current, ref mut off_current} => {
+
+                ui.add(egui::Slider::from_get_set(-100.0..=100.0, move |v: Option<f64>| {
+                    if let Some(v) = v {
+                        on_current.0 = v as f32 * 0.000001;
+                    }
+                    on_current.0 as f64 * 1000000.0
+                }).logarithmic(false).text("Onset Current (uAmps)"));
+
+                ui.add(egui::Slider::from_get_set(-100.0..=100.0, move |v: Option<f64>| {
+                    if let Some(v) = v {
+                        off_current.0 = v as f32 * 0.000001;
+                    }
+                    off_current.0 as f64 * 1000000.0
+                }).logarithmic(false).text("Offset Current (uAmps)"));
+
+            },
+
+            CurrentShape::LinearRamp { ref mut start_current, ref mut end_current, ref mut off_current
+            } => {
+
+                ui.add(egui::Slider::from_get_set(-100.0..=100.0, move |v: Option<f64>| {
+                    if let Some(v) = v {
+                        start_current.0 = v as f32 * 0.000001;
+                    }
+                    start_current.0 as f64 * 1000000.0
+                }).logarithmic(false).text("Start Current (uAmps)"));
+
+                ui.add(egui::Slider::from_get_set(-100.0..=100.0, move |v: Option<f64>| {
+                    if let Some(v) = v {
+                        end_current.0 = v as f32 * 0.000001;
+                    }
+                    end_current.0 as f64 * 1000000.0
+                }).logarithmic(false).text("End Current (uAmps)"));
+
+                ui.add(egui::Slider::from_get_set(-100.0..=100.0, move |v: Option<f64>| {
+                    if let Some(v) = v {
+                        off_current.0 = v as f32 * 0.000001;
+                    }
+                    off_current.0 as f64 * 1000000.0
+                }).logarithmic(false).text("Off Current (uAmps)"));
+
+            },
+
+            CurrentShape::FrequencyRamp {
+                ref mut on_amplitude, ref mut offset_current, ref mut start_frequency, ref mut end_frequency
+            } => {
+
+                ui.add(egui::Slider::from_get_set(0.0..=100.0, move |v: Option<f64>| {
+                    if let Some(v) = v {
+                        on_amplitude.0 = v as f32 * 0.000001;
+                    }
+                    on_amplitude.0 as f64 * 1000000.0
+                }).logarithmic(false).text("Amplitude (uAmps)"));
+
+                ui.add(egui::Slider::from_get_set(-100.0..=100.0, move |v: Option<f64>| {
+                    if let Some(v) = v {
+                        offset_current.0 = v as f32 * 0.000001;
+                    }
+                    offset_current.0 as f64 * 1000000.0
+                }).logarithmic(false).text("Offset Current (uAmps)"));
+
+                ui.add(egui::Slider::from_get_set(1.0..=100.0, move |v: Option<f64>| {
+                    if let Some(v) = v {
+                        start_frequency.0 = v as f32;
+                    }
+                    start_frequency.0 as f64
+                }).logarithmic(false).text("Start Frequency (Hz)"));
+
+                ui.add(egui::Slider::from_get_set(1.0..=100.0, move |v: Option<f64>| {
+                    if let Some(v) = v {
+                        end_frequency.0 = v as f32;
+                    }
+                    end_frequency.0 as f64
+                }).logarithmic(false).text("End Frequency (Hz)"));
+
+            },
+        }
+
         self.plot(ui);
 
     }
