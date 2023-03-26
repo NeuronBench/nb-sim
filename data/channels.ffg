@@ -1,0 +1,55 @@
+{
+
+  giant_squid: {
+     k: {
+       ion_selectivity: { k: 1.0, na: 0.0, cl: 0.0, ca: 0.0 },
+       activation_parameters: {
+         gates: 4,
+         steady_state_magnitude: {
+           v_at_half_max_mv: -53.0,
+           slope: 15.0
+         },
+         time_constant: {
+           type: "Sigmoid",
+           v_at_max_tau_mv: -79.0,
+           c_base: 1.1e-3,
+           c_amp: 4.7e-3,
+           sigma: 50.0
+         }
+       }
+     },
+
+     na: {
+       ion_selectivity: { k: 0.0, na: 1.0, cl: 0.0, ca: 0.0 },
+       activation_parameters: {
+         gates: 3,
+         steady_state_magnitude: {
+           v_at_half_max_mv: -40.0,
+           slope: 15.0
+         },
+         time_constant: {
+           type: "Sigmoid",
+           v_at_max_tau_mv: -38.0,
+           c_base: 0.04e-3,
+           c_amp: 0.46e-3,
+           sigma: 30.0
+         }
+       },
+       inactivation_parameters: {
+         gates: 1,
+         steady_state_magnitude: {
+           v_at_half_max_mv: -62.0,
+           slope: -7.0
+         },
+         time_constant: {
+           type: "Sigmoid",
+           v_at_max_tau_mv: -67.0,
+           c_base: 1.2e-3,
+           c_amp: 7.4e-3,
+           sigma: 20.0
+         }
+       }
+     }
+  }
+
+}

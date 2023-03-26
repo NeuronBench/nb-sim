@@ -1,6 +1,7 @@
 use crate::constants::{GAS_CONSTANT, INVERSE_FARADAY};
 use crate::dimension::{Interval, Kelvin, MilliVolts, Molar};
 use crate::neuron::solution::Solution;
+use crate::serialize;
 
 /// The relative permeability of a channel to various ions.
 /// These should add to 1.0.
@@ -14,6 +15,15 @@ pub struct IonSelectivity {
     pub ca: f32,
     /// Chloride-.
     pub cl: f32,
+}
+
+impl IonSelectivity {
+    pub fn serialize(&self) -> serialize::IonSelectivity {
+        let IonSelectivity {na,k,ca,cl} = self.clone();
+        serialize::IonSelectivity {
+            na, k, ca, cl
+        }
+    }
 }
 
 pub const K: IonSelectivity = IonSelectivity {
@@ -158,6 +168,14 @@ impl Channel {
         });
         activation_coefficient * inactivation_coefficient
     }
+
+    pub fn serialize(&self) -> serialize::Channel {
+        serialize::Channel {
+            activation: self.activation.clone().map(|a| a.serialize()),
+            inactivation: self.activation.clone().map(|ia| ia.serialize()),
+            ion_selectivity: self.ion_selectivity.serialize(),
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -228,6 +246,29 @@ impl GateState {
             }
         }
     }
+
+    pub fn serialize(&self) -> (serialize::GatingParameters, f32) {
+        let params = serialize::GatingParameters {
+            gates: self.parameters.gates,
+            steady_state_magnitude: serialize::Magnitude {
+                slope: self.parameters.steady_state_magnitude.slope,
+                v_at_half_max_mv: self.parameters.steady_state_magnitude.v_at_half_max.0,
+            },
+            time_constant: match self.parameters.time_constant.clone() {
+                TimeConstant::Instantaneous => serialize::TimeConstant::Instantaneous,
+                TimeConstant::Sigmoid { v_at_max_tau, c_base, c_amp, sigma } =>
+                    serialize::TimeConstant::Sigmoid {
+                        v_at_max_tau: v_at_max_tau.0,
+                        c_base, c_amp, sigma
+                    },
+                TimeConstant::LinearExp {coef, v_offset, inner_coef } =>
+                    serialize::TimeConstant::LinearExp {
+                        coef, v_offset_mv: v_offset.0, inner_coef
+                    }
+            },
+        };
+        (params, self.magnitude)
+    }
 }
 
 /// The confuration for a single type of gate in a single channel.
@@ -259,14 +300,6 @@ pub enum TimeConstant {
     Sigmoid { v_at_max_tau: MilliVolts, c_base: f32, c_amp: f32, sigma: f32 },
     LinearExp { coef: f32, v_offset: MilliVolts, inner_coef: f32 },
 }
-
-// #[derive(Clone, Debug)]
-// pub struct TimeConstant {
-//     pub v_at_max_tau: MilliVolts,
-//     pub c_base: f32,
-//     pub c_amp: f32,
-//     pub sigma: f32,
-// }
 
 impl TimeConstant {
     pub fn tau(&self, v: &MilliVolts) -> Option<f32> {

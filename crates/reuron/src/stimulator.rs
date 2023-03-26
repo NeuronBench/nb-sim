@@ -106,6 +106,7 @@ impl Stimulator {
     pub fn widget(&mut self, ui: &mut Ui) {
         let Envelope { ref mut period, ref mut onset, ref mut offset } = &mut self.envelope;
         let mut current_shape = &mut self.current_shape;
+        // let current_shape_copy = current_shape.clone();
 
         ui.add(egui::Slider::from_get_set(1.0..=10000.0, move |v: Option<f64>| {
             if let Some(v) = v {
@@ -128,22 +129,39 @@ impl Stimulator {
             offset.0 as f64 * 1000.0
         }).logarithmic(true).text("Offsete Time (ms)"));
 
-        ui.horizontal(|ui| {
-            ui.selectable_value(current_shape, CurrentShape::SquareWave{
+        let default_square_wave = match &mut current_shape {
+            c@CurrentShape::SquareWave {..} => c.clone(),
+            _ => CurrentShape::SquareWave {
                 on_current: MicroAmpsPerSquareCm(50.0),
                 off_current: MicroAmpsPerSquareCm(-10.0)
-            }, "Square");
-            ui.selectable_value(current_shape, CurrentShape::LinearRamp{
+            }
+        };
+
+
+        let default_linear_ramp = match &mut current_shape {
+            c@CurrentShape::LinearRamp {..} => c.clone(),
+            _ => CurrentShape::LinearRamp {
                 start_current: MicroAmpsPerSquareCm(10.0),
                 end_current: MicroAmpsPerSquareCm(50.0),
                 off_current: MicroAmpsPerSquareCm(-10.0),
-            }, "Linear Ramp");
-            ui.selectable_value(current_shape, CurrentShape::FrequencyRamp{
+            }
+        };
+
+        let default_frequency_ramp = match &mut current_shape {
+            c@CurrentShape::FrequencyRamp {..} => c.clone(),
+            _ => CurrentShape::FrequencyRamp {
                 on_amplitude: MicroAmpsPerSquareCm(50.0),
                 offset_current: MicroAmpsPerSquareCm(-10.0),
                 start_frequency: Hz(10.0),
                 end_frequency: Hz(100.0),
-            }, "Frequency Ramp");
+            }
+        };
+
+
+        ui.horizontal(|ui| {
+            ui.selectable_value(current_shape, default_square_wave, "Square");
+            ui.selectable_value(current_shape, default_linear_ramp, "Linear Ramp");
+            ui.selectable_value(current_shape, default_frequency_ramp, "Frequency Ramp");
         });
 
         match &mut current_shape {
@@ -151,16 +169,16 @@ impl Stimulator {
 
                 ui.add(egui::Slider::from_get_set(-100.0..=100.0, move |v: Option<f64>| {
                     if let Some(v) = v {
-                        on_current.0 = v as f32 * 0.000001;
+                        on_current.0 = v as f32;
                     }
-                    on_current.0 as f64 * 1000000.0
+                    on_current.0 as f64
                 }).logarithmic(false).text("Onset Current (uAmps)"));
 
                 ui.add(egui::Slider::from_get_set(-100.0..=100.0, move |v: Option<f64>| {
                     if let Some(v) = v {
-                        off_current.0 = v as f32 * 0.000001;
+                        off_current.0 = v as f32;
                     }
-                    off_current.0 as f64 * 1000000.0
+                    off_current.0 as f64
                 }).logarithmic(false).text("Offset Current (uAmps)"));
 
             },
@@ -170,23 +188,23 @@ impl Stimulator {
 
                 ui.add(egui::Slider::from_get_set(-100.0..=100.0, move |v: Option<f64>| {
                     if let Some(v) = v {
-                        start_current.0 = v as f32 * 0.000001;
+                        start_current.0 = v as f32;
                     }
-                    start_current.0 as f64 * 1000000.0
+                    start_current.0 as f64
                 }).logarithmic(false).text("Start Current (uAmps)"));
 
                 ui.add(egui::Slider::from_get_set(-100.0..=100.0, move |v: Option<f64>| {
                     if let Some(v) = v {
-                        end_current.0 = v as f32 * 0.000001;
+                        end_current.0 = v as f32;
                     }
-                    end_current.0 as f64 * 1000000.0
+                    end_current.0 as f64
                 }).logarithmic(false).text("End Current (uAmps)"));
 
                 ui.add(egui::Slider::from_get_set(-100.0..=100.0, move |v: Option<f64>| {
                     if let Some(v) = v {
-                        off_current.0 = v as f32 * 0.000001;
+                        off_current.0 = v as f32;
                     }
-                    off_current.0 as f64 * 1000000.0
+                    off_current.0 as f64
                 }).logarithmic(false).text("Off Current (uAmps)"));
 
             },
@@ -197,16 +215,16 @@ impl Stimulator {
 
                 ui.add(egui::Slider::from_get_set(0.0..=100.0, move |v: Option<f64>| {
                     if let Some(v) = v {
-                        on_amplitude.0 = v as f32 * 0.000001;
+                        on_amplitude.0 = v as f32;
                     }
-                    on_amplitude.0 as f64 * 1000000.0
+                    on_amplitude.0 as f64
                 }).logarithmic(false).text("Amplitude (uAmps)"));
 
                 ui.add(egui::Slider::from_get_set(-100.0..=100.0, move |v: Option<f64>| {
                     if let Some(v) = v {
-                        offset_current.0 = v as f32 * 0.000001;
+                        offset_current.0 = v as f32;
                     }
-                    offset_current.0 as f64 * 1000000.0
+                    offset_current.0 as f64
                 }).logarithmic(false).text("Offset Current (uAmps)"));
 
                 ui.add(egui::Slider::from_get_set(1.0..=100.0, move |v: Option<f64>| {
@@ -227,6 +245,7 @@ impl Stimulator {
         }
 
         self.plot(ui);
+        dbg!(&self);
 
     }
 }
@@ -240,15 +259,15 @@ pub struct StimulatorMaterials {
 
 impl FromWorld for StimulatorMaterials {
     fn from_world(world: &mut World) -> Self {
-        let mut material_assets = world.get_resource_mut::<Assets<StandardMaterial>>().expect("Can get Assets");
+        let mut material_assets = world.get_resource_mut::<Assets<StandardMaterial>>()
+            .expect("Can get material assets");
         let len = 200;
         let current_range = (MicroAmpsPerSquareCm(-10.0),MicroAmpsPerSquareCm(10.0));
         let mut handles = Vec::new();
         let unselected_handles: Vec<_> = (0..100).map(|i| {
           let intensity_range = 1.0;
           let intensity = (i as f32) / len as f32 * intensity_range;
-          // let intensity = 1.0;
-          let color = Color::rgb(intensity, 0.0, 1.0 - intensity);
+          let color = Color::rgba(intensity, 0.0, 1.0 - intensity, 0.9);
           let mut material : StandardMaterial = color.clone().into();
           material.emissive = Color::rgb_linear(
               1.0 * intensity,
@@ -262,8 +281,7 @@ impl FromWorld for StimulatorMaterials {
         let selected_handles: Vec<_> = (0..100).map(|i| {
           let intensity_range = 1.0;
           let intensity = (i as f32 - 50.0) / len as f32 * intensity_range;
-          // let intensity = 1.0;
-          let color = Color::rgb(intensity, 0.0, 1.0 - intensity);
+          let color = Color::rgba(intensity, 0.0, 1.0 - intensity,0.95);
           let mut material : StandardMaterial = color.clone().into();
           material.emissive = Color::rgb_linear(
               30.0 * intensity,

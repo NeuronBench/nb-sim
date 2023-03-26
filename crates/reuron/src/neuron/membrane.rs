@@ -1,19 +1,23 @@
 // use crate::constants::{gas_constant, inverse_faraday};
 use bevy::prelude::{Assets, Color, Component, FromWorld, Handle, Resource, StandardMaterial, World};
+use uuid::Uuid;
+use std::hash::Hash;
+
 use crate::dimension::{FaradsPerSquareCm, MilliVolts};
 use crate::neuron::channel::Channel;
+use crate::serialize;
 
 /// The more static properties of a cell membrane: its permeability to
 /// various ions. This may change with the development of the neuron,
 /// but it is fairly static, compared to [`MembraneChannelState`].
-#[derive(Clone, Component, Debug)]
+#[derive(Clone, Component, Debug, Hash)]
 pub struct Membrane {
     /// The concentration of channels in this membrane.
     pub membrane_channels: Vec<MembraneChannel>,
     pub capacitance: FaradsPerSquareCm,
 }
 
-#[derive(Component)]
+#[derive(Component, Hash)]
 pub struct MembraneVoltage(pub MilliVolts);
 
 impl Membrane {
@@ -67,25 +71,25 @@ impl Membrane {
         (k, na, cl, ca)
     }
 
-    // pub fn input_resistance_per_square_cm(
-    //     &self,
-    //     k_reversal: &MilliVolts,
-    //     na_reversal: &MilliVolts,
-    //     ca_reversal: &MilliVolts,
-    //     cl_reversal: &MilliVolts,
-    //     membrane_potential: &MilliVolts,
-    // ) -> Siemens {
-    //     let current = self.current_per_cm(
-    //         k_reversal,
-    //         na_reversal,
-    //         ca_reversal,
-    //         cl_reversal,
-    //         membrane_potential,
-    //     );
-    // }
+    pub fn serialize(&self) -> serialize::Membrane {
+        serialize::Membrane {
+            id: Uuid::new_v4(),
+            channels: self
+                .membrane_channels
+                .iter()
+                .map(|MembraneChannel {
+                    channel,
+                    siemens_per_square_cm
+                }| serialize::MembraneChannel {
+                    channel: channel.serialize(),
+                    siemens_per_square_cm: siemens_per_square_cm.clone(),
+                }).collect(),
+            capacitance_farads_per_square_cm: self.capacitance.0,
+        }
+    }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash)]
 pub struct MembraneChannel {
     /// A chanel in the membrane.
     pub channel: Channel,

@@ -48,7 +48,7 @@ pub struct MilliVolts(pub f32);
 #[derive(Debug, Clone)]
 pub struct Kelvin(pub f32);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Molar(pub f32);
 
 #[derive(Debug, Clone)]
