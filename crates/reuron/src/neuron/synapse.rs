@@ -1,7 +1,6 @@
 use crate::dimension::{
-    Diameter, Interval, Kelvin, MicroAmps, MicroAmpsPerSquareCm, MilliVolts, Molar,
+    Diameter, Interval, Kelvin, MicroAmps, MilliVolts, Molar,
 };
-use crate::neuron::channel::Channel;
 use crate::neuron::channel::{ca_reversal, cl_reversal, k_reversal, na_reversal};
 use crate::neuron::membrane::MembraneChannel;
 use crate::neuron::segment::Segment;

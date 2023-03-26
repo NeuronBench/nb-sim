@@ -9,12 +9,26 @@ use crate::constants::CONDUCTANCE_PER_SQUARE_CM;
 use crate::dimension::{Diameter, Interval, Kelvin, MilliVolts};
 use crate::neuron::solution::Solution;
 
+use bevy::prelude::{Component, Entity};
 use std::f32::consts::PI;
 
 #[derive(Clone, Debug)]
 pub struct Neuron {
     pub segments: Vec<segment::Segment>,
     pub junctions: Vec<(usize, usize, Diameter)>,
+}
+
+pub mod ecs {
+    use bevy::prelude::Component;
+    #[derive(Component)]
+    pub struct Neuron;
+}
+
+#[derive(Component)]
+pub struct Junction {
+    pub first_segment: Entity,
+    pub second_segment: Entity,
+    pub pore_diameter: Diameter,
 }
 
 impl Neuron {
@@ -66,24 +80,30 @@ impl Neuron {
 }
 
 pub mod examples {
-    use crate::dimension::{Diameter, MicroAmpsPerSquareCm};
+    use crate::dimension::{MicroAmpsPerSquareCm, Diameter};
     use crate::neuron::segment::examples::{giant_squid_axon, simple_leak};
     use crate::neuron::Neuron;
+    use crate::neuron::segment::Segment;
     pub fn squid_with_passive_attachment() -> Neuron {
         let active_segment = giant_squid_axon();
         let mut active_segment_2 = giant_squid_axon();
         active_segment_2.input_current = MicroAmpsPerSquareCm(-1.0);
         let passive_segment = simple_leak();
-        let junction_diameter = active_segment.geometry.diameter.clone();
-        let no_junction = Diameter(0.0);
-        Neuron {
-            segments: vec![
+        let junction_diameter = Diameter(1.0);
+        // let no_junction = Diameter(0.0);
+        let some_segments : Vec<Segment> = vec![
                 active_segment,
                 passive_segment.clone(),
                 active_segment_2.clone(),
                 passive_segment,
                 active_segment_2,
-            ],
+            ];
+        let mut segments = vec![];
+        for _ in 0..300 {
+            segments.extend(some_segments.clone());
+        };
+        Neuron {
+            segments: segments,
             junctions: vec![
                 (0, 1, junction_diameter.clone()),
                 (1, 2, junction_diameter.clone()),

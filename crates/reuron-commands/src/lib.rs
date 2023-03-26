@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use serde_dhall::{serialize, StaticType};
+use serde_dhall::{StaticType};
 
 #[derive(Debug, Deserialize, Serialize, StaticType)]
 pub enum Command {

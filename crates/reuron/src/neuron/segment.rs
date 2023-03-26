@@ -1,4 +1,5 @@
 // use crate::constants::BODY_TEMPERATURE;
+use bevy::prelude::Component;
 use crate::dimension::{
     Diameter, Farads, Interval, Kelvin, MicroAmps, MicroAmpsPerSquareCm, MilliVolts,
 };
@@ -21,16 +22,41 @@ pub struct Segment {
     pub synaptic_current: MicroAmps,
 }
 
+pub mod ecs {
+    use crate::dimension::MicroAmpsPerSquareCm;
+
+    #[derive(bevy::ecs::component::Component)]
+    pub struct Segment;
+
+    #[derive(bevy::ecs::component::Component)]
+    pub struct InputCurrent(pub MicroAmpsPerSquareCm);
+}
+
 /// A cylindical neuron segment shape.
-#[derive(Clone, Debug)]
-pub struct Geometry {
-    pub diameter: Diameter,
-    pub length: f32,
+#[derive(Clone, Component, Debug)]
+pub enum Geometry {
+    Cylinder {
+        diameter: Diameter,
+        length: f32,
+    },
+    Sphere {
+        diameter: Diameter,
+    }
+}
+
+impl Geometry {
+    pub fn surface_area(&self) -> f32 {
+        match self {
+            Geometry::Cylinder { diameter, length } => diameter.0 * PI * length,
+            Geometry::Sphere { diameter } => 4.0 * PI * (diameter.0 * 0.5).powi(2)
+        }
+
+    }
 }
 
 impl Segment {
     pub fn surface_area(&self) -> f32 {
-        (self.geometry.diameter.0) * PI * self.geometry.length
+        self.geometry.surface_area()
     }
 
     pub fn dv_dt(&self, temperature: &Kelvin, extracellular_solution: &Solution) -> f32 {
@@ -96,12 +122,10 @@ impl Segment {
 
 pub mod examples {
     use super::*;
-    use crate::constants::*;
     use crate::dimension::*;
-    use crate::neuron::channel::common_channels;
     use crate::neuron::channel::{self, ChannelBuilder, CL, K, NA};
     use crate::neuron::membrane::*;
-    use crate::neuron::solution::{EXAMPLE_CYTOPLASM, INTERSTICIAL_FLUID};
+    use crate::neuron::solution::{EXAMPLE_CYTOPLASM};
 
     pub fn giant_squid_axon() -> Segment {
         let initial_membrane_potential = MilliVolts(-70.0);
@@ -112,7 +136,7 @@ pub mod examples {
                 cl_concentration: Molar(4e-3),
                 ca_concentration: Molar(0.1e-6),
             },
-            geometry: Geometry {
+            geometry: Geometry::Cylinder {
                 diameter: Diameter(1.0),
                 length: 3.0,
             },
@@ -147,7 +171,7 @@ pub mod examples {
         Segment {
             intracellular_solution: EXAMPLE_CYTOPLASM,
             synaptic_current: MicroAmps(0.0),
-            geometry: Geometry {
+            geometry: Geometry::Cylinder {
                 diameter: Diameter(0.01),
                 length: 1000.0,
             },
@@ -175,7 +199,7 @@ pub mod examples {
                 cl_concentration: Molar(4e-3),
                 ca_concentration: Molar(0.1e-6),
             },
-            geometry: Geometry {
+            geometry: Geometry::Cylinder {
                 diameter: Diameter(1.0),
                 length: 3.0,
             },
@@ -203,7 +227,7 @@ pub mod examples {
             intracellular_solution: EXAMPLE_CYTOPLASM,
             input_current: MicroAmpsPerSquareCm(0.0),
             synaptic_current: MicroAmps(0.0),
-            geometry: Geometry {
+            geometry: Geometry::Cylinder {
                 diameter: Diameter(2.0),
                 length: 2.0,
             },
@@ -559,7 +583,7 @@ pub mod examples {
         let mut ampa_segment = Segment {
             intracellular_solution: EXAMPLE_CYTOPLASM,
             synaptic_current: MicroAmps(0.0),
-            geometry: Geometry {
+            geometry: Geometry::Cylinder {
                 diameter: Diameter(1e-3),
                 length: 1e-3,
             },

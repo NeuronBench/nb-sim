@@ -1,4 +1,6 @@
-#[derive(Debug, Clone)]
+use bevy::prelude::{Component, Resource};
+
+#[derive(Component, Debug, Clone)]
 pub struct Diameter(pub f32);
 
 impl Diameter {
@@ -7,7 +9,7 @@ impl Diameter {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Component, Debug, Clone)]
 pub struct P3 {
     pub x: f32,
     pub y: f32,
@@ -25,11 +27,14 @@ impl P3 {
 }
 
 /// Seconds since UNIX epoch.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Resource)]
 pub struct Timestamp(pub f32);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub struct Interval(pub f32);
+
+#[derive(Resource, Debug, Clone)]
+pub struct SimulationStepSeconds(pub f32);
 
 #[derive(Debug, Clone)]
 pub struct Siemens(pub f32);
@@ -43,7 +48,7 @@ pub struct MilliVolts(pub f32);
 #[derive(Debug, Clone)]
 pub struct Kelvin(pub f32);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Molar(pub f32);
 
 #[derive(Debug, Clone)]
@@ -52,8 +57,14 @@ pub struct FaradsPerSquareCm(pub f32);
 #[derive(Debug, Clone)]
 pub struct Farads(pub f32);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct MicroAmpsPerSquareCm(pub f32);
 
 #[derive(Debug, Clone)]
 pub struct MicroAmps(pub f32);
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Hz(pub f32);
+
+#[derive(Debug, Clone)]
+pub struct Phase(pub f32);
