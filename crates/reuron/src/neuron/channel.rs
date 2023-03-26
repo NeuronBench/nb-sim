@@ -350,7 +350,7 @@ pub mod common_channels {
             }),
         };
 
-        /// Rat transient Na+ channel.
+        /// Rat slow k+ channel.
         pub const K_SLOW: ChannelBuilder = ChannelBuilder {
             ion_selectivity: K,
             activation_parameters: Some(Gating {

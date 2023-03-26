@@ -1,0 +1,17 @@
+let channels = https://raw.githubusercontent.com/imalsogreg/reuron/main/data/channels.ffg
+let k_slow = channels.rat_thalamocortical.k_slow
+let na = channels.rat_thalamocortical.na_transient
+let hcn_soma = channels.rat_ca1_pyramidal.hcn_soma
+let hcn_dentrite = channels.rat_ca1_pyramidal.hcn_dentrite
+in
+
+{
+  pyramidal_cell: {
+    apical_dendrite: {
+      capacitance_farads_per_square_cm: 2e-6,
+      membrane_channels: [
+        { channel: channels.rat_thalamocortical.na_transient }
+]
+}
+}
+}
