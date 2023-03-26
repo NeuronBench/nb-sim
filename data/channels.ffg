@@ -48,6 +48,10 @@ in
          steady_state_magnitude: mk_magnitude -62.0 -7.0,
          time_constant: mk_time_constant_sigmoid -67.0 1.2e-3 7.4e-3 20.0
        }
+     },
+
+     leak: {
+       ion_selectivity: { k: 0.0, na: 0.0, cl: 1.0, ca: 0.0 }
      }
   },
 

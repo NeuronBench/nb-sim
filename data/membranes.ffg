@@ -1,17 +1,58 @@
 let channels = https://raw.githubusercontent.com/imalsogreg/reuron/main/data/channels.ffg
+in
+let leak = channels.giant_squid.leak
 let k_slow = channels.rat_thalamocortical.k_slow
 let na = channels.rat_thalamocortical.na_transient
 let hcn_soma = channels.rat_ca1_pyramidal.hcn_soma
 let hcn_dentrite = channels.rat_ca1_pyramidal.hcn_dentrite
-in
+in {
 
-{
   pyramidal_cell: {
+
     apical_dendrite: {
       capacitance_farads_per_square_cm: 2e-6,
       membrane_channels: [
-        { channel: channels.rat_thalamocortical.na_transient }
-]
-}
-}
+        { channel: na , siemens_per_square_cm: 0.023 },
+        { channel: leak , siemens_per_square_cm: 0.03e-3 },
+        { channel: hcn_dendrite , siemens_per_square_cm: 0.08e-3 },
+        { channel: k_slow , siemens_per_square_cm: 0.040 }
+      ]
+    },
+
+    basal_dendrite: {
+      capacitance_farads_per_square_cm: 2e-6,
+      membrane_channels: [
+        { channel: leak , siemens_per_square_cm: 0.03e-3 },
+        { channel: hcn_dendrite , siemens_per_square_cm: 0.08e-3 }
+      ]
+    },
+
+    axon_initial_segment: {
+      capacitance_farads_per_square_cm: 1e-6,
+      membrane_channels: [
+        { channel: na , siemens_per_square_cm: 120e-3 },
+        { channel: leak , siemens_per_square_cm: 0.3e-3 },
+        { channel: k_slow , siemens_per_square_cm: 36e-3 }
+      ]
+    },
+
+    axon: {
+      capacitance_farads_per_square_cm: 1e-6,
+      membrane_channels: [
+        { channel: na , siemens_per_square_cm: 120e-3 },
+        { channel: leak , siemens_per_square_cm: 0.3e-3 },
+        { channel: k_slow , siemens_per_square_cm: 36e-3 }
+      ]
+    },
+
+    soma: {
+      capacitance_farads_per_square_cm: 1e-6,
+      membrane_channels: [
+        { channel: k_slow channels, siemens_per_square_cm: 36e-3 },
+        { channel: na channels, siemens_per_square_cm: 120e-3 },
+        { channel: leak channels, siemens_per_square_cm: 0.3e-5 }
+      ]
+    }
+
+  }
 }

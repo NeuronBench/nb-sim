@@ -41,7 +41,7 @@ pub struct Segment {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Membrane {
     pub id: Uuid,
-    pub channels: Vec<MembraneChannel>,
+    pub membrane_channels: Vec<MembraneChannel>,
     pub capacitance_farads_per_square_cm: f32,
 }
 
