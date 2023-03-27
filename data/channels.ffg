@@ -51,7 +51,7 @@ in
      },
 
      leak: {
-       ion_selectivity: { k: 0.0, na: 0.0, cl: 1.0, ca: 0.0 }
+       ion_selectivity: { k: 0.0: Real, na: 0.0: Real, cl: 1.0: Real, ca: 0.0: Real }
      }
   },
 
