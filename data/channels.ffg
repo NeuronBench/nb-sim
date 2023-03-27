@@ -11,12 +11,12 @@ let mk_time_constant_sigmoid = (\v_at_max_tau_mv -> \c_base -> \c_amp -> \sigma 
   sigma: sigma
 }): Real -> Real -> Real -> Real -> {type: Text, v_at_max_tau_mv: Real, c_base: Real, c_amp: Real, sigma: Real}
 
-let mk_linear_exponential = \coef -> \v_offset -> \inner_coef -> {
+let mk_linear_exponential = (\coef -> \v_offset -> \inner_coef -> {
   type: "LinearExponential",
   coef: coef : Real,
   v_offset: v_offset : Real,
   inner_coef: inner_coef : Real
-}
+}) : Real -> Real -> Real -> { type: Text, coef: Real, v_offset: Real, inner_coef: Real }
 
 let only_k = { k: 1.0 : Real, na: 0.0 : Real, cl: 0.0 : Real, ca: 0.0: Real }
 let only_na = { k: 0.0 : Real, na: 1.0 : Real, cl: 0.0 : Real, ca: 0.0 : Real }
