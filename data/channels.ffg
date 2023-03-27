@@ -18,8 +18,8 @@ let mk_linear_exponential = \coef -> \v_offset -> \inner_coef -> {
   inner_coef: inner_coef
 }
 
-let only_k = { k: 1.0, na: 0.0, cl: 0.0, ca: 0.0 }
-let only_na = { k: 0.0, na: 1.0, cl: 0.0, ca: 0.0 }
+let only_k = { k: 1.0 : Real, na: 0.0 : Real, cl: 0.0 : Real, ca: 0.0: Real }
+let only_na = { k: 0.0 : Real, na: 1.0 : Real, cl: 0.0 : Real, ca: 0.0 : Real }
 
 in
 
@@ -85,7 +85,7 @@ in
   },
   rat_ca1_pyramidal: {
     hcn_soma: {
-      ion_selectivity: { na: 1.0, k: 1.0, cl: 0.0, ca: 0.0 },
+      ion_selectivity: { na: 0.5 : Real, k: 0.5 : Real, cl: 0.0 : Real, ca: 0.0 : Real },
       inactivation_parameters: {
         gates: 1,
         steady_state_magnitude: mk_magnitude -82.0 -9.0,
@@ -93,7 +93,7 @@ in
       }
     },
     hcn_dendrite: {
-      ion_selectivity: { na: 1.0, k: 1.0, cl: 0.0, ca: 0.0 },
+      ion_selectivity: { na: 0.5 : Real, k: 0.5 : Real, cl: 0.0 : Real, ca: 0.0 : Real },
       inactivation_parameters: {
         gates: 1,
         steady_state_magnitude: mk_magnitude -90.0 -8.5,
