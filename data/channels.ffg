@@ -13,9 +13,9 @@ let mk_time_constant_sigmoid = (\v_at_max_tau_mv -> \c_base -> \c_amp -> \sigma 
 
 let mk_linear_exponential = \coef -> \v_offset -> \inner_coef -> {
   type: "LinearExponential",
-  coef: coef,
-  v_offset: v_offset,
-  inner_coef: inner_coef
+  coef: coef : Real,
+  v_offset: v_offset : Real,
+  inner_coef: inner_coef : Real
 }
 
 let only_k = { k: 1.0 : Real, na: 0.0 : Real, cl: 0.0 : Real, ca: 0.0: Real }
