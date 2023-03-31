@@ -1,103 +1,122 @@
-let mk_magnitude = (\v_at_half_max_mv -> \slope -> {
-  v_at_half_max_mv: v_at_half_max_mv,
-  slope: slope,
-}): Real -> Real -> { v_at_half_max_mv: Real, slope: Real }
-
-let mk_time_constant_sigmoid = (\v_at_max_tau_mv -> \c_base -> \c_amp -> \sigma -> {
-  type: "Sigmoid",
-  v_at_max_tau_mv: v_at_max_tau_mv,
-  c_base: c_base,
-  c_amp: c_amp,
-  sigma: sigma
-}): Real -> Real -> Real -> Real -> {type: Text, v_at_max_tau_mv: Real, c_base: Real, c_amp: Real, sigma: Real}
-
-let mk_linear_exponential = (\coef -> \v_offset -> \inner_coef -> {
-  type: "LinearExponential",
-  coef: coef : Real,
-  v_offset: v_offset : Real,
-  inner_coef: inner_coef : Real
-}) : Real -> Real -> Real -> { type: Text, coef: Real, v_offset: Real, inner_coef: Real }
-
-let only_k = { k: 1.0 : Real, na: 0.0 : Real, cl: 0.0 : Real, ca: 0.0: Real }
-let only_na = { k: 0.0 : Real, na: 1.0 : Real, cl: 0.0 : Real, ca: 0.0 : Real }
+let only_k = { k: 1.0, na: 0.0, cl: 0.0, ca: 0.0 }
+let only_na = { k: 0.0, na: 1.0, cl: 0.0, ca: 0.0 }
 
 in
 
 {
 
   giant_squid: {
-     k: {
+     k: Neuron/channel {
        ion_selectivity: only_k,
-       activation_parameters: {
+       activation: {
          gates: 4,
-         steady_state_magnitude: mk_magnitude -53.0 15.0,
-         time_constant: mk_time_constant_sigmoid -79.0 1.1e-3 4.7e-3 50.0
+         magnitude: {v_at_half_max_mv: -53.0, slope: 15.0},
+         time_constant: Sigmoid
+           { v_at_max_tau_mv: -79.0,
+             c_base: 1.1e-3,
+             c_amp: 4.7e-3,
+             sigma: 50.0
+           }
        },
-       inactivation_parameters: null
+       inactivation: null,
      },
 
-     na: {
+     na: Neuron/channel {
        ion_selectivity: only_na,
-       activation_parameters: {
+       activation: {
          gates: 3,
-         steady_state_magnitude: mk_magnitude -40.0 15.0,
-         time_constant: mk_time_constant_sigmoid -38.0 0.04e-3 0.46e-3 30.0
+         magnitude: {v_at_half_max_mv: -40.0, slope: 15.0},
+         time_constant: Sigmoid
+           { v_at_max_tau_mv: -38.0,
+             c_base: 0.04e-3,
+             c_amp: 0.46e-3,
+             sigma: 30.0
+           }
        },
-       inactivation_parameters: {
+       inactivation: {
          gates: 1,
-         steady_state_magnitude: mk_magnitude -62.0 -7.0,
-         time_constant: mk_time_constant_sigmoid -67.0 1.2e-3 7.4e-3 20.0
+         magnitude: {v_at_half_max_mv: -62.0, slope: -7.0},
+         time_constant: Sigmoid
+           { v_at_max_tau_mv: -67.0,
+             c_base: 1.2e-3,
+             c_amp: 7.4e-3,
+             sigma: 20.0
+           }
        }
      },
 
-     leak: {
-       ion_selectivity: { k: 0.0: Real, na: 0.0: Real, cl: 1.0: Real, ca: 0.0: Real }
+     leak: Neuron/channel {
+       ion_selectivity: { k: 0.0, na: 0.0, cl: 1.0, ca: 0.0 },
+       activation: null,
+       inactivation: null,
      }
   },
 
   rat_thalamocortical: {
+
     na_transient: {
       ion_selectivity: only_na,
-      activation_parameters: {
+      activation: {
         gates: 1,
-        steady_state_magnitude: mk_magnitude -30.0 5.5,
-        time_constant: { type: "Instantaneous" }
+        steady_state_magnitude: {v_at_half_max_mv: -30.0, slope: 5.5},
+        time_constant: Instananeous {}
       },
-      inactivation_parameters: {
+      inactivation: {
         gates: 1,
-        steady_state_magnitude: mk_magnitude -70.0 -5.8,
-        time_constant: mk_linear_exponential 3.0 -40.0 0.03
+        steady_state_magnitude: {v_at_half_max_mv: -70.0, slope: -5.8},
+        time_constant: LinearExp {
+          coef: 3.0,
+          v_offset: -40.0,
+          inner_coef: 0.03
+        }
       }
     },
     k_slow: {
       ion_selectivity: only_k,
-      activation_parameters: {
+      activation: {
         gates: 1,
-        steady_state_magnitude: mk_magnitude -3.0 10.0,
-        time_constant: { type: "Instantaneous" }
+        steady_state_magnitude: {v_at_half_max_mv: -3.0, slope: 10.0},
+        time_constant: Instantaneous {}
       },
-      inactivation_parameters: {
+      inactivation: {
         gates: 1,
-        steady_state_magnitude: mk_magnitude -51.0 -12.0,
-        time_constant: mk_time_constant_sigmoid -50.0 -0.36 0.1 50.0
+        steady_state_magnitude: {v_at_half_max_mv: -51.0, slope: -12.0},
+        time_constant: Sigmoid {
+          v_at_max_tau_mv: -50.0,
+          c_base: -0.36,
+          c_amp: 0.1,
+          sigma: 50.0
+        }
       }
     }
   },
   rat_ca1_pyramidal: {
     hcn_soma: {
-      ion_selectivity: { na: 0.5 : Real, k: 0.5 : Real, cl: 0.0 : Real, ca: 0.0 : Real },
-      inactivation_parameters: {
+      ion_selectivity: { na: 0.5, k: 0.5, cl: 0.0, ca: 0.0 },
+      activation: null,
+      inactivation: {
         gates: 1,
-        steady_state_magnitude: mk_magnitude -82.0 -9.0,
-        time_constant: mk_time_constant_sigmoid -75.0 10e-3 50e-3 20.0
+        steady_state_magnitude: {v_at_half_max_mv: -82.0, slope: -9.0},
+        time_constant: Sigmoid {
+          v_at_max_tau_mv: -75.0,
+          c_base:  10e-3,
+          c_amp:  50e-3,
+          sigma: 20.0
+        } 
       }
     },
     hcn_dendrite: {
-      ion_selectivity: { na: 0.5 : Real, k: 0.5 : Real, cl: 0.0 : Real, ca: 0.0 : Real },
-      inactivation_parameters: {
+      ion_selectivity: { na: 0.5, k: 0.5, cl: 0.0, ca: 0.0 },
+      activation: null,
+      inactivation: {
         gates: 1,
-        steady_state_magnitude: mk_magnitude -90.0 -8.5,
-        time_constant: mk_time_constant_sigmoid -75.0 10e-3 40e-3 20.0
+        steady_state_magnitude: {v_at_half_max_mv: -90.0, slope: -8.5},
+        time_constant: Sigmoid {
+          v_at_max_tau_mv: -75.0,
+          c_base: 10e-3,
+          c_amp: 40e-3,
+          sigma:  20.0
+        }
       }
     }
   }
