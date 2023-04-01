@@ -54,16 +54,16 @@ in
 
   rat_thalamocortical: {
 
-    na_transient: {
+    na_transient: Neuron/channel {
       ion_selectivity: only_na,
       activation: {
         gates: 1,
-        steady_state_magnitude: {v_at_half_max_mv: -30.0, slope: 5.5},
-        time_constant: Instananeous {}
+        magnitude: {v_at_half_max_mv: -30.0, slope: 5.5},
+        time_constant: Instantaneous {}
       },
       inactivation: {
         gates: 1,
-        steady_state_magnitude: {v_at_half_max_mv: -70.0, slope: -5.8},
+        magnitude: {v_at_half_max_mv: -70.0, slope: -5.8},
         time_constant: LinearExp {
           coef: 3.0,
           v_offset: -40.0,
@@ -71,16 +71,16 @@ in
         }
       }
     },
-    k_slow: {
+    k_slow: Neuron/channel {
       ion_selectivity: only_k,
       activation: {
         gates: 1,
-        steady_state_magnitude: {v_at_half_max_mv: -3.0, slope: 10.0},
+        magnitude: {v_at_half_max_mv: -3.0, slope: 10.0},
         time_constant: Instantaneous {}
       },
       inactivation: {
         gates: 1,
-        steady_state_magnitude: {v_at_half_max_mv: -51.0, slope: -12.0},
+        magnitude: {v_at_half_max_mv: -51.0, slope: -12.0},
         time_constant: Sigmoid {
           v_at_max_tau_mv: -50.0,
           c_base: -0.36,
@@ -90,13 +90,14 @@ in
       }
     }
   },
+
   rat_ca1_pyramidal: {
-    hcn_soma: {
+    hcn_soma: Neuron/channel {
       ion_selectivity: { na: 0.5, k: 0.5, cl: 0.0, ca: 0.0 },
       activation: null,
       inactivation: {
         gates: 1,
-        steady_state_magnitude: {v_at_half_max_mv: -82.0, slope: -9.0},
+        magnitude: {v_at_half_max_mv: -82.0, slope: -9.0},
         time_constant: Sigmoid {
           v_at_max_tau_mv: -75.0,
           c_base:  10e-3,
@@ -105,12 +106,12 @@ in
         } 
       }
     },
-    hcn_dendrite: {
+    hcn_dendrite: Neuron/channel {
       ion_selectivity: { na: 0.5, k: 0.5, cl: 0.0, ca: 0.0 },
       activation: null,
       inactivation: {
         gates: 1,
-        steady_state_magnitude: {v_at_half_max_mv: -90.0, slope: -8.5},
+        magnitude: {v_at_half_max_mv: -90.0, slope: -8.5},
         time_constant: Sigmoid {
           v_at_max_tau_mv: -75.0,
           c_base: 10e-3,
