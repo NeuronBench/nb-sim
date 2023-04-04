@@ -286,6 +286,7 @@ mod tests {
     use super::examples;
     use super::*;
     use crate::constants::BODY_TEMPERATURE;
+    use crate::dimension::MicroAmpsPerSquareCm;
     use crate::neuron::solution::INTERSTICIAL_FLUID;
 
     #[test]
@@ -305,7 +306,7 @@ mod tests {
 
         let interval = Interval(1e-6);
         for n in 0..2000 {
-            if (n % 100 == 0) {
+            if n % 100 == 0 {
                 let m_g = &synapse.transmitter_concentrations.glutamate.0;
                 let coeff = &synapse.postsynaptic_receptors[0]
                     .neurotransmitter_sensitivity

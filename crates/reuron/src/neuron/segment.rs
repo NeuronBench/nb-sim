@@ -125,7 +125,9 @@ pub mod examples {
     use crate::dimension::*;
     use crate::neuron::channel::{self, ChannelBuilder, CL, K, NA};
     use crate::neuron::membrane::*;
-    use crate::neuron::solution::{EXAMPLE_CYTOPLASM};
+    use crate::neuron::solution::{EXAMPLE_CYTOPLASM, INTERSTICIAL_FLUID};
+    use crate::constants::BODY_TEMPERATURE;
+    use crate::neuron::channel::common_channels;
 
     pub fn giant_squid_axon() -> Segment {
         let initial_membrane_potential = MilliVolts(-70.0);
@@ -272,8 +274,10 @@ pub mod examples {
         use super::examples::{giant_squid_axon, k_channels_only, simple_leak};
         use super::*;
         use crate::neuron::channel::cl_reversal;
+        use crate::neuron::channel::common_channels;
         use crate::neuron::membrane::{Membrane, MembraneChannel};
         use crate::neuron::solution::{EXAMPLE_CYTOPLASM, INTERSTICIAL_FLUID};
+        use crate::constants::BODY_TEMPERATURE;
         use std::io;
 
         #[test]

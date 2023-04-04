@@ -10,14 +10,14 @@ use crate::serialize;
 /// The more static properties of a cell membrane: its permeability to
 /// various ions. This may change with the development of the neuron,
 /// but it is fairly static, compared to [`MembraneChannelState`].
-#[derive(Clone, Component, Debug, Hash)]
+#[derive(Clone, Component, Debug)]
 pub struct Membrane {
     /// The concentration of channels in this membrane.
     pub membrane_channels: Vec<MembraneChannel>,
     pub capacitance: FaradsPerSquareCm,
 }
 
-#[derive(Component, Hash)]
+#[derive(Component)]
 pub struct MembraneVoltage(pub MilliVolts);
 
 impl Membrane {
@@ -74,7 +74,7 @@ impl Membrane {
     pub fn serialize(&self) -> serialize::Membrane {
         serialize::Membrane {
             id: Uuid::new_v4(),
-            channels: self
+            membrane_channels: self
                 .membrane_channels
                 .iter()
                 .map(|MembraneChannel {
@@ -89,7 +89,7 @@ impl Membrane {
     }
 }
 
-#[derive(Clone, Debug, Hash)]
+#[derive(Clone, Debug)]
 pub struct MembraneChannel {
     /// A chanel in the membrane.
     pub channel: Channel,
