@@ -1,0 +1,9 @@
+let membranes = https://raw.githubusercontent.com/imalsogreg/reuron/main/data/membranes.ffg
+in
+
+\segments -> Neuron/neuron
+  { segments: segments,
+    membranes:
+      [ membranes.pyramidal_cell.soma,
+      ]
+  }

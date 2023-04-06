@@ -1,0 +1,9 @@
+let membranes = https://raw.githubusercontent.com/imalsogreg/reuron/main/data/membranes.ffg
+in
+
+Neuron/neuron {
+  segments: [
+    { id: 1, x: 0.1, y: 0.2, z: 0.3, r: 0.1e-3, type: , parent: null},
+    { id: 2, x: 0.1, y: 0.2, z: 0.3, r: 0.1e-3, type: "apical_dendrite", parent: 1},
+  ]
+}
