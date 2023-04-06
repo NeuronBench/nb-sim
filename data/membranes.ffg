@@ -1,4 +1,4 @@
-let channels = ./channels.ffg
+let channels = https://raw.githubusercontent.com/imalsogreg/reuron/main/data/channels.ffg
 let leak = channels.giant_squid.leak
 let k_slow = channels.rat_thalamocortical.k_slow
 let na_transient = channels.rat_thalamocortical.na_transient
