@@ -16,8 +16,7 @@ pub struct Scene {
 pub struct Neuron {
     pub id: Uuid,
     pub segments: Vec<Segment>,
-    pub junctions: Vec<(Uuid, Uuid)>,
-    pub position_cm: Position
+    // pub junctions: Vec<(Uuid, Uuid)>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -119,17 +118,6 @@ pub struct Solution {
     pub ca: f32,
     // Cl+ concentration (Molars).
     pub cl: f32,
-}
-
-/// A trait for types that are content-addressable.
-pub trait ContentAddress: Hash {
-
-    fn content_address<T: ContentAddress>(&self) -> Uuid {
-        let mut s = DefaultHasher::new();
-        self.hash(&mut s);
-        let item_hash: u64 = s.finish();
-        Uuid::from_u64_pair(0, item_hash)
-    }
 }
 
 

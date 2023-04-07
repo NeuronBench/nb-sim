@@ -1,0 +1,195 @@
+{
+  "membranes": [
+    {
+      "capacitance_farads_per_square_cm": 1e-06,
+      "membrane_channels": [
+        {
+          "channel": {
+            "ion_selectivity": {
+              "k": 1,
+              "na": 0,
+              "cl": 0,
+              "ca": 0
+            },
+            "activation": {
+              "gates": 1,
+              "magnitude": {
+                "v_at_half_max_mv": -3,
+                "slope": 10
+              },
+              "time_constant": {}
+            },
+            "inactivation": {
+              "gates": 1,
+              "magnitude": {
+                "v_at_half_max_mv": -51,
+                "slope": -12
+              },
+              "time_constant": {
+                "v_at_max_tau_mv": -50,
+                "c_base": -0.36,
+                "c_amp": 0.1,
+                "sigma": 50
+              }
+            }
+          },
+          "siemens_per_square_cm": 0.036
+        },
+        {
+          "channel": {
+            "ion_selectivity": {
+              "k": 0,
+              "na": 1,
+              "cl": 0,
+              "ca": 0
+            },
+            "activation": {
+              "gates": 1,
+              "magnitude": {
+                "v_at_half_max_mv": -30,
+                "slope": 5.5
+              },
+              "time_constant": {}
+            },
+            "inactivation": {
+              "gates": 1,
+              "magnitude": {
+                "v_at_half_max_mv": -70,
+                "slope": -5.8
+              },
+              "time_constant": {
+                "coef": 3,
+                "v_offset": -40,
+                "inner_coef": 0.03
+              }
+            }
+          },
+          "siemens_per_square_cm": 0.12
+        },
+        {
+          "channel": {
+            "ion_selectivity": {
+              "k": 0,
+              "na": 0,
+              "cl": 1,
+              "ca": 0
+            },
+            "activation": null,
+            "inactivation": null
+          },
+          "siemens_per_square_cm": 3e-06
+        }
+      ]
+    }
+  ],
+  "segments": [
+    {
+      "id": 1,
+      "x": 220.3916,
+      "y": 401.5223,
+      "z": 32.1182,
+      "r": 5.1554,
+      "type": 1,
+      "parent": -1
+    },
+    {
+      "id": 2,
+      "x": 224.6175,
+      "y": 398.5044,
+      "z": 31.953,
+      "r": 0.9781,
+      "type": 3,
+      "parent": 1
+    },
+    {
+      "id": 3,
+      "x": 225.5808,
+      "y": 397.9221,
+      "z": 31.9561,
+      "r": 0.9424,
+      "type": 3,
+      "parent": 2
+    },
+    {
+      "id": 4,
+      "x": 226.6722,
+      "y": 397.6693,
+      "z": 32.0527,
+      "r": 0.9068,
+      "type": 3,
+      "parent": 3
+    },
+    {
+      "id": 5,
+      "x": 227.783,
+      "y": 397.437,
+      "z": 32.1734,
+      "r": 0.8712,
+      "type": 3,
+      "parent": 4
+    },
+    {
+      "id": 1491,
+      "x": 148.3997,
+      "y": 397.5583,
+      "z": 44.9641,
+      "r": 0.2849,
+      "type": 3,
+      "parent": 1490
+    },
+    {
+      "id": 1492,
+      "x": 147.4021,
+      "y": 397.1156,
+      "z": 45.1637,
+      "r": 0.2786,
+      "type": 3,
+      "parent": 1491
+    },
+    {
+      "id": 1493,
+      "x": 146.5979,
+      "y": 396.3868,
+      "z": 45.4037,
+      "r": 0.2723,
+      "type": 3,
+      "parent": 1492
+    },
+    {
+      "id": 1494,
+      "x": 145.7982,
+      "y": 395.6318,
+      "z": 45.6016,
+      "r": 0.266,
+      "type": 3,
+      "parent": 1493
+    },
+    {
+      "id": 1495,
+      "x": 144.994,
+      "y": 395.0575,
+      "z": 45.8514,
+      "r": 0.2597,
+      "type": 3,
+      "parent": 1494
+    },
+    {
+      "id": 1496,
+      "x": 143.8546,
+      "y": 395.0335,
+      "z": 46.065,
+      "r": 0.2534,
+      "type": 3,
+      "parent": 1495
+    },
+    {
+      "id": 1497,
+      "x": 142.8856,
+      "y": 395.252,
+      "z": 46.76,
+      "r": 0.2471,
+      "type": 3,
+      "parent": 1496
+    }
+  ]
+}
