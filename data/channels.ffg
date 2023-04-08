@@ -66,7 +66,7 @@ in
         magnitude: {v_at_half_max_mv: -70.0, slope: -5.8},
         time_constant: LinearExp {
           coef: 3.0,
-          v_offset: -40.0,
+          v_offset_mv: -40.0,
           inner_coef: 0.03
         }
       }
