@@ -14,8 +14,8 @@ pub struct Scene {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Neuron {
-    pub id: Uuid,
     pub segments: Vec<Segment>,
+    pub membranes: Vec<Membrane>,
     // pub junctions: Vec<(Uuid, Uuid)>,
 }
 
@@ -28,13 +28,20 @@ pub struct Position {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Segment {
-    pub id: Uuid,
-    pub geometry: Geometry,
-    pub intracellular_solution: Option<Solution>,
-    pub position_microns: Position,
-    pub membrane: Membrane,
-    pub membrane_potential_mv: f32,
-    pub stimulator_ids: Vec<Uuid>,
+    // pub id: Uuid,
+    // pub geometry: Geometry,
+    // pub intracellular_solution: Option<Solution>,
+    // pub position_microns: Position,
+    // pub membrane: Membrane,
+    // pub membrane_potential_mv: f32,
+    // pub stimulator_ids: Vec<Uuid>,
+    x: f32,
+    y: f32,
+    z: f32,
+    r: f32,
+    type_: usize,
+    parent: Option<usize>,
+
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
