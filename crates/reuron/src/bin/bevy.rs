@@ -12,6 +12,7 @@ use std::f32::consts::PI;
 use reuron::plugin::ReuronPlugin;
 use reuron::gui::run_gui;
 use reuron::integrations::swc_file::SwcFile;
+use reuron::integrations::GraceNeuron;
 use reuron::neuron::segment::ecs::Segment;
 use reuron::neuron::membrane::MembraneMaterials;
 use reuron::pan_orbit_camera::{PanOrbitCamera, pan_orbit_camera};
@@ -46,7 +47,6 @@ pub fn main() {
 fn setup_swc_neuron(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut camera_query: Query<(&MyCamera, &mut Transform)>,
     segments_query: Query<(&Segment, &GlobalTransform)>,
     mut materials: Res<MembraneMaterials>,
 ) {
@@ -73,6 +73,16 @@ fn setup_swc_neuron(
   // println!("Soma translation: {:?}", soma_transform.translation());
   // let (_, mut camera_transform) = camera_query.get_single().expect("just one camera");
   // camera_transform = &camera_transform.looking_at(soma_transform.translation(), Vec3::Y);
+}
+
+fn setup_grace_nuron(
+  mut commands: Commands,
+  mut meshes: ResMut<Assets<Mesh>>,
+  mut materials: Res<MembraneMaterials>,
+) {
+  let grace_neuron = GraceNeuron ( crate::integrations::grace::sample::neuron() );
+  grace_neuron.spawn(Vec3::new(0,0,0), &mut commands, meshes, materials);
+
 }
 
 

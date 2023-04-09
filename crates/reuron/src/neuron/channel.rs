@@ -24,6 +24,14 @@ impl IonSelectivity {
             na, k, ca, cl
         }
     }
+    pub fn deserialize(i: &serialize::IonSelectivity) -> Self {
+        IonSelectivity {
+            k: i.k.clone(),
+            na: i.na.clone(),
+            ca: i.ca.clone(),
+            cl: i.cl.clone(),
+        }
+    }
 }
 
 pub const K: IonSelectivity = IonSelectivity {
@@ -176,6 +184,14 @@ impl Channel {
             ion_selectivity: self.ion_selectivity.serialize(),
         }
     }
+
+    pub fn deserialize(channel: &serialize::Channel) -> Self {
+        Channel {
+            activation: channel.activation.as_ref().map(|a| GateState::deserialize(a)),
+            inactivation: channel.inactivation.as_ref().map(|i| GateState::deserialize(i)),
+            ion_selectivity: IonSelectivity::deserialize(&channel.ion_selectivity),
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -247,10 +263,10 @@ impl GateState {
         }
     }
 
-    pub fn serialize(&self) -> (serialize::GatingParameters, f32) {
+    pub fn serialize(&self) -> serialize::GatingParameters {
         let params = serialize::GatingParameters {
             gates: self.parameters.gates,
-            steady_state_magnitude: serialize::Magnitude {
+            magnitude: serialize::Magnitude {
                 slope: self.parameters.steady_state_magnitude.slope,
                 v_at_half_max_mv: self.parameters.steady_state_magnitude.v_at_half_max.0,
             },
@@ -258,7 +274,7 @@ impl GateState {
                 TimeConstant::Instantaneous => serialize::TimeConstant::Instantaneous,
                 TimeConstant::Sigmoid { v_at_max_tau, c_base, c_amp, sigma } =>
                     serialize::TimeConstant::Sigmoid {
-                        v_at_max_tau: v_at_max_tau.0,
+                        v_at_max_tau_mv: v_at_max_tau.0,
                         c_base, c_amp, sigma
                     },
                 TimeConstant::LinearExp {coef, v_offset, inner_coef } =>
@@ -267,7 +283,35 @@ impl GateState {
                     }
             },
         };
-        (params, self.magnitude)
+        params
+    }
+
+    pub fn deserialize(ps: &serialize::GatingParameters) -> GateState {
+        // TODO: Parameterize on v0?
+        let v0 = MilliVolts(-88.0);
+        let gating = Gating {
+            gates: ps.gates,
+            steady_state_magnitude: Magnitude {
+                v_at_half_max: MilliVolts(ps.magnitude.v_at_half_max_mv),
+                slope: ps.magnitude.slope
+            },
+            time_constant: match ps.time_constant {
+                serialize::TimeConstant::Instantaneous => TimeConstant::Instantaneous,
+                serialize::TimeConstant::Sigmoid { v_at_max_tau_mv, c_base, c_amp, sigma } =>
+                    TimeConstant::Sigmoid {
+                        v_at_max_tau: MilliVolts(v_at_max_tau_mv),
+                        c_base,
+                        c_amp,
+                        sigma,
+                    },
+                serialize::TimeConstant::LinearExp {coef, v_offset_mv, inner_coef } =>
+                    TimeConstant::LinearExp { coef, v_offset: MilliVolts(v_offset_mv), inner_coef }
+            }
+        };
+        GateState {
+            magnitude: gating.steady_state_magnitude.steady_state(&v0),
+            parameters: gating,
+        }
     }
 }
 
@@ -536,7 +580,7 @@ mod tests {
     use crate::constants::*;
     use crate::dimension::*;
     use crate::neuron::channel::common_channels;
-    use crate::neuron::channel::IonSelectivity;
+    // use crate::neuron::channel::IonSelectivity;
     use crate::neuron::channel::*;
     use crate::neuron::solution::*;
     #[test]

@@ -1,7 +1,7 @@
 // use crate::constants::{gas_constant, inverse_faraday};
 use bevy::prelude::{Assets, Color, Component, FromWorld, Handle, Resource, StandardMaterial, World};
-use uuid::Uuid;
-use std::hash::Hash;
+// use uuid::Uuid;
+// use std::hash::Hash;
 
 use crate::dimension::{FaradsPerSquareCm, MilliVolts};
 use crate::neuron::channel::Channel;
@@ -73,7 +73,7 @@ impl Membrane {
 
     pub fn serialize(&self) -> serialize::Membrane {
         serialize::Membrane {
-            id: Uuid::new_v4(),
+            // id: Uuid::new_v4(),
             membrane_channels: self
                 .membrane_channels
                 .iter()
@@ -85,6 +85,17 @@ impl Membrane {
                     siemens_per_square_cm: siemens_per_square_cm.clone(),
                 }).collect(),
             capacitance_farads_per_square_cm: self.capacitance.0,
+        }
+    }
+
+    pub fn deserialize(m: &serialize::Membrane) -> Self {
+        let serialize::Membrane { membrane_channels, capacitance_farads_per_square_cm } = m;
+        Membrane {
+            capacitance: FaradsPerSquareCm(capacitance_farads_per_square_cm.clone()),
+            membrane_channels: membrane_channels
+                .iter()
+                .map(|mc| MembraneChannel::deserialize(mc))
+                .collect()
         }
     }
 }
@@ -128,6 +139,14 @@ impl MembraneChannel {
         let channel_current =
             (k_current + na_current + ca_current + cl_current) * self.siemens_per_square_cm;
         channel_current
+    }
+
+    pub fn deserialize(c: &serialize::MembraneChannel) -> Self {
+        let serialize::MembraneChannel { channel, siemens_per_square_cm } = c;
+        MembraneChannel {
+            siemens_per_square_cm: siemens_per_square_cm.clone(),
+            channel: Channel::deserialize(channel),
+        }
     }
 }
 
@@ -174,7 +193,7 @@ impl MembraneMaterials {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::constants::BODY_TEMPERATURE;
+    // use crate::constants::BODY_TEMPERATURE;
 
     const K_REVERSAL: MilliVolts = MilliVolts(-89.0);
     const NA_REVERSAL: MilliVolts = MilliVolts(80.0);

@@ -16,7 +16,7 @@ use crate::dimension::{
 };
 use crate::constants::{BODY_TEMPERATURE, CONDUCTANCE_PER_SQUARE_CM, SIMULATION_STEPS_PER_FRAME};
 use crate::stimulator::{StimulatorMaterials, Stimulator};
-use crate::serialize;
+// use crate::serialize;
 use crate::neuron::Junction;
 use crate::neuron::segment::{Geometry, ecs::Segment, ecs::InputCurrent};
 use crate::neuron::solution::{Solution, INTERSTICIAL_FLUID, EXAMPLE_CYTOPLASM};
@@ -490,14 +490,14 @@ fn stimulate_picked_segments(
 }
 
 
-pub fn serialize_simulation (
-    extracellular_solution: &Solution,
-    segments: &[(Membrane, MembraneVoltage, Stimulator)]
-) -> serialize::Scene {
-    serialize::Scene {
-        extracellular_solution: extracellular_solution.serialize(),
-        membranes: unimplemented!(),
-        neurons: unimplemented!(),
-        synapses: vec![],
-    }
-}
+// pub fn serialize_simulation (
+//     extracellular_solution: &Solution,
+//     segments: &[(Membrane, MembraneVoltage, Stimulator)]
+// ) -> serialize::Scene {
+//     serialize::Scene {
+//         extracellular_solution: extracellular_solution.serialize(),
+//         membranes: unimplemented!(),
+//         neurons: unimplemented!(),
+//         synapses: vec![],
+//     }
+// }

@@ -1,6 +1,4 @@
 use serde::{Serialize, Deserialize};
-use std::hash::{Hash, Hasher};
-use std::collections::hash_map::DefaultHasher;
 use uuid::Uuid;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -35,18 +33,24 @@ pub struct Segment {
     // pub membrane: Membrane,
     // pub membrane_potential_mv: f32,
     // pub stimulator_ids: Vec<Uuid>,
-    x: f32,
-    y: f32,
-    z: f32,
-    r: f32,
-    type_: usize,
-    parent: Option<usize>,
+
+    pub id: i32,
+
+    #[serde(rename="type")]
+    pub type_: usize,
+
+    pub x: f32,
+    pub y: f32,
+    pub z: f32,
+    pub r: f32,
+
+    pub parent: i32,
 
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Membrane {
-    pub id: Uuid,
+    // pub id: Uuid,
     pub membrane_channels: Vec<MembraneChannel>,
     pub capacitance_farads_per_square_cm: f32,
 }
@@ -61,9 +65,9 @@ pub struct MembraneChannel {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Channel {
   // Parameters for channel activation, and the current magnitude of this parameter.
-  pub activation: Option<(GatingParameters, f32)>,
+  pub activation: Option<GatingParameters>,
   // Parameters for channel inactivation, and the current magnitude of this parameter.
-  pub inactivation: Option<(GatingParameters, f32)>,
+  pub inactivation: Option<GatingParameters>,
   // Permiability of the channel to each ion, when activation magnitude is 1 and inactivation magnitude is 0.
   pub ion_selectivity: IonSelectivity,
 }
@@ -83,7 +87,7 @@ pub struct IonSelectivity {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct GatingParameters {
   pub gates: u8,
-  pub steady_state_magnitude: Magnitude,
+  pub magnitude: Magnitude,
   pub time_constant: TimeConstant,
 }
 
@@ -100,9 +104,10 @@ pub struct Magnitude {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(tag="type")]
 pub enum TimeConstant {
     Instantaneous,
-    Sigmoid { v_at_max_tau: f32, c_base: f32, c_amp: f32, sigma: f32 },
+    Sigmoid { v_at_max_tau_mv: f32, c_base: f32, c_amp: f32, sigma: f32 },
     LinearExp { coef: f32, v_offset_mv: f32, inner_coef: f32 },
 }
 

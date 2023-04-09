@@ -125,9 +125,7 @@ pub mod examples {
     use crate::dimension::*;
     use crate::neuron::channel::{self, ChannelBuilder, CL, K, NA};
     use crate::neuron::membrane::*;
-    use crate::neuron::solution::{EXAMPLE_CYTOPLASM, INTERSTICIAL_FLUID};
-    use crate::constants::BODY_TEMPERATURE;
-    use crate::neuron::channel::common_channels;
+    use crate::neuron::solution::{EXAMPLE_CYTOPLASM};
 
     pub fn giant_squid_axon() -> Segment {
         let initial_membrane_potential = MilliVolts(-70.0);
@@ -274,11 +272,11 @@ pub mod examples {
         use super::examples::{giant_squid_axon, k_channels_only, simple_leak};
         use super::*;
         use crate::neuron::channel::cl_reversal;
-        use crate::neuron::channel::common_channels;
-        use crate::neuron::membrane::{Membrane, MembraneChannel};
+        // use crate::neuron::channel::common_channels;
+        // use crate::neuron::membrane::{Membrane, MembraneChannel};
         use crate::neuron::solution::{EXAMPLE_CYTOPLASM, INTERSTICIAL_FLUID};
         use crate::constants::BODY_TEMPERATURE;
-        use std::io;
+        // use std::io;
 
         #[test]
         // The giant squid axon should settly at a resting membrane potential
@@ -583,6 +581,9 @@ pub mod examples {
 
     #[test]
     fn ampa_receptor_reversal_potential_is_zero() {
+        use crate::neuron::channel::common_channels;
+        use crate::constants::BODY_TEMPERATURE;
+        use crate::neuron::solution::INTERSTICIAL_FLUID;
         let interval = Interval(1e-6);
         let mut ampa_segment = Segment {
             intracellular_solution: EXAMPLE_CYTOPLASM,

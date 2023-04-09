@@ -12,7 +12,7 @@ use crate::neuron::segment::{ecs::Segment, ecs::InputCurrent, Geometry};
 use crate::neuron::solution::EXAMPLE_CYTOPLASM;
 use crate::neuron::channel;
 use crate::neuron::ecs::Neuron;
-use crate::serialize;
+// use crate::serialize;
 
 #[derive(Clone, Debug)]
 pub struct SwcFile {
