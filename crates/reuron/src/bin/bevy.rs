@@ -12,7 +12,7 @@ use std::f32::consts::PI;
 use reuron::plugin::ReuronPlugin;
 use reuron::gui::run_gui;
 use reuron::integrations::swc_file::SwcFile;
-use reuron::integrations::GraceNeuron;
+use reuron::integrations::grace::{self, GraceNeuron};
 use reuron::neuron::segment::ecs::Segment;
 use reuron::neuron::membrane::MembraneMaterials;
 use reuron::pan_orbit_camera::{PanOrbitCamera, pan_orbit_camera};
@@ -33,7 +33,8 @@ pub fn main() {
         .add_plugin(ReuronPlugin)
         .add_system(bevy::window::close_on_esc)
         .add_startup_system(setup_scene)
-        .add_startup_system(setup_swc_neuron)
+        // .add_startup_system(setup_swc_neuron)
+        .add_startup_system(setup_grace_neuron)
         .insert_resource(ClearColor(Color::rgb(0.2,0.2,0.2)))
         .add_system(pan_orbit_camera)
         .add_system(run_gui);
@@ -75,14 +76,13 @@ fn setup_swc_neuron(
   // camera_transform = &camera_transform.looking_at(soma_transform.translation(), Vec3::Y);
 }
 
-fn setup_grace_nuron(
+fn setup_grace_neuron(
   mut commands: Commands,
   mut meshes: ResMut<Assets<Mesh>>,
   mut materials: Res<MembraneMaterials>,
 ) {
-  let grace_neuron = GraceNeuron ( crate::integrations::grace::sample::neuron() );
-  grace_neuron.spawn(Vec3::new(0,0,0), &mut commands, meshes, materials);
-
+  let grace_neuron = GraceNeuron ( grace::sample::neuron() );
+  grace_neuron.spawn(Vec3::new(0.0,0.0,0.0), &mut commands, &mut meshes, &mut materials);
 }
 
 

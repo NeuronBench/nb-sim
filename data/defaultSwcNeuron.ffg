@@ -5,5 +5,9 @@ in
   { segments: segments,
     membranes:
       [ membranes.pyramidal_cell.soma,
+        membranes.pyramidal_cell.axon,
+        membranes.pyramidal_cell.dendrite,
+        membranes.pyramidal_cell.apical_dendrite,
+        membranes.pyramidal_cell.apical_dendrite,
       ]
   }

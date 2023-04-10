@@ -69,7 +69,8 @@ impl GraceNeuron {
                      }.into(),
             };
 
-            let membrane_serialized = self.0.membranes.get(segment.type_).expect("type should be a valid index into membranes");
+            dbg!(segment.type_);
+            let membrane_serialized = self.0.membranes.get(segment.type_ - 1).expect("type should be a valid index into membranes");
             let membrane = Membrane::deserialize(membrane_serialized);
             let look_target = match entry_map.get(parent) {
                 None => {
@@ -156,8 +157,10 @@ pub fn distance_to_segment_cm(source: &serialize::Segment, dest: &serialize::Seg
 
 pub mod sample {
     use std::include_str;
-    pub fn neuron() -> &'static str {
-        include_str!("../../sample_data/swc_neuron.json")
+    use crate::serialize;
+    pub fn neuron() -> serialize::Neuron {
+        let s = include_str!("../../sample_data/swc_neuron.json");
+        serde_json::from_str(s).expect("should parse")
     }
 }
 
@@ -177,7 +180,7 @@ pub mod tests {
         ).expect("should parse");
         assert!(solution.k - 1.0 < 1e-7);
 
-        let neuron : serialize::Neuron = serde_json::from_str(sample::neuron()).expect("should parse");
+        let neuron : serialize::Neuron = sample::neuron();
     }
 
 }
