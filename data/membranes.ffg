@@ -49,7 +49,7 @@ in {
       membrane_channels: [
         { channel: k_slow, siemens_per_square_cm: 36e-3 },
         { channel: na_transient, siemens_per_square_cm: 120e-3 },
-        { channel: leak, siemens_per_square_cm: 0.3e-5 }
+        { channel: leak, siemens_per_square_cm: 3e-5 }
       ]
     }
 
