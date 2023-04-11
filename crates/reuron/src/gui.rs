@@ -1,21 +1,43 @@
+pub mod load;
+
 use bevy::prelude::*;
 use bevy::diagnostic::{Diagnostics, FrameTimeDiagnosticsPlugin};
 use bevy_egui::{egui, EguiContexts};
 use bevy_egui::egui::Ui;
 
+use crate::neuron::Junction;
 use crate::dimension::{Timestamp, SimulationStepSeconds, Hz, MicroAmpsPerSquareCm, Interval};
 use crate::constants::SIMULATION_STEPS_PER_FRAME;
 use crate::stimulator::{Stimulator, Envelope, CurrentShape};
+use crate::neuron::ecs::Neuron;
+use crate::neuron::segment::ecs::Segment;
+
 
 pub fn run_gui(
+    mut commands: Commands,
     mut contexts: EguiContexts,
     mut diagnostics: ResMut<Diagnostics>,
     timestamp: Res<Timestamp>,
     mut simulation_step: ResMut<SimulationStepSeconds>,
     mut new_stimulators: ResMut<Stimulator>,
+    mut is_loading: ResMut<load::IsLoading>,
+    mut source: ResMut<load::GraceNeuronSource>,
+    mut neurons: Query<(Entity, &Neuron)>,
+    mut segments: Query<(Entity, &Segment)>,
+    mut junctions: Query<(Entity, &Junction)>,
 ) {
     egui::Window::new("Reuron").show(contexts.ctx_mut(), |ui| {
         runtime_stats_header(ui, diagnostics, timestamp, simulation_step);
+
+        let id = ui.make_persistent_id("grace_source_header");
+        egui::collapsing_header::CollapsingState::load_with_default_open(
+            ui.ctx(), id, false
+        ).show_header(ui, |ui| {
+            ui.label("Source neuron")
+        })
+        .body(|ui| {
+            load::run_grace_load_widget(&mut commands, ui, is_loading, source, neurons, segments, junctions);
+        });
 
         let id = ui.make_persistent_id("stimulator_header");
         egui::collapsing_header::CollapsingState::load_with_default_open(
@@ -79,9 +101,9 @@ pub fn runtime_stats_header(
             ui.add(egui::Slider::from_get_set(
                 1.0..=10.0, move |v: Option<f64>| {
                     if let Some(v) = v {
-                        simulation_step.0 = v as f32 * 0.000001;
+                        simulation_step.0 = v as f32 * 0.0000001;
                     }
-                    (simulation_step.0 * 1000000.0) as f64
+                    (simulation_step.0 * 10000000.0) as f64
                 }).logarithmic(false).text("Simulation step (microseconds)"));
 
 

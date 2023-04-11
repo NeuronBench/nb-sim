@@ -1,14 +1,16 @@
 use bevy::prelude::*;
 use bevy_mod_picking::PickableBundle;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::dimension::{MilliVolts, Diameter, MicroAmpsPerSquareCm};
+use crate::neuron::Junction;
 use crate::neuron::membrane::{self, Membrane, MembraneVoltage, MembraneMaterials};
 use crate::neuron::solution::EXAMPLE_CYTOPLASM;
 use crate::neuron::segment::{ecs::Segment, ecs::InputCurrent, Geometry};
 use crate::serialize;
 use crate::neuron::ecs::Neuron;
 
+#[derive(Clone)]
 pub struct GraceNeuron( pub serialize::Neuron );
 
 impl GraceNeuron {
@@ -118,11 +120,27 @@ impl GraceNeuron {
             commands.entity(neuron_entity).push_children(&[segment_entity]);
             entities_and_parents.insert(id.clone(), (segment_entity, segment.parent, Diameter(1.0)));
         }
+
+        for (entry_id, (entity, parent_id, diameter)) in entities_and_parents.iter() {
+            match entities_and_parents.get(&parent_id) {
+                None => { println!("Entry {:?} with parent {:?} has no parent entry", entry_id, parent_id); },
+                Some((parent_entity,_,parent_diameter)) => {
+                    let d = Diameter( diameter.0.min(parent_diameter.0) );
+                    let junction = commands.spawn(Junction {
+                        first_segment: parent_entity.clone(),
+                        second_segment: entity.clone(),
+                        pore_diameter: d
+                    }).id();
+                    commands.entity(neuron_entity).push_children(&[junction]);
+                }
+            }
+        }
+
         neuron_entity
     }
 
     pub fn soma(&self) -> Option<&serialize::Segment> {
-        self.0.segments.iter().find(|s| s.parent == -1)
+        self.0.segments.iter().find(|s| s.parent == -1 && s.type_ == 1)
     }
 
     /// Determine each segment's children.
@@ -142,6 +160,47 @@ impl GraceNeuron {
         self.0.segments.iter().map(|segment| (segment.id, segment)).collect()
     }
 
+    pub fn simplify(mut self) -> Self {
+
+        let segments_copy = self.0.segments.clone();
+        let children_map = self.get_children();
+
+        let self_for_map = self.clone();
+        let entries_map = self_for_map.segments_as_map();
+
+        let should_keep : HashSet<i32> = self.0.segments.iter().filter_map(|e| {
+            // Keep the soma.
+            let is_first = e.id == 1;
+            // Keep all branches and leaves (nodes with multiple children or zero children).
+            let is_branch_or_leaf = !children_map.get(&e.id).map_or(false, |l| l.len() == 1);
+            // Keep 1/10 of all nodes no matter what.
+            let is_downsample = e.id % 10 == 0;
+            if is_first || is_branch_or_leaf || is_downsample {
+                Some(e.id)
+            } else {
+                None
+            }
+        }).collect();
+
+        // For each entry, check if its parent is tombstoned.
+        // If so, set the entry's parent to its current grandparent.
+        // Repeat this process until the current parent is not tombstoned.
+        for mut entry in self.0.segments.iter_mut() {
+            while !(should_keep.contains(&entry.parent) || entry.parent == -1) {
+                entry.parent = entries_map.get(&entry.parent).expect("parent should exist").parent;
+            }
+        }
+
+        let filtered_entries = self
+            .0
+            .segments
+            .into_iter()
+            .filter(|e| should_keep.contains(&e.id))
+            .collect();
+        self.0.segments = filtered_entries;
+        self
+    }
+
 }
 
 pub fn distance_to_segment_cm(source: &serialize::Segment, dest: &serialize::Segment) -> f32 {
@@ -150,7 +209,7 @@ pub fn distance_to_segment_cm(source: &serialize::Segment, dest: &serialize::Seg
             (source.y - dest.y).powi(2) +
             (source.z - dest.z).powi(2)
     ).sqrt();
-    dist_microns + 0.0001
+    dist_microns * 0.0001
 }
 
 

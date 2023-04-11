@@ -4,6 +4,8 @@ use std::iter::zip;
 use std::fmt::{self, Display};
 use std::time::Duration;
 
+use crate::gui;
+
 use crate::dimension::{
     MicroAmpsPerSquareCm,
     FaradsPerSquareCm,
@@ -55,6 +57,7 @@ impl Plugin for ReuronPlugin {
             .add_system(apply_current_to_stimulator_material)
 
             .add_system(print_voltages);
+            gui::load::setup(app);
     }
 }
 
