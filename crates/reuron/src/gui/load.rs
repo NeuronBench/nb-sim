@@ -20,7 +20,7 @@ pub struct GraceNeuronSource(pub String);
 
 pub fn setup(app: &mut App) {
   app.insert_resource(IsLoading(false));
-  app.insert_resource(GraceNeuronSource("https://raw.githubusercontent.com/imalsogreg/reuron/load/crates/reuron/sample_data/sample_neuron.ffg".to_string()));
+  app.insert_resource(GraceNeuronSource("https://raw.githubusercontent.com/imalsogreg/reuron/greg/load/data/sample_neuron.ffg".to_string()));
   let (tx, rx) = unbounded();
   app.insert_resource(GraceNeuronSender(tx));
   app.insert_resource(GraceNeuronReceiver(rx));
@@ -48,19 +48,27 @@ pub fn run_grace_load_widget(
             commands.entity(entity).despawn();
         }
         let request = Request::get(&source.0);
+                panic!("sanity");
         let sender = (*grace_neuron_sender).clone();
         fetch(request, move |response| {
+                panic!("got response");
             match response {
                 Err(_) => {
                     eprintln!("fetch error");
                 },
                 Ok(r) => {
-                    match r.text().ok_or_else(|| unimplemented!()).and_then(|n| serde_json::from_str::<serialize::Neuron>(n)) {
+                    match r.text().ok_or_else(|| {
+                        panic!("No text!")
+                    }).and_then(|n| serde_json::from_str::<serialize::Neuron>(n)) {
                         Ok(grace_neuron) => {
+                            eprintln!("{:?}", grace_neuron);
+                            panic!("HELLO");
                             sender.0.send(GraceNeuron(grace_neuron));
                             // GraceNeuron(grace_neuron).spawn(Vec3::new(0.0, 0.0, 0.0), commands, meshes, materials);
                         },
-                        Err(e) => {},
+                        Err(e) => {
+                            panic!("{:?}",e)
+                        },
                     }
                 },
             }

@@ -36,7 +36,7 @@ impl Plugin for ReuronPlugin {
             .init_resource::<MembraneMaterials>()
             .init_resource::<StimulatorMaterials>()
             .insert_resource(StdoutRenderTimer {
-                timer: Timer::new(Duration::from_millis(100), TimerMode::Repeating)
+                timer: Timer::new(Duration::from_millis(500), TimerMode::Repeating)
             })
             // .add_startup_system(create_example_neuron)
             // .add_system(update_timestamp)
