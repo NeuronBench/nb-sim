@@ -11,6 +11,7 @@ use std::f32::consts::PI;
 
 use reuron::plugin::ReuronPlugin;
 use reuron::gui::run_gui;
+use reuron::gui::load::handle_loaded_neuron;
 use reuron::integrations::swc_file::SwcFile;
 use reuron::integrations::grace::{self, GraceNeuron};
 use reuron::neuron::segment::ecs::Segment;
@@ -37,7 +38,9 @@ pub fn main() {
         .add_startup_system(setup_grace_neuron)
         .insert_resource(ClearColor(Color::rgb(0.2,0.2,0.2)))
         .add_system(pan_orbit_camera)
-        .add_system(run_gui);
+        .add_system(run_gui)
+        .add_system(handle_loaded_neuron);
+
 
         #[cfg(target_arch = "wasm32")]
         app.insert_resource(Msaa::Off);
@@ -82,7 +85,7 @@ fn setup_grace_neuron(
   mut materials: Res<MembraneMaterials>,
 ) {
   let grace_neuron = GraceNeuron ( grace::sample::neuron() );
-  grace_neuron.simplify().spawn(Vec3::new(0.0,0.0,0.0), &mut commands, &mut meshes, &mut materials);
+  grace_neuron.simplify().spawn(Vec3::new(0.0,0.0,0.0), &mut commands, &mut meshes, materials);
 }
 
 

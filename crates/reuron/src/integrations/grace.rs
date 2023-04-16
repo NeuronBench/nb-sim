@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 use bevy_mod_picking::PickableBundle;
+use crossbeam::channel::{Sender, Receiver};
+// use std::sync::mpsc::{channel, Sender, Receiver};
 use std::collections::{HashMap, HashSet};
 
 use crate::dimension::{MilliVolts, Diameter, MicroAmpsPerSquareCm};
@@ -13,6 +15,12 @@ use crate::neuron::ecs::Neuron;
 #[derive(Clone)]
 pub struct GraceNeuron( pub serialize::Neuron );
 
+#[derive(Resource, Clone)]
+pub struct GraceNeuronSender(pub Sender<GraceNeuron>);
+
+#[derive(Resource)]
+pub struct GraceNeuronReceiver(pub Receiver<GraceNeuron>);
+
 impl GraceNeuron {
 
     pub fn spawn(
@@ -20,7 +28,7 @@ impl GraceNeuron {
         soma_location_cm: Vec3,
         mut commands: &mut Commands,
         mut meshes: &mut ResMut<Assets<Mesh>>,
-        materials: &mut Res<MembraneMaterials>,
+        materials: Res<MembraneMaterials>,
     ) -> Entity {
         let v0 = MilliVolts(-88.0);
         let microns_to_screen = 1.0;
