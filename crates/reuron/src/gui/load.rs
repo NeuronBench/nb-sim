@@ -20,7 +20,7 @@ pub struct GraceNeuronSource(pub String);
 
 pub fn setup(app: &mut App) {
   app.insert_resource(IsLoading(false));
-  app.insert_resource(GraceNeuronSource("https://raw.githubusercontent.com/imalsogreg/reuron/main/crates/reuron/sample_data/swc_neuron.json".to_string()));
+  app.insert_resource(GraceNeuronSource("https://raw.githubusercontent.com/imalsogreg/reuron/main/crates/reuron/sample_data/sample_neuron.ffg".to_string()));
   let (tx, rx) = unbounded();
   app.insert_resource(GraceNeuronSender(tx));
   app.insert_resource(GraceNeuronReceiver(rx));
