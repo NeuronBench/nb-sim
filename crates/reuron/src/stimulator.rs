@@ -4,6 +4,7 @@ use bevy_egui::egui::{self, Ui};
 use std::default::Default;
 
 use crate::dimension::{Interval, Hz, MicroAmpsPerSquareCm, Timestamp};
+use crate::serialize;
 
 #[derive(Debug, Clone, Component, Resource)]
 pub struct Stimulator {
@@ -86,6 +87,72 @@ impl Stimulator {
 
             }
         }
+    }
+
+    pub fn serialize(&self) -> serialize::Stimulator {
+        let Envelope {period, onset, offset} = self.envelope.clone();
+        let envelope = serialize::Envelope {
+            period_sec: period.0,
+            onset_sec: onset.0,
+            offset_sec: offset.0,
+        };
+        let current_shape = match self.current_shape.clone() {
+            CurrentShape::SquareWave { on_current, off_current } =>
+                serialize::CurrentShape::SquareWave {
+                    on_current_uamps_per_square_cm: on_current.0,
+                    off_current_uamps_per_square_cm: off_current.0,
+                },
+            CurrentShape::LinearRamp { start_current, end_current, off_current } =>
+                serialize::CurrentShape::LinearRamp {
+                    start_current_uamps_per_square_cm: start_current.0,
+                    end_current_uamps_per_square_cm: end_current.0,
+                    off_current_uamps_per_square_cm: off_current.0,
+                },
+            CurrentShape::FrequencyRamp { on_amplitude, offset_current, start_frequency, end_frequency } =>
+                serialize::CurrentShape::FrequencyRamp {
+                    on_amplitude_uamps_per_square_cm: on_amplitude.0,
+                    offset_current_uamps_per_square_cm: offset_current.0,
+                    start_frequency_hz: start_frequency.0,
+                    end_frequency_hz: end_frequency.0,
+                },
+        };
+        serialize::Stimulator { envelope, current_shape }
+    }
+
+    pub fn deserialize(stimulator: &serialize::Stimulator) -> Self {
+        let serialize::Envelope {period_sec, onset_sec, offset_sec} = stimulator.envelope.clone();
+        let envelope = Envelope {
+            period: Interval(period_sec),
+            onset: Interval(onset_sec),
+            offset: Interval(offset_sec),
+        };
+        let current_shape = match stimulator.current_shape.clone() {
+            serialize::CurrentShape::SquareWave {  on_current_uamps_per_square_cm,  off_current_uamps_per_square_cm  } =>
+                CurrentShape::SquareWave {
+                    on_current: MicroAmpsPerSquareCm(on_current_uamps_per_square_cm),
+                    off_current: MicroAmpsPerSquareCm(off_current_uamps_per_square_cm),
+                },
+
+            serialize::CurrentShape::LinearRamp {  start_current_uamps_per_square_cm, end_current_uamps_per_square_cm, off_current_uamps_per_square_cm  } =>
+                CurrentShape::LinearRamp {
+                    start_current: MicroAmpsPerSquareCm(start_current_uamps_per_square_cm),
+                    end_current: MicroAmpsPerSquareCm(end_current_uamps_per_square_cm),
+                    off_current: MicroAmpsPerSquareCm(off_current_uamps_per_square_cm),
+                },
+            serialize::CurrentShape::FrequencyRamp {
+                on_amplitude_uamps_per_square_cm,
+                offset_current_uamps_per_square_cm,
+                start_frequency_hz,
+                end_frequency_hz,
+            } =>
+                CurrentShape::FrequencyRamp {
+                    on_amplitude: MicroAmpsPerSquareCm(on_amplitude_uamps_per_square_cm),
+                    offset_current: MicroAmpsPerSquareCm(offset_current_uamps_per_square_cm),
+                    start_frequency: Hz(start_frequency_hz),
+                    end_frequency: Hz(end_frequency_hz),
+                },
+        };
+        Stimulator { envelope, current_shape }
     }
 
     pub fn plot(&self, ui: &mut Ui) {

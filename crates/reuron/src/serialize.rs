@@ -3,10 +3,48 @@ use uuid::Uuid;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Scene {
-    pub extracellular_solution: Solution,
-    pub neurons: Vec<Neuron>,
+    // pub extracellular_solution: Solution,
+    pub neurons: Vec<SceneNeuron>,
     pub synapses: Vec<Synapse>,
-    pub membranes: Vec<Membrane>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SceneNeuron {
+    pub neuron: Neuron,
+    pub stimulators: Stimulator,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Stimulator {
+    pub envelope: Envelope,
+    pub current_shape: CurrentShape,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Envelope {
+    pub period_sec: f32,
+    pub onset_sec: f32,
+    pub offset_sec: f32
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(tag="type")]
+pub enum CurrentShape {
+    SquareWave {
+        on_current_uamps_per_square_cm: f32,
+        off_current_uamps_per_square_cm: f32
+    },
+    LinearRamp {
+        start_current_uamps_per_square_cm: f32,
+        end_current_uamps_per_square_cm: f32,
+        off_current_uamps_per_square_cm: f32,
+    },
+    FrequencyRamp {
+        on_amplitude_uamps_per_square_cm: f32,
+        offset_current_uamps_per_square_cm: f32,
+        start_frequency_hz: f32,
+        end_frequency_hz: f32,
+    }
 }
 
 
