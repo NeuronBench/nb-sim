@@ -3,7 +3,6 @@ in
 
 \segments -> Neuron/neuron
   { segments: segments,
-    membranes: []
      membranes:
        [ membranes.pyramidal_cell.soma,
          membranes.pyramidal_cell.axon,
