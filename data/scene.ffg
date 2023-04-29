@@ -1,0 +1,20 @@
+let neuron = https://raw.githubusercontent.com/imalsogreg/reuron/main/data/sample_neuron.ffg in
+let stimulator =
+  Neuron/stimulator {
+    envelope: {
+      period_sec: 0.1,
+      onset_sec: 0.0,
+      offset_sec: 0.05
+    },
+    current_shape: SquareWave {
+      on_current_uamps_per_square_cm: 10.0,
+      off_current_uamps_per_square_cm: -1.0
+    }
+  } in
+
+Neuron/scene {
+  neurons:
+    [{neuron: neuron, stimulator_segments:
+      [{segment: 100, stimulator: stimulator}]
+     }]
+}
