@@ -7,7 +7,7 @@ use crossbeam::channel::unbounded;
 use crate::neuron::ecs::Neuron;
 use crate::neuron::Junction;
 use crate::neuron::segment::ecs::Segment;
-use crate::integrations::grace::{GraceNeuron, GraceNeuronSender, GraceNeuronReceiver};
+use crate::integrations::grace::{GraceScene, GraceSceneSender, GraceSceneReceiver};
 use crate::serialize;
 use crate::neuron::membrane::{MembraneMaterials};
 
@@ -15,26 +15,26 @@ use crate::neuron::membrane::{MembraneMaterials};
 pub struct IsLoading(pub bool);
 
 #[derive(Resource)]
-pub struct GraceNeuronSource(pub String);
+pub struct GraceSceneSource(pub String);
 
 
 pub fn setup(app: &mut App) {
   app.insert_resource(IsLoading(false));
-  app.insert_resource(GraceNeuronSource("https://raw.githubusercontent.com/imalsogreg/reuron/greg/load/data/swc_neuron.json".to_string()));
+  app.insert_resource(GraceSceneSource("https://raw.githubusercontent.com/imalsogreg/reuron/main/data/scene.ffg".to_string()));
   let (tx, rx) = unbounded();
-  app.insert_resource(GraceNeuronSender(tx));
-  app.insert_resource(GraceNeuronReceiver(rx));
+  app.insert_resource(GraceSceneSender(tx));
+  app.insert_resource(GraceSceneReceiver(rx));
 }
 
 pub fn run_grace_load_widget(
     mut commands: &mut Commands,
     mut ui: &mut Ui,
     mut is_loading: ResMut<IsLoading>,
-    mut source: ResMut<GraceNeuronSource>,
+    mut source: ResMut<GraceSceneSource>,
     mut neurons: Query<(Entity, &Neuron)>,
     mut segments: Query<(Entity, &Segment)>,
     mut junctions: Query<(Entity, &Junction)>,
-    grace_neuron_sender: Res<GraceNeuronSender>,
+    grace_scene_sender: Res<GraceSceneSender>,
 ) {
     let response = ui.add(egui::TextEdit::singleline(&mut source.0));
     if ui.button("Load").clicked() {
@@ -47,8 +47,8 @@ pub fn run_grace_load_widget(
         for (entity, junction) in &mut junctions {
             commands.entity(entity).despawn();
         }
-        let request = Request::get(&source.0);
-        let sender = (*grace_neuron_sender).clone();
+        let request = Request::post("http://reuron-grace.fly.dev/interpret", source.0.clone().into_bytes());
+        let sender = (*grace_scene_sender).clone();
         fetch(request, move |response| {
             match response {
                 Err(_) => {
@@ -57,9 +57,10 @@ pub fn run_grace_load_widget(
                 Ok(r) => {
                     match r.text().ok_or_else(|| {
                         panic!("No response text!")
-                    }).and_then(|n| serde_json::from_str::<serialize::Neuron>(n)) {
-                        Ok(grace_neuron) => {
-                            sender.0.send(GraceNeuron(grace_neuron).simplify()).expect("Send should succeed");
+                    }).and_then(|n| serde_json::from_str::<serialize::Scene>(n)) {
+                        Ok(grace_scene) => {
+                            // TODO: Simplify all neurons.
+                            sender.0.send(GraceScene(grace_scene)).expect("Send should succeed");
 
                         },
                         Err(e) => {
@@ -74,14 +75,15 @@ pub fn run_grace_load_widget(
 
 pub fn handle_loaded_neuron(
     mut commands: Commands,
-    grace_neuron_receiver: Res<GraceNeuronReceiver>,
+    grace_scene_receiver: Res<GraceSceneReceiver>,
     mut meshes: ResMut<Assets<Mesh>>,
-    materials: Res<MembraneMaterials>,
+    membrane_materials: Res<MembraneMaterials>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    match grace_neuron_receiver.0.try_recv() {
+    match grace_scene_receiver.0.try_recv() {
         Err(_) => {},
         Ok(n) => {
-            n.spawn(Vec3::new(0.0, 0.0, 0.0), &mut commands, &mut meshes, materials);
+            n.spawn(Vec3::new(0.0, 0.0, 0.0), &mut commands, &mut meshes, membrane_materials, &mut materials);
         }
     }
 }

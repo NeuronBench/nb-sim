@@ -17,7 +17,7 @@ use crate::dimension::{
     SimulationStepSeconds
 };
 use crate::constants::{BODY_TEMPERATURE, CONDUCTANCE_PER_SQUARE_CM, SIMULATION_STEPS_PER_FRAME};
-use crate::stimulator::{StimulatorMaterials, Stimulator};
+use crate::stimulator::{StimulatorMaterials, Stimulator, Stimulation};
 // use crate::serialize;
 use crate::neuron::Junction;
 use crate::neuron::segment::{Geometry, ecs::Segment, ecs::InputCurrent};
@@ -434,9 +434,6 @@ fn print_voltages(
         println!("");
     }
 }
-
-#[derive(Component)]
-pub struct Stimulation { stimulation_segment: Entity }
 
 fn stimulate_picked_segments(
     mut commands: Commands,

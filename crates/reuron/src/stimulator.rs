@@ -1,4 +1,4 @@
-use bevy::prelude::{Assets, Color, Component, FromWorld, Handle, Resource, StandardMaterial, World};
+use bevy::prelude::{Assets, Color, Component, Entity, FromWorld, Handle, Resource, StandardMaterial, World};
 use bevy_egui::egui::widgets::plot::{Plot, Line, PlotPoints};
 use bevy_egui::egui::{self, Ui};
 use std::default::Default;
@@ -11,6 +11,9 @@ pub struct Stimulator {
     pub envelope: Envelope,
     pub current_shape: CurrentShape,
 }
+
+#[derive(Component)]
+pub struct Stimulation { pub stimulation_segment: Entity }
 
 impl Default for Stimulator {
     fn default() -> Self {

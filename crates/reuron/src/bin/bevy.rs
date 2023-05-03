@@ -13,7 +13,7 @@ use reuron::plugin::ReuronPlugin;
 use reuron::gui::run_gui;
 use reuron::gui::load::handle_loaded_neuron;
 use reuron::integrations::swc_file::SwcFile;
-use reuron::integrations::grace::{self, GraceNeuron};
+use reuron::integrations::grace::{self, GraceScene};
 use reuron::neuron::segment::ecs::Segment;
 use reuron::neuron::membrane::MembraneMaterials;
 use reuron::pan_orbit_camera::{PanOrbitCamera, pan_orbit_camera};
@@ -82,10 +82,12 @@ fn setup_swc_neuron(
 fn setup_grace_neuron(
   mut commands: Commands,
   mut meshes: ResMut<Assets<Mesh>>,
-  mut materials: Res<MembraneMaterials>,
+  mut membrane_materials: Res<MembraneMaterials>,
+  mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-  let grace_neuron = GraceNeuron ( grace::sample::neuron() );
-  grace_neuron.simplify().spawn(Vec3::new(0.0,0.0,0.0), &mut commands, &mut meshes, materials);
+  let grace_scene = GraceScene ( grace::sample::scene() );
+  // grace_neuron.simplify().spawn(Vec3::new(0.0,0.0,0.0), &mut commands, &mut meshes, materials);
+  grace_scene.spawn(Vec3::new(0.0,0.0,0.0), &mut commands, &mut meshes, membrane_materials, &mut materials);
 }
 
 

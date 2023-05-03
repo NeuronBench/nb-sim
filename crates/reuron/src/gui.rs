@@ -9,7 +9,7 @@ use crate::neuron::Junction;
 use crate::dimension::{Timestamp, SimulationStepSeconds, Hz, MicroAmpsPerSquareCm, Interval};
 use crate::constants::SIMULATION_STEPS_PER_FRAME;
 use crate::stimulator::{Stimulator, Envelope, CurrentShape};
-use crate::integrations::grace::{GraceNeuronSender, GraceNeuronReceiver};
+use crate::integrations::grace::{GraceSceneSender, GraceSceneReceiver};
 use crate::neuron::ecs::Neuron;
 use crate::neuron::segment::ecs::Segment;
 use crate::neuron::membrane::{MembraneMaterials};
@@ -23,11 +23,11 @@ pub fn run_gui(
     mut simulation_step: ResMut<SimulationStepSeconds>,
     mut new_stimulators: ResMut<Stimulator>,
     mut is_loading: ResMut<load::IsLoading>,
-    mut source: ResMut<load::GraceNeuronSource>,
+    mut source: ResMut<load::GraceSceneSource>,
     mut neurons: Query<(Entity, &Neuron)>,
     mut segments: Query<(Entity, &Segment)>,
     mut junctions: Query<(Entity, &Junction)>,
-    grace_neuron_sender: Res<GraceNeuronSender>,
+    grace_scene_sender: Res<GraceSceneSender>,
 ) {
     egui::Window::new("Reuron").show(contexts.ctx_mut(), |ui| {
         runtime_stats_header(ui, diagnostics, timestamp, simulation_step);
@@ -39,7 +39,7 @@ pub fn run_gui(
             ui.label("Source neuron")
         })
         .body(|ui| {
-            load::run_grace_load_widget(&mut commands, ui, is_loading, source, neurons, segments, junctions, grace_neuron_sender);
+            load::run_grace_load_widget(&mut commands, ui, is_loading, source, neurons, segments, junctions, grace_scene_sender);
         });
 
         let id = ui.make_persistent_id("stimulator_header");
