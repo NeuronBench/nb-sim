@@ -16,7 +16,7 @@
       pkgs = import nixpkgs { inherit overlays system; };
       rust = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
       apple = pkgs.darwin.apple_sdk.frameworks;
-      apple-deps = [ apple.AudioUnit apple.CoreAudio apple.CoreFoundation apple.CoreServices apple.SystemConfiguration apple.Security apple.DiskArbitration apple.Foundation pkgs.libiconv apple.AppKit apple.Cocoa ];
+      apple-deps = [ apple.AudioUnit apple.CoreAudio apple.CoreFoundation apple.CoreServices apple.SystemConfiguration apple.Security apple.DiskArbitration apple.Foundation apple.AppKit apple.Cocoa ];
       linux-deps = [
           pkgs.udev pkgs.alsaLib pkgs.vulkan-loader
           pkgs.xorg.libX11 pkgs.xorg.libXcursor pkgs.xorg.libXi
