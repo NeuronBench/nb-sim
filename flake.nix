@@ -62,6 +62,40 @@
       };
 
 
+      packages.wasm-build = pkgs.rustPlatform.buildRustPackage {
+
+        src = ./.;
+        name = "reuron-wasm";
+
+        cargoLock = {
+          lockFile = ./Cargo.lock;
+          outputHashes = {
+            "bevy_mod_picking-0.11.0" =
+              "sha256-YkkBkgrd76nwJHUvEckN7M3dJ4TIzrP3RxyDNo5mkx0=";
+            "bevy_mod_raycast-0.7.0" =
+              "sha256-EGB9ZwkJwiRub6IaErg4qG6FzF7oyM1hyR4yLPwVnCE=";
+          };
+        };
+
+        buildPhase = ''
+          cargo build --release --target=wasm32-unknown-unknown
+
+          echo 'Creating out dir...'
+          mkdir -p $out/src
+
+          wasm-bindgen --target nodejs --out-dir $out/src target/wasm32-unknown-unknown/release/reuron.wasm;
+        '';
+        checkPhase = "echo 'Skipping tests'";
+        installPhase = "echo 'Skipping install phase'";
+
+        buildInputs = buildInputs;
+        nativeBuildInputs = buildInputs;
+        PKG_CONFIG_PATH = "${pkgs.openssl.dev}/lib/pkgconfig";
+        LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath buildInputs;
+        COREAUDIO_SDK_PATH= if system == "aarch64-darwin" then "${pkgs.darwin.apple_sdk.MacOSX-SDK}" else "";
+      };
+
+
       devShell = pkgs.mkShell rec {
         # buildInputs = buildInputs;
         buildInputs = [
