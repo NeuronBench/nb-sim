@@ -84,7 +84,7 @@
           echo 'Creating out dir...'
           mkdir -p $out
 
-           trunk build --bin bevy --release --dist $out index.html
+           trunk build --release --dist $out index.html
         '';
         checkPhase = "echo 'Skipping tests'";
         installPhase = "echo 'Skipping install phase'";
