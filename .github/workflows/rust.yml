@@ -23,5 +23,7 @@ jobs:
       with:
         name: reuron
         authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
-    - name: Build
+    - name: Build native app
       run: nix build .#
+    - name: Build wasm app
+      run: nix build .#wasm-build
