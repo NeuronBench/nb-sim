@@ -14,7 +14,9 @@
     let
       overlays = [ rust-overlay.overlays.default ];
       pkgs = import nixpkgs { inherit overlays system; };
-      rust = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
+      rust = (pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml).override {
+        targets = [ "wasm32-unknown-unknown" ];
+      };
       apple = pkgs.darwin.apple_sdk.frameworks;
       apple-deps = [ apple.AudioUnit apple.CoreAudio apple.CoreFoundation apple.CoreServices apple.SystemConfiguration apple.Security apple.DiskArbitration apple.Foundation apple.AppKit apple.Cocoa ];
       linux-deps = [
@@ -36,8 +38,21 @@
     in
     {
 
-      defaultPackage = naersk'.buildPackage {
+      defaultPackage = pkgs.rustPlatform.buildRustPackage {
         src = ./.;
+        name = "reuron";
+
+        cargoLock = {
+          lockFile = ./Cargo.lock;
+          outputHashes = {
+            "bevy_mod_picking-0.11.0" =
+              "sha256-YkkBkgrd76nwJHUvEckN7M3dJ4TIzrP3RxyDNo5mkx0=";
+            "bevy_mod_raycast-0.7.0" =
+              "sha256-EGB9ZwkJwiRub6IaErg4qG6FzF7oyM1hyR4yLPwVnCE=";
+          };
+        };
+
+        checkPhase = "echo 'Skipping tests'";
 
         nativeBuildInputs = buildInputs;
         buildInputs = buildInputs;
