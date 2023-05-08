@@ -28,6 +28,7 @@
 
       buildInputs = [
           pkgs.wasm-bindgen-cli
+          pkgs.trunk
           rust
           pkgs.autoconf
           pkgs.pkgconfig
@@ -81,9 +82,9 @@
           cargo build --release --target=wasm32-unknown-unknown
 
           echo 'Creating out dir...'
-          mkdir -p $out/src
+          mkdir -p $out
 
-          wasm-bindgen --target nodejs --out-dir $out/src target/wasm32-unknown-unknown/release/reuron.wasm;
+           trunk build --bin bevy --release --dist $out index.html
         '';
         checkPhase = "echo 'Skipping tests'";
         installPhase = "echo 'Skipping install phase'";
