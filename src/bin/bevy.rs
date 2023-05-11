@@ -24,7 +24,14 @@ struct MyCamera;
 pub fn main() {
  let mut app = App::new();
  app
-        .add_plugins(DefaultPlugins)
+    .add_plugins(DefaultPlugins.set(WindowPlugin {
+      primary_window: Some(Window {
+        fit_canvas_to_parent: true,
+        canvas: Some("#bevy".to_string()),
+        ..default()
+      }),
+      ..default()
+    }))
         .add_plugin(EguiPlugin)
         .add_plugin(LogDiagnosticsPlugin::default())
         .add_plugin(FrameTimeDiagnosticsPlugin::default())
