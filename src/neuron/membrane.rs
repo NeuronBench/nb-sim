@@ -161,19 +161,19 @@ pub struct MembraneMaterials {
 impl FromWorld for MembraneMaterials {
   fn from_world(world: &mut World) -> Self {
       let mut material_assets = world.get_resource_mut::<Assets<StandardMaterial>>().expect("Can get Assets");
-      let len = 100;
-      let voltage_range = (MilliVolts(-100.0), MilliVolts(100.0));
+      let len = 500;
+      let voltage_range = (MilliVolts(-80.0), MilliVolts(50.0));
       let handles = (0..len).map(|i| {
           let intensity_range = 1.0;
           let intensity = i as f32 / len as f32 * intensity_range;
-          let color = Color::rgb(intensity, 0.0, 1.0 - intensity);
+          let color = Color::rgb(intensity, 0.5 * intensity, 1.0 - 0.5 * intensity);
           let mut material : StandardMaterial = color.clone().into();
           material.emissive = Color::rgb_linear(
-              30.0 * intensity,
-              30.0 * intensity * intensity,
-              30.0 * intensity * intensity
+              50.0 * intensity,
+              25.0 * intensity,
+              0.0
           );
-          material.metallic = intensity;
+          // material.metallic = intensity;
           let handle = material_assets.add(material);
           handle
       }).collect();

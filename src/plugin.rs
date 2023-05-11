@@ -32,7 +32,7 @@ impl Plugin for ReuronPlugin {
             app.insert_resource(default_env())
             .insert_resource(Timestamp(0.0))
             .insert_resource(Stimulator::default())
-            .insert_resource(SimulationStepSeconds(1e-8))
+            .insert_resource(SimulationStepSeconds(5e-7))
             .init_resource::<MembraneMaterials>()
             .init_resource::<StimulatorMaterials>()
             .insert_resource(StdoutRenderTimer {
