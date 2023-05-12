@@ -161,7 +161,7 @@ pub struct MembraneMaterials {
 impl FromWorld for MembraneMaterials {
   fn from_world(world: &mut World) -> Self {
       let mut material_assets = world.get_resource_mut::<Assets<StandardMaterial>>().expect("Can get Assets");
-      let len = 101;
+      let len = 500;
       let voltage_range = (MilliVolts(-80.0), MilliVolts(50.0));
       let handles = (0..len).map(|i| {
           let intensity_range = 1.0;
