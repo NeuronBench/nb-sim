@@ -66,7 +66,7 @@ pub fn run_gui(
 
 pub fn build_info(ui: &mut Ui) {
     ui.horizontal(|ui| {
-        ui.label("Git SHA");
+        ui.label("Version");
         ui.label(format!("{}", env!("VERGEN_GIT_SHA")));
     });
 }

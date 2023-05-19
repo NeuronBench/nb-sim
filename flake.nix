@@ -94,6 +94,7 @@
         PKG_CONFIG_PATH = "${pkgs.openssl.dev}/lib/pkgconfig";
         LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath buildInputs;
         COREAUDIO_SDK_PATH= if system == "aarch64-darwin" then "${pkgs.darwin.apple_sdk.MacOSX-SDK}" else "";
+        VERGEN_GIT_SHA=self.sourceInfo.lastModifiedDate;
       };
 
 
