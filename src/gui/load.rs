@@ -7,6 +7,7 @@ use crossbeam::channel::unbounded;
 use crate::neuron::ecs::Neuron;
 use crate::neuron::Junction;
 use crate::neuron::segment::ecs::Segment;
+use crate::stimulator::{Stimulation};
 use crate::integrations::grace::{GraceScene, GraceSceneSender, GraceSceneReceiver};
 use crate::serialize;
 use crate::neuron::membrane::{MembraneMaterials};
@@ -20,7 +21,7 @@ pub struct GraceSceneSource(pub String);
 
 pub fn setup(app: &mut App) {
   app.insert_resource(IsLoading(false));
-  app.insert_resource(GraceSceneSource("https://raw.githubusercontent.com/imalsogreg/reuron/main/data/scene.ffg".to_string()));
+  app.insert_resource(GraceSceneSource("https://raw.githubusercontent.com/reuron/reuron-lib/main/scene.ffg".to_string()));
   let (tx, rx) = unbounded();
   app.insert_resource(GraceSceneSender(tx));
   app.insert_resource(GraceSceneReceiver(rx));
@@ -34,20 +35,25 @@ pub fn run_grace_load_widget(
     mut neurons: Query<(Entity, &Neuron)>,
     mut segments: Query<(Entity, &Segment)>,
     mut junctions: Query<(Entity, &Junction)>,
+    mut stimulations: Query<(Entity, &Stimulation)>,
     grace_scene_sender: Res<GraceSceneSender>,
 ) {
     let response = ui.add(egui::TextEdit::singleline(&mut source.0));
     if ui.button("Load").clicked() {
-        for (entity, neuron) in &mut neurons {
-            commands.entity(entity).despawn();
-        }
-        for (entity, segment) in &mut segments {
+        for (entity, stimulation) in &mut stimulations {
             commands.entity(entity).despawn();
         }
         for (entity, junction) in &mut junctions {
             commands.entity(entity).despawn();
         }
-        let request = Request::post("http://reuron-grace.fly.dev/interpret", source.0.clone().into_bytes());
+        for (entity, segment) in &mut segments {
+            commands.entity(entity).despawn();
+        }
+        for (entity, neuron) in &mut neurons {
+            commands.entity(entity).despawn();
+        }
+        println!("Requesting from reuron.io: {}", source.0);
+        let request = Request::post("https://reuron.io/interpret", source.0.clone().into_bytes());
         let sender = (*grace_scene_sender).clone();
         fetch(request, move |response| {
             match response {
@@ -55,6 +61,7 @@ pub fn run_grace_load_widget(
                     eprintln!("fetch error");
                 },
                 Ok(r) => {
+                    println!("response: {:?}", r);
                     match r.text().ok_or_else(|| {
                         panic!("No response text!")
                     }).and_then(|n| serde_json::from_str::<serialize::Scene>(n)) {

@@ -20,3 +20,6 @@ uuid = {version = "1.3.0", features =["wasm-bindgen", "v3","v4","serde", "js"]}
 [[bin]]
 name = "bevy"
 path = "src/bin/bevy.rs"
+
+[build-dependencies]
+vergen = { version = "^8.1", features = [ "build", "git", "gitcl" ] }

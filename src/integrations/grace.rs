@@ -293,7 +293,7 @@ pub mod sample {
                     }
                 ]
             }],
-            synapses: vec![],
+            // synapses: vec![],
         }
     }
 }

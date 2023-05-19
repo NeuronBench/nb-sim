@@ -5,7 +5,7 @@ use uuid::Uuid;
 pub struct Scene {
     // pub extracellular_solution: Solution,
     pub neurons: Vec<SceneNeuron>,
-    pub synapses: Vec<Synapse>,
+    // pub synapses: Vec<Synapse>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
