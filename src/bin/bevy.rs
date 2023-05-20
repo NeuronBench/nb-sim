@@ -48,9 +48,6 @@ pub fn main() {
         // .add_system(run_gui)
         // .add_system(handle_loaded_neuron);
 
-
-        app.insert_resource(Msaa::Off);
-
         app.run();
 }
 
