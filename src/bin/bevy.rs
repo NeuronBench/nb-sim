@@ -49,7 +49,6 @@ pub fn main() {
         // .add_system(handle_loaded_neuron);
 
 
-        #[cfg(target_arch = "wasm32")]
         app.insert_resource(Msaa::Off);
 
         app.run();
@@ -135,7 +134,6 @@ fn setup_scene(
          MyCamera,
          // PickingCameraBundle::default(),
 
-         #[cfg(not(target_arch = "wasm32"))]
          BloomSettings::default(),
 
          PanOrbitCamera {
