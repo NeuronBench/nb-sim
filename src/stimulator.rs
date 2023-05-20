@@ -1,6 +1,6 @@
 use bevy::prelude::{Assets, Color, Component, Entity, FromWorld, Handle, Resource, StandardMaterial, World};
-use bevy_egui::egui::widgets::plot::{Plot, Line, PlotPoints};
-use bevy_egui::egui::{self, Ui};
+// use bevy_egui::egui::widgets::plot::{Plot, Line, PlotPoints};
+// use bevy_egui::egui::{self, Ui};
 use std::default::Default;
 
 use crate::dimension::{Interval, Hz, MicroAmpsPerSquareCm, Timestamp};
@@ -158,166 +158,166 @@ impl Stimulator {
         Stimulator { envelope, current_shape }
     }
 
-    pub fn plot(&self, ui: &mut Ui) {
-        let currents : PlotPoints = (0..2000).map(|t| {
-            let timestamp = Timestamp(t.clone() as f32 * 0.0005);
-            let current = self.current(timestamp.clone());
-            // let current = timestamp.clone();
-            [timestamp.0 as f64, current.0 as f64]
-        }).collect();
-        let line = Line::new(currents);
-        Plot::new("stimulator_plot")
-            .view_aspect(2.0)
-            .auto_bounds_x()
-            .auto_bounds_y()
-            .show(ui, |plot_ui| plot_ui.line(line));
-    }
+    // pub fn plot(&self, ui: &mut Ui) {
+    //     let currents : PlotPoints = (0..2000).map(|t| {
+    //         let timestamp = Timestamp(t.clone() as f32 * 0.0005);
+    //         let current = self.current(timestamp.clone());
+    //         // let current = timestamp.clone();
+    //         [timestamp.0 as f64, current.0 as f64]
+    //     }).collect();
+    //     let line = Line::new(currents);
+    //     Plot::new("stimulator_plot")
+    //         .view_aspect(2.0)
+    //         .auto_bounds_x()
+    //         .auto_bounds_y()
+    //         .show(ui, |plot_ui| plot_ui.line(line));
+    // }
 
-    pub fn widget(&mut self, ui: &mut Ui) {
-        let Envelope { ref mut period, ref mut onset, ref mut offset } = &mut self.envelope;
-        let mut current_shape = &mut self.current_shape;
-        // let current_shape_copy = current_shape.clone();
+    // pub fn widget(&mut self, ui: &mut Ui) {
+    //     let Envelope { ref mut period, ref mut onset, ref mut offset } = &mut self.envelope;
+    //     let mut current_shape = &mut self.current_shape;
+    //     // let current_shape_copy = current_shape.clone();
 
-        ui.add(egui::Slider::from_get_set(1.0..=10000.0, move |v: Option<f64>| {
-            if let Some(v) = v {
-                period.0 = v as f32 * 0.001;
-            }
-            period.0 as f64 * 1000.0
-        }).logarithmic(true).text("Period (ms)"));
+    //     ui.add(egui::Slider::from_get_set(1.0..=10000.0, move |v: Option<f64>| {
+    //         if let Some(v) = v {
+    //             period.0 = v as f32 * 0.001;
+    //         }
+    //         period.0 as f64 * 1000.0
+    //     }).logarithmic(true).text("Period (ms)"));
 
-        ui.add(egui::Slider::from_get_set(1.0..=10000.0, move |v: Option<f64>| {
-            if let Some(v) = v {
-                onset.0 = v as f32 * 0.001;
-            }
-            onset.0 as f64 * 1000.0
-        }).logarithmic(true).text("Onset Time (ms)"));
+    //     ui.add(egui::Slider::from_get_set(1.0..=10000.0, move |v: Option<f64>| {
+    //         if let Some(v) = v {
+    //             onset.0 = v as f32 * 0.001;
+    //         }
+    //         onset.0 as f64 * 1000.0
+    //     }).logarithmic(true).text("Onset Time (ms)"));
 
-        ui.add(egui::Slider::from_get_set(1.0..=10000.0, move |v: Option<f64>| {
-            if let Some(v) = v {
-                offset.0 = v as f32 * 0.001;
-            }
-            offset.0 as f64 * 1000.0
-        }).logarithmic(true).text("Offsete Time (ms)"));
+    //     ui.add(egui::Slider::from_get_set(1.0..=10000.0, move |v: Option<f64>| {
+    //         if let Some(v) = v {
+    //             offset.0 = v as f32 * 0.001;
+    //         }
+    //         offset.0 as f64 * 1000.0
+    //     }).logarithmic(true).text("Offsete Time (ms)"));
 
-        let default_square_wave = match &mut current_shape {
-            c@CurrentShape::SquareWave {..} => c.clone(),
-            _ => CurrentShape::SquareWave {
-                on_current: MicroAmpsPerSquareCm(50.0),
-                off_current: MicroAmpsPerSquareCm(-10.0)
-            }
-        };
-
-
-        let default_linear_ramp = match &mut current_shape {
-            c@CurrentShape::LinearRamp {..} => c.clone(),
-            _ => CurrentShape::LinearRamp {
-                start_current: MicroAmpsPerSquareCm(10.0),
-                end_current: MicroAmpsPerSquareCm(50.0),
-                off_current: MicroAmpsPerSquareCm(-10.0),
-            }
-        };
-
-        let default_frequency_ramp = match &mut current_shape {
-            c@CurrentShape::FrequencyRamp {..} => c.clone(),
-            _ => CurrentShape::FrequencyRamp {
-                on_amplitude: MicroAmpsPerSquareCm(50.0),
-                offset_current: MicroAmpsPerSquareCm(-10.0),
-                start_frequency: Hz(10.0),
-                end_frequency: Hz(100.0),
-            }
-        };
+    //     let default_square_wave = match &mut current_shape {
+    //         c@CurrentShape::SquareWave {..} => c.clone(),
+    //         _ => CurrentShape::SquareWave {
+    //             on_current: MicroAmpsPerSquareCm(50.0),
+    //             off_current: MicroAmpsPerSquareCm(-10.0)
+    //         }
+    //     };
 
 
-        ui.horizontal(|ui| {
-            ui.selectable_value(current_shape, default_square_wave, "Square");
-            ui.selectable_value(current_shape, default_linear_ramp, "Linear Ramp");
-            ui.selectable_value(current_shape, default_frequency_ramp, "Frequency Ramp");
-        });
+    //     let default_linear_ramp = match &mut current_shape {
+    //         c@CurrentShape::LinearRamp {..} => c.clone(),
+    //         _ => CurrentShape::LinearRamp {
+    //             start_current: MicroAmpsPerSquareCm(10.0),
+    //             end_current: MicroAmpsPerSquareCm(50.0),
+    //             off_current: MicroAmpsPerSquareCm(-10.0),
+    //         }
+    //     };
 
-        match &mut current_shape {
-            CurrentShape::SquareWave {ref mut on_current, ref mut off_current} => {
+    //     let default_frequency_ramp = match &mut current_shape {
+    //         c@CurrentShape::FrequencyRamp {..} => c.clone(),
+    //         _ => CurrentShape::FrequencyRamp {
+    //             on_amplitude: MicroAmpsPerSquareCm(50.0),
+    //             offset_current: MicroAmpsPerSquareCm(-10.0),
+    //             start_frequency: Hz(10.0),
+    //             end_frequency: Hz(100.0),
+    //         }
+    //     };
 
-                ui.add(egui::Slider::from_get_set(-100.0..=100.0, move |v: Option<f64>| {
-                    if let Some(v) = v {
-                        on_current.0 = v as f32;
-                    }
-                    on_current.0 as f64
-                }).logarithmic(false).text("Onset Current (uAmps)"));
 
-                ui.add(egui::Slider::from_get_set(-100.0..=100.0, move |v: Option<f64>| {
-                    if let Some(v) = v {
-                        off_current.0 = v as f32;
-                    }
-                    off_current.0 as f64
-                }).logarithmic(false).text("Offset Current (uAmps)"));
+    //     ui.horizontal(|ui| {
+    //         ui.selectable_value(current_shape, default_square_wave, "Square");
+    //         ui.selectable_value(current_shape, default_linear_ramp, "Linear Ramp");
+    //         ui.selectable_value(current_shape, default_frequency_ramp, "Frequency Ramp");
+    //     });
 
-            },
+    //     match &mut current_shape {
+    //         CurrentShape::SquareWave {ref mut on_current, ref mut off_current} => {
 
-            CurrentShape::LinearRamp { ref mut start_current, ref mut end_current, ref mut off_current
-            } => {
+    //             ui.add(egui::Slider::from_get_set(-100.0..=100.0, move |v: Option<f64>| {
+    //                 if let Some(v) = v {
+    //                     on_current.0 = v as f32;
+    //                 }
+    //                 on_current.0 as f64
+    //             }).logarithmic(false).text("Onset Current (uAmps)"));
 
-                ui.add(egui::Slider::from_get_set(-100.0..=100.0, move |v: Option<f64>| {
-                    if let Some(v) = v {
-                        start_current.0 = v as f32;
-                    }
-                    start_current.0 as f64
-                }).logarithmic(false).text("Start Current (uAmps)"));
+    //             ui.add(egui::Slider::from_get_set(-100.0..=100.0, move |v: Option<f64>| {
+    //                 if let Some(v) = v {
+    //                     off_current.0 = v as f32;
+    //                 }
+    //                 off_current.0 as f64
+    //             }).logarithmic(false).text("Offset Current (uAmps)"));
 
-                ui.add(egui::Slider::from_get_set(-100.0..=100.0, move |v: Option<f64>| {
-                    if let Some(v) = v {
-                        end_current.0 = v as f32;
-                    }
-                    end_current.0 as f64
-                }).logarithmic(false).text("End Current (uAmps)"));
+    //         },
 
-                ui.add(egui::Slider::from_get_set(-100.0..=100.0, move |v: Option<f64>| {
-                    if let Some(v) = v {
-                        off_current.0 = v as f32;
-                    }
-                    off_current.0 as f64
-                }).logarithmic(false).text("Off Current (uAmps)"));
+    //         CurrentShape::LinearRamp { ref mut start_current, ref mut end_current, ref mut off_current
+    //         } => {
 
-            },
+    //             ui.add(egui::Slider::from_get_set(-100.0..=100.0, move |v: Option<f64>| {
+    //                 if let Some(v) = v {
+    //                     start_current.0 = v as f32;
+    //                 }
+    //                 start_current.0 as f64
+    //             }).logarithmic(false).text("Start Current (uAmps)"));
 
-            CurrentShape::FrequencyRamp {
-                ref mut on_amplitude, ref mut offset_current, ref mut start_frequency, ref mut end_frequency
-            } => {
+    //             ui.add(egui::Slider::from_get_set(-100.0..=100.0, move |v: Option<f64>| {
+    //                 if let Some(v) = v {
+    //                     end_current.0 = v as f32;
+    //                 }
+    //                 end_current.0 as f64
+    //             }).logarithmic(false).text("End Current (uAmps)"));
 
-                ui.add(egui::Slider::from_get_set(0.0..=100.0, move |v: Option<f64>| {
-                    if let Some(v) = v {
-                        on_amplitude.0 = v as f32;
-                    }
-                    on_amplitude.0 as f64
-                }).logarithmic(false).text("Amplitude (uAmps)"));
+    //             ui.add(egui::Slider::from_get_set(-100.0..=100.0, move |v: Option<f64>| {
+    //                 if let Some(v) = v {
+    //                     off_current.0 = v as f32;
+    //                 }
+    //                 off_current.0 as f64
+    //             }).logarithmic(false).text("Off Current (uAmps)"));
 
-                ui.add(egui::Slider::from_get_set(-100.0..=100.0, move |v: Option<f64>| {
-                    if let Some(v) = v {
-                        offset_current.0 = v as f32;
-                    }
-                    offset_current.0 as f64
-                }).logarithmic(false).text("Offset Current (uAmps)"));
+    //         },
 
-                ui.add(egui::Slider::from_get_set(1.0..=100.0, move |v: Option<f64>| {
-                    if let Some(v) = v {
-                        start_frequency.0 = v as f32;
-                    }
-                    start_frequency.0 as f64
-                }).logarithmic(false).text("Start Frequency (Hz)"));
+    //         CurrentShape::FrequencyRamp {
+    //             ref mut on_amplitude, ref mut offset_current, ref mut start_frequency, ref mut end_frequency
+    //         } => {
 
-                ui.add(egui::Slider::from_get_set(1.0..=100.0, move |v: Option<f64>| {
-                    if let Some(v) = v {
-                        end_frequency.0 = v as f32;
-                    }
-                    end_frequency.0 as f64
-                }).logarithmic(false).text("End Frequency (Hz)"));
+    //             ui.add(egui::Slider::from_get_set(0.0..=100.0, move |v: Option<f64>| {
+    //                 if let Some(v) = v {
+    //                     on_amplitude.0 = v as f32;
+    //                 }
+    //                 on_amplitude.0 as f64
+    //             }).logarithmic(false).text("Amplitude (uAmps)"));
 
-            },
-        }
+    //             ui.add(egui::Slider::from_get_set(-100.0..=100.0, move |v: Option<f64>| {
+    //                 if let Some(v) = v {
+    //                     offset_current.0 = v as f32;
+    //                 }
+    //                 offset_current.0 as f64
+    //             }).logarithmic(false).text("Offset Current (uAmps)"));
 
-        self.plot(ui);
-        dbg!(&self);
+    //             ui.add(egui::Slider::from_get_set(1.0..=100.0, move |v: Option<f64>| {
+    //                 if let Some(v) = v {
+    //                     start_frequency.0 = v as f32;
+    //                 }
+    //                 start_frequency.0 as f64
+    //             }).logarithmic(false).text("Start Frequency (Hz)"));
 
-    }
+    //             ui.add(egui::Slider::from_get_set(1.0..=100.0, move |v: Option<f64>| {
+    //                 if let Some(v) = v {
+    //                     end_frequency.0 = v as f32;
+    //                 }
+    //                 end_frequency.0 as f64
+    //             }).logarithmic(false).text("End Frequency (Hz)"));
+
+    //         },
+    //     }
+
+    //     self.plot(ui);
+    //     dbg!(&self);
+
+    // }
 }
 
 #[derive(Resource)]

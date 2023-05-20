@@ -1,10 +1,10 @@
 use bevy::prelude::*;
-use bevy_mod_picking::{PickableBundle, PickingEvent};
+// use bevy_mod_picking::{PickableBundle, PickingEvent};
 use std::iter::zip;
 use std::fmt::{self, Display};
 use std::time::Duration;
 
-use crate::gui;
+// use crate::gui;
 
 use crate::dimension::{
     MicroAmpsPerSquareCm,
@@ -37,10 +37,10 @@ impl Plugin for ReuronPlugin {
             .init_resource::<StimulatorMaterials>()
             .insert_resource(StdoutRenderTimer {
                 timer: Timer::new(Duration::from_millis(500), TimerMode::Repeating)
-            })
+            });
             // .add_startup_system(create_example_neuron)
             // .add_system(update_timestamp)
-            .add_system(stimulate_picked_segments);
+            // .add_system(stimulate_picked_segments);
 
             // Because the Bevy frame rate is limited by winit to about 300,
             // if we want to take more than 300 biophysics steps per second,
@@ -57,7 +57,7 @@ impl Plugin for ReuronPlugin {
             .add_system(apply_current_to_stimulator_material)
 
             .add_system(print_voltages);
-            gui::load::setup(app);
+            // gui::load::setup(app);
     }
 }
 
@@ -185,7 +185,7 @@ pub struct SegmentBundle {
     pub membrane_voltage: MembraneVoltage,
     pub geometry: Geometry,
 
-    #[bundle]
+    // #[bundle]
     pub pbr: PbrBundle,
 }
 
@@ -435,59 +435,59 @@ fn print_voltages(
     }
 }
 
-fn stimulate_picked_segments(
-    mut commands: Commands,
-    simulation_step: Res<SimulationStepSeconds>,
-    new_stimulators: Res<Stimulator>,
-    mut events: EventReader<PickingEvent>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    mut segments_query: Query<(&Segment, &GlobalTransform)>,
-    stimulations_query: Query<&Stimulation>,
-) {
-    for event in events.iter() {
-        match event {
-            PickingEvent::Selection(e) => {},
-            PickingEvent::Hover(e) => {},
-            PickingEvent::Clicked(e) => {
-
-                match segments_query.get(e.clone()) {
-                    Ok((_, segment_transform)) => {
-                        println!("Adding current");
-                        commands.spawn(
-                            (Stimulation { stimulation_segment: e.clone() },
-                             PbrBundle {
-                                mesh: meshes.add(shape::UVSphere{
-                                    radius: 7.5,
-                                    sectors: 20,
-                                    stacks: 20
-                                }.into()),
-                                material: materials.add(Color::rgb(0.5,0.5,0.5).into()),
-                                transform: Transform::from_translation(segment_transform.translation()),
-                                ..default()
-                              },
-                             PickableBundle::default(),
-                            ));
-                        commands.entity(*e).insert(new_stimulators.clone());
-                    },
-                    Err(_) => {}
-                }
-                match stimulations_query.get(e.clone()) {
-                    Ok(Stimulation{ stimulation_segment, .. }) => {
-                        match segments_query.get( stimulation_segment.clone() ) {
-                            Ok(segment) => {
-                                commands.entity(stimulation_segment.clone()).remove::<Stimulator>();
-                                commands.entity(e.clone()).despawn();
-                            }
-                            Err(_) => {}
-                        }
-                    }
-                    Err(_) => {}
-                }
-            }
-        }
-    }
-}
+// fn stimulate_picked_segments(
+//     mut commands: Commands,
+//     simulation_step: Res<SimulationStepSeconds>,
+//     new_stimulators: Res<Stimulator>,
+//     mut events: EventReader<PickingEvent>,
+//     mut meshes: ResMut<Assets<Mesh>>,
+//     mut materials: ResMut<Assets<StandardMaterial>>,
+//     mut segments_query: Query<(&Segment, &GlobalTransform)>,
+//     stimulations_query: Query<&Stimulation>,
+// ) {
+//     for event in events.iter() {
+//         match event {
+//             PickingEvent::Selection(e) => {},
+//             PickingEvent::Hover(e) => {},
+//             PickingEvent::Clicked(e) => {
+//
+//                 match segments_query.get(e.clone()) {
+//                     Ok((_, segment_transform)) => {
+//                         println!("Adding current");
+//                         commands.spawn(
+//                             (Stimulation { stimulation_segment: e.clone() },
+//                              PbrBundle {
+//                                 mesh: meshes.add(shape::UVSphere{
+//                                     radius: 7.5,
+//                                     sectors: 20,
+//                                     stacks: 20
+//                                 }.into()),
+//                                 material: materials.add(Color::rgb(0.5,0.5,0.5).into()),
+//                                 transform: Transform::from_translation(segment_transform.translation()),
+//                                 ..default()
+//                               },
+//                              PickableBundle::default(),
+//                             ));
+//                         commands.entity(*e).insert(new_stimulators.clone());
+//                     },
+//                     Err(_) => {}
+//                 }
+//                 match stimulations_query.get(e.clone()) {
+//                     Ok(Stimulation{ stimulation_segment, .. }) => {
+//                         match segments_query.get( stimulation_segment.clone() ) {
+//                             Ok(segment) => {
+//                                 commands.entity(stimulation_segment.clone()).remove::<Stimulator>();
+//                                 commands.entity(e.clone()).despawn();
+//                             }
+//                             Err(_) => {}
+//                         }
+//                     }
+//                     Err(_) => {}
+//                 }
+//             }
+//         }
+//     }
+// }
 
 
 // pub fn serialize_simulation (

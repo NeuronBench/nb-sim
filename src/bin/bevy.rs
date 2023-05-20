@@ -2,16 +2,16 @@ use bevy::prelude::*;
 use bevy::core_pipeline::bloom::BloomSettings;
 use bevy::diagnostic::{LogDiagnosticsPlugin, FrameTimeDiagnosticsPlugin};
 use bevy::pbr::CascadeShadowConfigBuilder;
-use bevy_egui::{egui, EguiPlugin};
-use bevy_mod_picking::{
-    DebugCursorPickingPlugin, DebugEventsPickingPlugin, DefaultPickingPlugins, PickableBundle,
-    PickingCameraBundle
-};
+// use bevy_egui::{egui, EguiPlugin};
+// use bevy_mod_picking::{
+//     DebugCursorPickingPlugin, DebugEventsPickingPlugin, DefaultPickingPlugins, PickableBundle,
+//     PickingCameraBundle
+// };
 use std::f32::consts::PI;
 
 use reuron::plugin::ReuronPlugin;
-use reuron::gui::run_gui;
-use reuron::gui::load::handle_loaded_neuron;
+// use reuron::gui::run_gui;
+// use reuron::gui::load::handle_loaded_neuron;
 use reuron::integrations::swc_file::SwcFile;
 use reuron::integrations::grace::{self, GraceScene};
 use reuron::neuron::segment::ecs::Segment;
@@ -32,21 +32,21 @@ pub fn main() {
       }),
       ..default()
     }))
-        .add_plugin(EguiPlugin)
+        // .add_plugin(EguiPlugin)
         .add_plugin(LogDiagnosticsPlugin::default())
         .add_plugin(FrameTimeDiagnosticsPlugin::default())
-        .add_plugins(DefaultPickingPlugins)
-        .add_plugin(DebugCursorPickingPlugin)
-        .add_plugin(DebugEventsPickingPlugin)
+        // .add_plugins(DefaultPickingPlugins)
+        // .add_plugin(DebugCursorPickingPlugin)
+        // .add_plugin(DebugEventsPickingPlugin)
         .add_plugin(ReuronPlugin)
         .add_system(bevy::window::close_on_esc)
         .add_startup_system(setup_scene)
         // .add_startup_system(setup_swc_neuron)
         .add_startup_system(setup_grace_neuron)
         .insert_resource(ClearColor(Color::rgb(0.2,0.2,0.2)))
-        .add_system(pan_orbit_camera)
-        .add_system(run_gui)
-        .add_system(handle_loaded_neuron);
+        .add_system(pan_orbit_camera);
+        // .add_system(run_gui)
+        // .add_system(handle_loaded_neuron);
 
 
         #[cfg(target_arch = "wasm32")]
@@ -133,7 +133,7 @@ fn setup_scene(
             ..default()
             },
          MyCamera,
-         PickingCameraBundle::default(),
+         // PickingCameraBundle::default(),
 
          #[cfg(not(target_arch = "wasm32"))]
          BloomSettings::default(),

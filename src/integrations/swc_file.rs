@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_mod_picking::PickableBundle;
+// use bevy_mod_picking::PickableBundle;
 use std::str::FromStr;
 use std::fs;
 use std::path::Path;
@@ -162,7 +162,7 @@ impl SwcFile {
                      transform: transform,
                      ..default()
                  },
-                 PickableBundle::default(),
+                 // PickableBundle::default(),
                 )
             ).id();
             commands.entity(neuron).push_children(&[segment]);
