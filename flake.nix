@@ -49,10 +49,10 @@
         cargoLock = {
           lockFile = ./Cargo.lock;
           outputHashes = {
-            "bevy_mod_picking-0.11.0" =
-              "sha256-YkkBkgrd76nwJHUvEckN7M3dJ4TIzrP3RxyDNo5mkx0=";
-            "bevy_mod_raycast-0.7.0" =
-              "sha256-EGB9ZwkJwiRub6IaErg4qG6FzF7oyM1hyR4yLPwVnCE=";
+            "bevy_mod_picking-0.13.0" =
+              "sha256-rAO6dHdcUE6BpPsttY/0Gzo0cnurlxu3pY4RsHIEySg=";
+            "bevy_mod_raycast-0.8.0" =
+              "sha256-08XZR7pYlRT4/SzfPLCsjIhhnIcubcUsovj0wpESJgY=";
             "bevy_egui-0.20.2" =
               "sha256-pyoPl+YV3aoFXZBZ0HPsRINZJIbgVWwI/0wyCzJpvu4=";
           };
@@ -80,6 +80,10 @@
               "sha256-iSn+HsrMKJEnY8VqRj/dxDZKle3ozTmn097dR+ZuX1w=";
             "bevy_egui-0.20.2" =
               "sha256-pyoPl+YV3aoFXZBZ0HPsRINZJIbgVWwI/0wyCzJpvu4=";
+            "bevy_mod_picking-0.13.0" =
+              "sha256-rAO6dHdcUE6BpPsttY/0Gzo0cnurlxu3pY4RsHIEySg=";
+            "bevy_mod_raycast-0.8.0" =
+              "sha256-08XZR7pYlRT4/SzfPLCsjIhhnIcubcUsovj0wpESJgY=";
           };
         };
 
