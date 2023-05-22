@@ -110,7 +110,11 @@
           rust
           pkgs.autoconf
           pkgs.pkgconfig
-          pkgs.openssl] ++ (if system == "aarch64-darwin" then apple-deps else linux-deps);
+          pkgs.openssl
+          pkgs.sass
+          pkgs.binaryen
+          pkgs.trunk
+          ] ++ (if system == "aarch64-darwin" then apple-deps else linux-deps);
 
         PKG_CONFIG_PATH = "${pkgs.openssl.dev}/lib/pkgconfig";
         LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath buildInputs;
