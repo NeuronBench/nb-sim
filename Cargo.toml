@@ -8,6 +8,7 @@ resolver = "2"
 wasm-bindgen = "^0.2.79"
 csv = "^1.1.6"
 bevy = { git = "https://github.com/bevyengine/bevy" }
+bevy_egui = "^0.20.2"
 crossbeam = "^0.8"
 ehttp = "^0.2.0"
 wgpu = { version = "^0.15", features=["webgl"]}
@@ -21,3 +22,9 @@ path = "src/bin/bevy.rs"
 
 [build-dependencies]
 vergen = { version = "^8.1", features = [ "build", "git", "gitcl" ] }
+
+[patch.crates-io]
+bevy = { git = 'https://github.com/bevyengine/bevy.git' }
+bevy_mod_picking = { git = 'https://github.com/coreh/bevy_mod_picking', branch = 'bevy-0.11-compatibility' }
+bevy_mod_raycast = { git = 'https://github.com/coreh/bevy_mod_raycast', branch = 'bevy-0.11-compatibility' }
+bevy_egui = { git = 'https://github.com/imalsogreg/bevy_egui', branch = 'bevy-main' }

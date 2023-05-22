@@ -32,7 +32,10 @@
           rust
           pkgs.autoconf
           pkgs.pkgconfig
-          pkgs.openssl] ++ (if system == "aarch64-darwin" then apple-deps else linux-deps);
+          pkgs.openssl
+          pkgs.binaryen
+          pkgs.sass
+          ] ++ (if system == "aarch64-darwin" then apple-deps else linux-deps);
 
       naersk' = pkgs.callPackage naersk {};
 
@@ -50,6 +53,8 @@
               "sha256-YkkBkgrd76nwJHUvEckN7M3dJ4TIzrP3RxyDNo5mkx0=";
             "bevy_mod_raycast-0.7.0" =
               "sha256-EGB9ZwkJwiRub6IaErg4qG6FzF7oyM1hyR4yLPwVnCE=";
+            "bevy_egui-0.20.2" =
+              "sha256-pyoPl+YV3aoFXZBZ0HPsRINZJIbgVWwI/0wyCzJpvu4=";
           };
         };
 
@@ -73,6 +78,8 @@
           outputHashes = {
             "bevy-0.11.0-dev" =
               "sha256-iSn+HsrMKJEnY8VqRj/dxDZKle3ozTmn097dR+ZuX1w=";
+            "bevy_egui-0.20.2" =
+              "sha256-pyoPl+YV3aoFXZBZ0HPsRINZJIbgVWwI/0wyCzJpvu4=";
           };
         };
 
