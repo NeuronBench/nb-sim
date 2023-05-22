@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-// use bevy_mod_picking::PickableBundle;
+use bevy_mod_picking::PickableBundle;
 use crossbeam::channel::{Sender, Receiver};
 // use std::sync::mpsc::{channel, Sender, Receiver};
 use std::collections::{HashMap, HashSet};
@@ -211,7 +211,7 @@ pub fn spawn_neuron(
                     transform: transform,
                     ..default()
                 },
-                // PickableBundle::default(),
+                PickableBundle::default(),
             )
         ).id();
         commands.entity(neuron_entity).push_children(&[segment_entity]);
@@ -251,7 +251,7 @@ pub fn spawn_neuron(
                         transform: Transform::from_translation(transform.translation),
                         ..default()
                      },
-                     // PickableBundle::default()
+                     PickableBundle::default()
                     )
                 );
                 commands.entity(*entity).insert(stim);
