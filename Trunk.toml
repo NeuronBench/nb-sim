@@ -1,4 +1,4 @@
 [tools]
 sass = "3.7.4"
-wasm_bindgen = "0.2.86"
+wasm_bindgen = "0.2.84"
 wasm_opt = "version_111"
