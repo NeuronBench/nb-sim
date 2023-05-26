@@ -88,8 +88,6 @@
         };
 
         buildPhase = ''
-          cargo build --release --target=wasm32-unknown-unknown
-
           echo 'Creating out dir...'
           mkdir -p $out
 
