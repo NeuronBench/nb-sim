@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_mod_picking::PickableBundle;
+use bevy_mod_picking::{PickableBundle, prelude::OnPointer, events::{Click, Drag}};
 use crossbeam::channel::{Sender, Receiver};
 // use std::sync::mpsc::{channel, Sender, Receiver};
 use std::collections::{HashMap, HashSet};
@@ -212,6 +212,14 @@ pub fn spawn_neuron(
                     ..default()
                 },
                 PickableBundle::default(),
+                     OnPointer::<Click>::target_commands_mut(|_click, target_commands| {
+                         eprintln!("CLICK");
+                         target_commands.despawn();
+                     }),
+                     OnPointer::<Drag>::target_component_mut::<Transform>(|drag, transform| {
+                         eprintln!("DRAG");
+                         transform.rotate_local_y(drag.delta.x / 50.0)
+                     }),
             )
         ).id();
         commands.entity(neuron_entity).push_children(&[segment_entity]);
@@ -251,7 +259,16 @@ pub fn spawn_neuron(
                         transform: Transform::from_translation(transform.translation),
                         ..default()
                      },
-                     PickableBundle::default()
+                     PickableBundle::default(),
+                     OnPointer::<Click>::target_commands_mut(|_click, target_commands| {
+                         eprintln!("CLICK");
+                         target_commands.despawn();
+                     }),
+                     OnPointer::<Drag>::target_component_mut::<Transform>(|drag, transform| {
+                         eprintln!("DRAG");
+                         transform.rotate_local_y(drag.delta.x / 50.0)
+                     }),
+
                     )
                 );
                 commands.entity(*entity).insert(stim);
