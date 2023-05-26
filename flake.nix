@@ -91,6 +91,11 @@
           echo 'Creating out dir...'
           mkdir -p $out
 
+          echo 'Checking wasm-bindgen version'
+          wasm-bindgen --version
+
+          cat Trunk.toml
+
            trunk build --release --dist $out index.html
         '';
         checkPhase = "echo 'Skipping tests'";
