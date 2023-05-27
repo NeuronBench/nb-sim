@@ -5,7 +5,7 @@ version = "0.1.0"
 resolver = "2"
 
 [dependencies]
-wasm-bindgen = "^0.2.79"
+wasm-bindgen = "0.2.84"
 csv = "^1.1.6"
 bevy = { git = "https://github.com/bevyengine/bevy" }
 bevy_egui = "^0.20.2"
