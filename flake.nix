@@ -26,12 +26,34 @@
 
       ];
 
+      wasm-bindgen-cli = pkgs.rustPlatform.buildRustPackage rec {
+        pname = "wasm-bindgen-cli";
+        version = "0.2.86";
+
+        src = pkgs.fetchCrate {
+          inherit pname version;
+          sha256 = "sha256-56EOiLbdgAcoTrkyvB3t9TjtLaRvGxFUXx4haLwE2QY=";
+        };
+
+        cargoSha256 = "sha256-4CPBmz92PuPN6KeGDTdYPAf5+vTFk9EN5Cmx4QJy6yI=";
+
+        nativeBuildInputs = [ pkgs.pkg-config ];
+
+        buildInputs = [ pkgs.openssl ] ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [ pkgs.curl apple.Security ];
+
+        doCheck = false;
+        # nativeCheckInputs = [ pkgs.nodejs ];
+
+      };
+
       buildInputs = [
-          pkgs.wasm-bindgen-cli
+          wasm-bindgen-cli
           pkgs.trunk
           rust
+          pkgs.curl
           pkgs.autoconf
           pkgs.pkgconfig
+          pkgs.pkg-config
           pkgs.openssl
           pkgs.binaryen
           pkgs.sass
@@ -50,7 +72,7 @@
           lockFile = ./Cargo.lock;
           outputHashes = {
             "bevy-0.11.0-dev" =
-              "sha256-iSn+HsrMKJEnY8VqRj/dxDZKle3ozTmn097dR+ZuX1w=";
+              "sha256-7ioaQ0Z9hGGMZ+sUsDCwWdG/8NLPymuQ7Ht0AyxX4q8=";
             "bevy_egui-0.20.2" =
               "sha256-pyoPl+YV3aoFXZBZ0HPsRINZJIbgVWwI/0wyCzJpvu4=";
             "bevy_mod_picking-0.13.0" =
@@ -69,6 +91,7 @@
         COREAUDIO_SDK_PATH= if system == "aarch64-darwin" then "${pkgs.darwin.apple_sdk.MacOSX-SDK}" else "";
       };
 
+      packages.wasm-bindgen-cli = wasm-bindgen-cli;
 
       packages.wasm-build = pkgs.rustPlatform.buildRustPackage {
 
@@ -79,7 +102,7 @@
           lockFile = ./Cargo.lock;
           outputHashes = {
             "bevy-0.11.0-dev" =
-              "sha256-iSn+HsrMKJEnY8VqRj/dxDZKle3ozTmn097dR+ZuX1w=";
+              "sha256-7ioaQ0Z9hGGMZ+sUsDCwWdG/8NLPymuQ7Ht0AyxX4q8=";
             "bevy_egui-0.20.2" =
               "sha256-pyoPl+YV3aoFXZBZ0HPsRINZJIbgVWwI/0wyCzJpvu4=";
             "bevy_mod_picking-0.13.0" =
@@ -115,7 +138,7 @@
       devShell = pkgs.mkShell rec {
         # buildInputs = buildInputs;
         buildInputs = [
-          pkgs.wasm-bindgen-cli
+          wasm-bindgen-cli
           rust
           pkgs.autoconf
           pkgs.pkgconfig
