@@ -131,9 +131,9 @@ fn setup_scene(
             ..default()
             },
          MyCamera,
-         // PickingCameraBundle::default(),
 
          BloomSettings::default(),
+         RaycastPickCamera::default(),
 
          PanOrbitCamera {
              radius: 500.0,

@@ -1,5 +1,9 @@
 use bevy::prelude::*;
-use bevy_mod_picking::{PickableBundle, prelude::OnPointer, events::{Click, Drag}};
+use bevy_mod_picking::{
+    prelude::{RaycastPickTarget,ListenedEvent,Bubble, OnPointer},
+    PickableBundle,
+    events::{Click, Drag}
+};
 use crossbeam::channel::{Sender, Receiver};
 // use std::sync::mpsc::{channel, Sender, Receiver};
 use std::collections::{HashMap, HashSet};
@@ -133,6 +137,8 @@ pub fn spawn_neuron(
             Visibility::default(),
             ComputedVisibility::default(),
         )).id();
+
+    // Spawn segments.
     for segment in neuron.segments.iter() {
         let serialize::Segment
                 { id,
@@ -212,20 +218,15 @@ pub fn spawn_neuron(
                     ..default()
                 },
                 PickableBundle::default(),
-                     OnPointer::<Click>::target_commands_mut(|_click, target_commands| {
-                         eprintln!("CLICK");
-                         target_commands.despawn();
-                     }),
-                     OnPointer::<Drag>::target_component_mut::<Transform>(|drag, transform| {
-                         eprintln!("DRAG");
-                         transform.rotate_local_y(drag.delta.x / 50.0)
-                     }),
+                RaycastPickTarget::default(),
+                OnPointer::<Click>::run_callback(add_stimulation),
             )
         ).id();
         commands.entity(neuron_entity).push_children(&[segment_entity]);
         entities_and_parents.insert(id.clone(), (segment_entity, segment.parent, Diameter(1.0), transform));
     }
 
+    // Spawn segment-segment junctions.
     for (entry_id, (entity, parent_id, diameter, _)) in entities_and_parents.iter() {
         match entities_and_parents.get(&parent_id) {
             None => { println!("Entry {:?} with parent {:?} has no parent entry", entry_id, parent_id); },
@@ -241,13 +242,14 @@ pub fn spawn_neuron(
         }
     }
 
+    // Spawn stimulations.
     for serialize::StimulatorSegment { segment, stimulator } in scene_neuron.stimulator_segments.iter() {
         match entities_and_parents.get(&(*segment as i32)) {
             None => { println!("Failed to look up segment id {segment:?}") },
             Some((entity,_,_,transform)) => {
                 let stim = stimulator::Stimulator::deserialize(stimulator);
                 println!("INSERTING A STIMULATOR");
-                commands.spawn(
+                let stimulation = commands.spawn(
                     (stimulator::Stimulation { stimulation_segment: entity.clone() },
                      PbrBundle {
                         mesh: meshes.add(shape::UVSphere{
@@ -260,15 +262,8 @@ pub fn spawn_neuron(
                         ..default()
                      },
                      PickableBundle::default(),
-                     OnPointer::<Click>::target_commands_mut(|_click, target_commands| {
-                         eprintln!("CLICK");
-                         target_commands.despawn();
-                     }),
-                     OnPointer::<Drag>::target_component_mut::<Transform>(|drag, transform| {
-                         eprintln!("DRAG");
-                         transform.rotate_local_y(drag.delta.x / 50.0)
-                     }),
-
+                     RaycastPickTarget::default(),
+                     OnPointer::<Click>::run_callback(delete_stimulations),
                     )
                 );
                 commands.entity(*entity).insert(stim);
@@ -277,6 +272,64 @@ pub fn spawn_neuron(
     } 
 
     neuron_entity
+}
+
+pub fn add_stimulation(
+    In(event): In<ListenedEvent<Click>>,
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    new_stimulators: Res<stimulator::Stimulator>,
+    segments_query: Query<(&Segment, &GlobalTransform)>
+) -> Bubble {
+    match segments_query.get(event.target) {
+        Ok((_, segment_transform)) => {
+
+          commands.spawn(
+              (stimulator::Stimulation { stimulation_segment: event.target },
+               PbrBundle {
+                   mesh: meshes.add(shape::UVSphere{ radius: 7.5, sectors: 20, stacks: 20 }.into()),
+                   material: materials.add(Color::rgb(0.5,0.5,0.5).into()),
+                   transform: Transform::from_translation(segment_transform.translation()),
+                   ..default()
+               },
+               PickableBundle::default(),
+               RaycastPickTarget::default(),
+               OnPointer::<Click>::run_callback(delete_stimulations),
+              )
+          );
+          commands.entity(event.target).insert(new_stimulators.clone());
+        },
+      Err(_) => {
+          eprintln!("No segment found for clicked entity.");
+      },
+    }
+    Bubble::Up
+}
+
+pub fn delete_stimulations(
+    In(event): In<ListenedEvent<Click>>,
+    mut commands: Commands,
+    mut stimulations_query: Query<&stimulator::Stimulation>,
+    mut segments_query: Query<(&Segment, Entity, &stimulator::Stimulator)>,
+) -> Bubble {
+  if let Ok(stimulator::Stimulation { stimulation_segment }) = stimulations_query.get_mut(event.target) {
+
+      // Remove stimulation from the segment.
+      let results = segments_query.get(stimulation_segment.clone());
+      match results {
+          Ok((_, segment_entity, stimulator)) => {
+              commands.entity(segment_entity.clone()).remove::<stimulator::Stimulator>();
+          },
+          Err(_) => {
+              eprintln!("Missing segment for deleted stimulation.");
+          }
+      }
+
+      // Despawn the stimulator.
+      commands.entity(event.target).despawn();
+  }
+  Bubble::Up
 }
 
 
