@@ -37,7 +37,7 @@ pub fn main() {
         .add_plugin(EguiPlugin)
         .add_plugin(LogDiagnosticsPlugin::default())
         .add_plugin(FrameTimeDiagnosticsPlugin::default())
-        .add_plugins(DefaultPickingPlugins)
+        .add_plugins(DefaultPickingPlugins.build().disable::<DebugPickingPlugin>())
         // .add_plugin(DebugCursorPickingPlugin)
         // .add_plugin(DebugEventsPickingPlugin)
         .add_plugin(ReuronPlugin)
