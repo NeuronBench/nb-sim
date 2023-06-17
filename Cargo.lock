@@ -2959,6 +2959,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "332cd62e95873ea4f41f3dfd6bbbfc5b52aec892d7e8d534197c4720a0bbbab2"
 
 [[package]]
+name = "querystring"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9318ead08c799aad12a55a3e78b82e0b6167271ffd1f627b758891282f739187"
+
+[[package]]
 name = "quote"
 version = "1.0.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3074,11 +3080,13 @@ dependencies = [
  "crossbeam",
  "csv",
  "ehttp",
+ "querystring",
  "serde",
  "serde_json",
  "uuid",
  "vergen",
  "wasm-bindgen",
+ "web-sys",
  "wgpu 0.15.1",
 ]
 
