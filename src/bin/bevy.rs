@@ -13,7 +13,7 @@ use std::f32::consts::PI;
 
 use reuron::plugin::ReuronPlugin;
 use reuron::gui::run_gui;
-use reuron::gui::load::handle_loaded_neuron;
+use reuron::gui::load::{handle_loaded_neuron, GraceSceneSource};
 use reuron::integrations::swc_file::SwcFile;
 use reuron::integrations::grace::{self, GraceScene};
 use reuron::neuron::segment::ecs::Segment;
@@ -89,6 +89,7 @@ fn setup_grace_neuron(
   mut meshes: ResMut<Assets<Mesh>>,
   mut membrane_materials: Res<MembraneMaterials>,
   mut materials: ResMut<Assets<StandardMaterial>>,
+  grace_scene_source: Res<GraceSceneSource>
 ) {
   let grace_scene = GraceScene ( grace::sample::scene() );
   // grace_neuron.simplify().spawn(Vec3::new(0.0,0.0,0.0), &mut commands, &mut meshes, materials);

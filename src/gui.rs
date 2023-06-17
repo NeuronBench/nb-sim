@@ -40,7 +40,7 @@ pub fn run_gui(
             ui.label("Source neuron")
         })
         .body(|ui| {
-            load::run_grace_load_widget(&mut commands, ui, is_loading, source, neurons, segments, junctions, stimulations, grace_scene_sender);
+            load::run_grace_load_widget(commands, ui, is_loading, source, neurons, segments, junctions, stimulations, grace_scene_sender);
         });
 
         let id = ui.make_persistent_id("stimulator_header");

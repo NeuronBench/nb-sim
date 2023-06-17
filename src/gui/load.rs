@@ -32,7 +32,7 @@ impl FromWorld for GraceSceneSource {
 
     #[cfg(not(target_arch = "wasm32"))]
     fn from_world(world: &mut World) -> Self {
-        GraceSceneSource("native-todo".to_string())
+        GraceSceneSource("".to_string())
     }
 
 }
@@ -44,10 +44,14 @@ pub fn window_location_scene() -> String {
     match search {
         Ok(s) => {
             let s = s.clone().to_string();
-            let params = querystring::querify(&s[1..]);
-            match params.iter().find(|(k,v)| k.clone() == "scene") {
-                Some((_,v)) => { v.to_string() },
-                None => { "".to_string() },
+            if s.len() > 0 {
+                let params = querystring::querify(&s[1..]);
+                match params.iter().find(|(k,v)| k.clone() == "scene") {
+                    Some((_,v)) => { v.to_string() },
+                    None => { "".to_string() },
+                }
+            } else {
+                "".to_string()
             }
         },
         Err(_) => {
@@ -64,12 +68,11 @@ pub fn setup(app: &mut App) {
   let (tx, rx) = unbounded();
   app.insert_resource(GraceSceneSender(tx));
   app.insert_resource(GraceSceneReceiver(rx));
-  app.add_system(load_ffg_scene2);
+  app.add_startup_system(startup_load_ffg_scene);
 }
 
-pub fn load_ffg_scene2(
+pub fn startup_load_ffg_scene(
     mut commands: Commands,
-    // mut ui: &mut Ui,
     mut is_loading: ResMut<IsLoading>,
     mut source: ResMut<GraceSceneSource>,
     mut neurons: Query<(Entity, &Neuron)>,
@@ -77,11 +80,17 @@ pub fn load_ffg_scene2(
     mut junctions: Query<(Entity, &Junction)>,
     mut stimulations: Query<(Entity, &Stimulation)>,
     grace_scene_sender: Res<GraceSceneSender>,
-
-) { }
+) {
+    if source.0.len() > 0 {
+        eprintln!("Doing startup scene load with {}", source.0);
+        load_ffg_scene(commands, is_loading, source, neurons, segments, junctions, stimulations, grace_scene_sender);
+    } else {
+        eprintln!("Skipping startup scene load");
+    }
+}
 
 pub fn load_ffg_scene(
-    mut commands: &mut Commands,
+    mut commands: Commands,
     mut is_loading: ResMut<IsLoading>,
     mut source: ResMut<GraceSceneSource>,
     mut neurons: Query<(Entity, &Neuron)>,
@@ -91,6 +100,7 @@ pub fn load_ffg_scene(
     grace_scene_sender: Res<GraceSceneSender>,
 
 ) {
+
     for (entity, stimulation) in &mut stimulations {
         commands.entity(entity).despawn();
     }
@@ -103,7 +113,7 @@ pub fn load_ffg_scene(
     for (entity, neuron) in &mut neurons {
         commands.entity(entity).despawn();
     }
-    println!("Requesting from reuron.io: {}", source.0);
+    eprintln!("Requesting from reuron.io: {}", source.0);
     let request = Request::post("https://reuron.io/interpret", source.0.clone().into_bytes());
     let sender = (*grace_scene_sender).clone();
     fetch(request, move |response| {
@@ -112,7 +122,7 @@ pub fn load_ffg_scene(
                 eprintln!("fetch error");
             },
             Ok(r) => {
-                println!("response: {:?}", r);
+                eprintln!("response: {:?}", r);
                 match r.text().ok_or_else(|| {
                     panic!("No response text!")
                 }).and_then(|n| serde_json::from_str::<serialize::Scene>(n)) {
@@ -122,16 +132,17 @@ pub fn load_ffg_scene(
 
                     },
                     Err(e) => {
-                        panic!("{:?}",e)
+                        eprintln!("Failed to interpret: {:?}", e);
                     },
                 }
             },
         }
     })
+
 }
 
 pub fn run_grace_load_widget(
-    mut commands: &mut Commands,
+    mut commands: Commands,
     mut ui: &mut Ui,
     mut is_loading: ResMut<IsLoading>,
     mut source: ResMut<GraceSceneSource>,
