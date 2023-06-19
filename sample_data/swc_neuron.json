@@ -1,1429 +1,4498 @@
 {
-  "membranes": [
-    {
-      "capacitance_farads_per_square_cm": 1e-06,
-      "membrane_channels": [
-        {
-          "channel": {
-            "ion_selectivity": {
-              "k": 1,
-              "na": 0,
-              "cl": 0,
-              "ca": 0
-            },
-            "activation": {
-              "gates": 1,
-              "magnitude": {
-                "v_at_half_max_mv": -3,
-                "slope": 10
+        "membranes": [
+          {
+            "capacitance_farads_per_square_cm": 1e-06,
+            "membrane_channels": [
+              {
+                "channel": {
+                  "ion_selectivity": {
+                    "k": 1,
+                    "na": 0,
+                    "cl": 0,
+                    "ca": 0
+                  },
+                  "activation": {
+                    "gates": 1,
+                    "magnitude": {
+                      "v_at_half_max_mv": -3,
+                      "slope": 10
+                    },
+                    "time_constant": {
+                      "v_at_max_tau_mv": -50,
+                      "c_base": 0.005,
+                      "c_amp": 0.047,
+                      "sigma": 0.03,
+                      "type": "Sigmoid"
+                    }
+                  },
+                  "inactivation": {
+                    "gates": 1,
+                    "magnitude": {
+                      "v_at_half_max_mv": -51,
+                      "slope": -12
+                    },
+                    "time_constant": {
+                      "v_at_max_tau_mv": -50,
+                      "c_base": 0.36,
+                      "c_amp": 0.1,
+                      "sigma": 50,
+                      "type": "Sigmoid"
+                    }
+                  }
+                },
+                "siemens_per_square_cm": 0.036
               },
-              "time_constant": {
-                "v_at_max_tau_mv": -50,
-                "c_base": 0.005,
-                "c_amp": 0.047,
-                "sigma": 0.03,
-                "type": "Sigmoid"
-              }
-            },
-            "inactivation": {
-              "gates": 1,
-              "magnitude": {
-                "v_at_half_max_mv": -51,
-                "slope": -12
+              {
+                "channel": {
+                  "ion_selectivity": {
+                    "k": 0,
+                    "na": 1,
+                    "cl": 0,
+                    "ca": 0
+                  },
+                  "activation": {
+                    "gates": 1,
+                    "magnitude": {
+                      "v_at_half_max_mv": -30,
+                      "slope": 5.5
+                    },
+                    "time_constant": {
+                      "type": "Instantaneous"
+                    }
+                  },
+                  "inactivation": {
+                    "gates": 1,
+                    "magnitude": {
+                      "v_at_half_max_mv": -70,
+                      "slope": -5.8
+                    },
+                    "time_constant": {
+                      "coef": 3,
+                      "v_offset_mv": -40,
+                      "inner_coef": 0.03,
+                      "type": "LinearExp"
+                    }
+                  }
+                },
+                "siemens_per_square_cm": 0.12
               },
-              "time_constant": {
-                "v_at_max_tau_mv": -50,
-                "c_base": 0.36,
-                "c_amp": 0.1,
-                "sigma": 50,
-                "type": "Sigmoid"
+              {
+                "channel": {
+                  "ion_selectivity": {
+                    "k": 0,
+                    "na": 0,
+                    "cl": 1,
+                    "ca": 0
+                  },
+                  "activation": null,
+                  "inactivation": null
+                },
+                "siemens_per_square_cm": 3e-05
               }
-            }
+            ]
           },
-          "siemens_per_square_cm": 0.036
-        },
-        {
-          "channel": {
-            "ion_selectivity": {
-              "k": 0,
-              "na": 1,
-              "cl": 0,
-              "ca": 0
-            },
-            "activation": {
-              "gates": 1,
-              "magnitude": {
-                "v_at_half_max_mv": -30,
-                "slope": 5.5
+          {
+            "capacitance_farads_per_square_cm": 1e-06,
+            "membrane_channels": [
+              {
+                "channel": {
+                  "ion_selectivity": {
+                    "k": 0,
+                    "na": 1,
+                    "cl": 0,
+                    "ca": 0
+                  },
+                  "activation": {
+                    "gates": 1,
+                    "magnitude": {
+                      "v_at_half_max_mv": -30,
+                      "slope": 5.5
+                    },
+                    "time_constant": {
+                      "type": "Instantaneous"
+                    }
+                  },
+                  "inactivation": {
+                    "gates": 1,
+                    "magnitude": {
+                      "v_at_half_max_mv": -70,
+                      "slope": -5.8
+                    },
+                    "time_constant": {
+                      "coef": 3,
+                      "v_offset_mv": -40,
+                      "inner_coef": 0.03,
+                      "type": "LinearExp"
+                    }
+                  }
+                },
+                "siemens_per_square_cm": 0.12
               },
-              "time_constant": {
-                "type": "Instantaneous"
-              }
-            },
-            "inactivation": {
-              "gates": 1,
-              "magnitude": {
-                "v_at_half_max_mv": -70,
-                "slope": -5.8
+              {
+                "channel": {
+                  "ion_selectivity": {
+                    "k": 0,
+                    "na": 0,
+                    "cl": 1,
+                    "ca": 0
+                  },
+                  "activation": null,
+                  "inactivation": null
+                },
+                "siemens_per_square_cm": 0.0003
               },
-              "time_constant": {
-                "coef": 3,
-                "v_offset_mv": -40,
-                "inner_coef": 0.03,
-                "type": "LinearExp"
+              {
+                "channel": {
+                  "ion_selectivity": {
+                    "k": 1,
+                    "na": 0,
+                    "cl": 0,
+                    "ca": 0
+                  },
+                  "activation": {
+                    "gates": 1,
+                    "magnitude": {
+                      "v_at_half_max_mv": -3,
+                      "slope": 10
+                    },
+                    "time_constant": {
+                      "v_at_max_tau_mv": -50,
+                      "c_base": 0.005,
+                      "c_amp": 0.047,
+                      "sigma": 0.03,
+                      "type": "Sigmoid"
+                    }
+                  },
+                  "inactivation": {
+                    "gates": 1,
+                    "magnitude": {
+                      "v_at_half_max_mv": -51,
+                      "slope": -12
+                    },
+                    "time_constant": {
+                      "v_at_max_tau_mv": -50,
+                      "c_base": 0.36,
+                      "c_amp": 0.1,
+                      "sigma": 50,
+                      "type": "Sigmoid"
+                    }
+                  }
+                },
+                "siemens_per_square_cm": 0.036
               }
-            }
+            ]
           },
-          "siemens_per_square_cm": 0.12
-        },
-        {
-          "channel": {
-            "ion_selectivity": {
-              "k": 0,
-              "na": 0,
-              "cl": 1,
-              "ca": 0
-            },
-            "activation": null,
-            "inactivation": null
+          {
+            "capacitance_farads_per_square_cm": 2e-06,
+            "membrane_channels": [
+              {
+                "channel": {
+                  "ion_selectivity": {
+                    "k": 0,
+                    "na": 0,
+                    "cl": 1,
+                    "ca": 0
+                  },
+                  "activation": null,
+                  "inactivation": null
+                },
+                "siemens_per_square_cm": 3e-05
+              },
+              {
+                "channel": {
+                  "ion_selectivity": {
+                    "na": 0.55,
+                    "k": 0.45,
+                    "cl": 0,
+                    "ca": 0
+                  },
+                  "activation": null,
+                  "inactivation": {
+                    "gates": 1,
+                    "magnitude": {
+                      "v_at_half_max_mv": -90,
+                      "slope": -8.5
+                    },
+                    "time_constant": {
+                      "v_at_max_tau_mv": -75,
+                      "c_base": 0.01,
+                      "c_amp": 0.04,
+                      "sigma": 20,
+                      "type": "Sigmoid"
+                    }
+                  }
+                },
+                "siemens_per_square_cm": 8e-05
+              }
+            ]
           },
-          "siemens_per_square_cm": 3e-05
-        }
-      ]
-    },
-    {
-      "capacitance_farads_per_square_cm": 1e-06,
-      "membrane_channels": [
-        {
-          "channel": {
-            "ion_selectivity": {
-              "k": 0,
-              "na": 1,
-              "cl": 0,
-              "ca": 0
-            },
-            "activation": {
-              "gates": 1,
-              "magnitude": {
-                "v_at_half_max_mv": -30,
-                "slope": 5.5
+          {
+            "capacitance_farads_per_square_cm": 2e-06,
+            "membrane_channels": [
+              {
+                "channel": {
+                  "ion_selectivity": {
+                    "k": 0,
+                    "na": 1,
+                    "cl": 0,
+                    "ca": 0
+                  },
+                  "activation": {
+                    "gates": 1,
+                    "magnitude": {
+                      "v_at_half_max_mv": -30,
+                      "slope": 5.5
+                    },
+                    "time_constant": {
+                      "type": "Instantaneous"
+                    }
+                  },
+                  "inactivation": {
+                    "gates": 1,
+                    "magnitude": {
+                      "v_at_half_max_mv": -70,
+                      "slope": -5.8
+                    },
+                    "time_constant": {
+                      "coef": 3,
+                      "v_offset_mv": -40,
+                      "inner_coef": 0.03,
+                      "type": "LinearExp"
+                    }
+                  }
+                },
+                "siemens_per_square_cm": 0.023
               },
-              "time_constant": {
-                "type": "Instantaneous"
-              }
-            },
-            "inactivation": {
-              "gates": 1,
-              "magnitude": {
-                "v_at_half_max_mv": -70,
-                "slope": -5.8
+              {
+                "channel": {
+                  "ion_selectivity": {
+                    "k": 0,
+                    "na": 0,
+                    "cl": 1,
+                    "ca": 0
+                  },
+                  "activation": null,
+                  "inactivation": null
+                },
+                "siemens_per_square_cm": 3e-05
               },
-              "time_constant": {
-                "coef": 3,
-                "v_offset_mv": -40,
-                "inner_coef": 0.03,
-                "type": "LinearExp"
+              {
+                "channel": {
+                  "ion_selectivity": {
+                    "na": 0.55,
+                    "k": 0.45,
+                    "cl": 0,
+                    "ca": 0
+                  },
+                  "activation": null,
+                  "inactivation": {
+                    "gates": 1,
+                    "magnitude": {
+                      "v_at_half_max_mv": -90,
+                      "slope": -8.5
+                    },
+                    "time_constant": {
+                      "v_at_max_tau_mv": -75,
+                      "c_base": 0.01,
+                      "c_amp": 0.04,
+                      "sigma": 20,
+                      "type": "Sigmoid"
+                    }
+                  }
+                },
+                "siemens_per_square_cm": 8e-05
+              },
+              {
+                "channel": {
+                  "ion_selectivity": {
+                    "k": 1,
+                    "na": 0,
+                    "cl": 0,
+                    "ca": 0
+                  },
+                  "activation": {
+                    "gates": 1,
+                    "magnitude": {
+                      "v_at_half_max_mv": -3,
+                      "slope": 10
+                    },
+                    "time_constant": {
+                      "v_at_max_tau_mv": -50,
+                      "c_base": 0.005,
+                      "c_amp": 0.047,
+                      "sigma": 0.03,
+                      "type": "Sigmoid"
+                    }
+                  },
+                  "inactivation": {
+                    "gates": 1,
+                    "magnitude": {
+                      "v_at_half_max_mv": -51,
+                      "slope": -12
+                    },
+                    "time_constant": {
+                      "v_at_max_tau_mv": -50,
+                      "c_base": 0.36,
+                      "c_amp": 0.1,
+                      "sigma": 50,
+                      "type": "Sigmoid"
+                    }
+                  }
+                },
+                "siemens_per_square_cm": 0.04
               }
-            }
+            ]
           },
-          "siemens_per_square_cm": 0.12
-        },
-        {
-          "channel": {
-            "ion_selectivity": {
-              "k": 0,
-              "na": 0,
-              "cl": 1,
-              "ca": 0
-            },
-            "activation": null,
-            "inactivation": null
+          {
+            "capacitance_farads_per_square_cm": 2e-06,
+            "membrane_channels": [
+              {
+                "channel": {
+                  "ion_selectivity": {
+                    "k": 0,
+                    "na": 1,
+                    "cl": 0,
+                    "ca": 0
+                  },
+                  "activation": {
+                    "gates": 1,
+                    "magnitude": {
+                      "v_at_half_max_mv": -30,
+                      "slope": 5.5
+                    },
+                    "time_constant": {
+                      "type": "Instantaneous"
+                    }
+                  },
+                  "inactivation": {
+                    "gates": 1,
+                    "magnitude": {
+                      "v_at_half_max_mv": -70,
+                      "slope": -5.8
+                    },
+                    "time_constant": {
+                      "coef": 3,
+                      "v_offset_mv": -40,
+                      "inner_coef": 0.03,
+                      "type": "LinearExp"
+                    }
+                  }
+                },
+                "siemens_per_square_cm": 0.023
+              },
+              {
+                "channel": {
+                  "ion_selectivity": {
+                    "k": 0,
+                    "na": 0,
+                    "cl": 1,
+                    "ca": 0
+                  },
+                  "activation": null,
+                  "inactivation": null
+                },
+                "siemens_per_square_cm": 3e-05
+              },
+              {
+                "channel": {
+                  "ion_selectivity": {
+                    "na": 0.55,
+                    "k": 0.45,
+                    "cl": 0,
+                    "ca": 0
+                  },
+                  "activation": null,
+                  "inactivation": {
+                    "gates": 1,
+                    "magnitude": {
+                      "v_at_half_max_mv": -90,
+                      "slope": -8.5
+                    },
+                    "time_constant": {
+                      "v_at_max_tau_mv": -75,
+                      "c_base": 0.01,
+                      "c_amp": 0.04,
+                      "sigma": 20,
+                      "type": "Sigmoid"
+                    }
+                  }
+                },
+                "siemens_per_square_cm": 8e-05
+              },
+              {
+                "channel": {
+                  "ion_selectivity": {
+                    "k": 1,
+                    "na": 0,
+                    "cl": 0,
+                    "ca": 0
+                  },
+                  "activation": {
+                    "gates": 1,
+                    "magnitude": {
+                      "v_at_half_max_mv": -3,
+                      "slope": 10
+                    },
+                    "time_constant": {
+                      "v_at_max_tau_mv": -50,
+                      "c_base": 0.005,
+                      "c_amp": 0.047,
+                      "sigma": 0.03,
+                      "type": "Sigmoid"
+                    }
+                  },
+                  "inactivation": {
+                    "gates": 1,
+                    "magnitude": {
+                      "v_at_half_max_mv": -51,
+                      "slope": -12
+                    },
+                    "time_constant": {
+                      "v_at_max_tau_mv": -50,
+                      "c_base": 0.36,
+                      "c_amp": 0.1,
+                      "sigma": 50,
+                      "type": "Sigmoid"
+                    }
+                  }
+                },
+                "siemens_per_square_cm": 0.04
+              }
+            ]
+          }
+        ],
+        "segments": [
+          {
+            "id": 1,
+            "x": 1273.4436,
+            "y": 1106.0421,
+            "z": 72.3856,
+            "r": 6.9784,
+            "type": 1,
+            "parent": -1
           },
-          "siemens_per_square_cm": 0.0003
-        },
-        {
-          "channel": {
-            "ion_selectivity": {
-              "k": 1,
-              "na": 0,
-              "cl": 0,
-              "ca": 0
-            },
-            "activation": {
-              "gates": 1,
-              "magnitude": {
-                "v_at_half_max_mv": -3,
-                "slope": 10
-              },
-              "time_constant": {
-                "v_at_max_tau_mv": -50,
-                "c_base": 0.005,
-                "c_amp": 0.047,
-                "sigma": 0.03,
-                "type": "Sigmoid"
-              }
-            },
-            "inactivation": {
-              "gates": 1,
-              "magnitude": {
-                "v_at_half_max_mv": -51,
-                "slope": -12
-              },
-              "time_constant": {
-                "v_at_max_tau_mv": -50,
-                "c_base": 0.36,
-                "c_amp": 0.1,
-                "sigma": 50,
-                "type": "Sigmoid"
-              }
-            }
+          {
+            "id": 30,
+            "x": 1262.873,
+            "y": 1141.7006,
+            "z": 69.9832,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 1
           },
-          "siemens_per_square_cm": 0.036
-        }
-      ]
-    },
-    {
-      "capacitance_farads_per_square_cm": 2e-06,
-      "membrane_channels": [
-        {
-          "channel": {
-            "ion_selectivity": {
-              "k": 0,
-              "na": 0,
-              "cl": 1,
-              "ca": 0
-            },
-            "activation": null,
-            "inactivation": null
+          {
+            "id": 60,
+            "x": 1250.3691,
+            "y": 1171.8221,
+            "z": 71.7704,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 30
           },
-          "siemens_per_square_cm": 3e-05
-        },
-        {
-          "channel": {
-            "ion_selectivity": {
-              "na": 0.55,
-              "k": 0.45,
-              "cl": 0,
-              "ca": 0
-            },
-            "activation": null,
-            "inactivation": {
-              "gates": 1,
-              "magnitude": {
-                "v_at_half_max_mv": -90,
-                "slope": -8.5
-              },
-              "time_constant": {
-                "v_at_max_tau_mv": -75,
-                "c_base": 0.01,
-                "c_amp": 0.04,
-                "sigma": 20,
-                "type": "Sigmoid"
-              }
-            }
+          {
+            "id": 90,
+            "x": 1238.3686,
+            "y": 1203.0647,
+            "z": 76.5666,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 60
           },
-          "siemens_per_square_cm": 8e-05
-        }
-      ]
-    },
-    {
-      "capacitance_farads_per_square_cm": 2e-06,
-      "membrane_channels": [
-        {
-          "channel": {
-            "ion_selectivity": {
-              "k": 0,
-              "na": 1,
-              "cl": 0,
-              "ca": 0
-            },
-            "activation": {
-              "gates": 1,
-              "magnitude": {
-                "v_at_half_max_mv": -30,
-                "slope": 5.5
-              },
-              "time_constant": {
-                "type": "Instantaneous"
-              }
-            },
-            "inactivation": {
-              "gates": 1,
-              "magnitude": {
-                "v_at_half_max_mv": -70,
-                "slope": -5.8
-              },
-              "time_constant": {
-                "coef": 3,
-                "v_offset_mv": -40,
-                "inner_coef": 0.03,
-                "type": "LinearExp"
-              }
-            }
+          {
+            "id": 100,
+            "x": 1234.0442,
+            "y": 1213.0633,
+            "z": 80.3158,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 90
           },
-          "siemens_per_square_cm": 0.023
-        },
-        {
-          "channel": {
-            "ion_selectivity": {
-              "k": 0,
-              "na": 0,
-              "cl": 1,
-              "ca": 0
-            },
-            "activation": null,
-            "inactivation": null
+          {
+            "id": 120,
+            "x": 1233.5866,
+            "y": 1233.232,
+            "z": 81.0583,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 100
           },
-          "siemens_per_square_cm": 3e-05
-        },
-        {
-          "channel": {
-            "ion_selectivity": {
-              "na": 0.55,
-              "k": 0.45,
-              "cl": 0,
-              "ca": 0
-            },
-            "activation": null,
-            "inactivation": {
-              "gates": 1,
-              "magnitude": {
-                "v_at_half_max_mv": -90,
-                "slope": -8.5
-              },
-              "time_constant": {
-                "v_at_max_tau_mv": -75,
-                "c_base": 0.01,
-                "c_amp": 0.04,
-                "sigma": 20,
-                "type": "Sigmoid"
-              }
-            }
+          {
+            "id": 150,
+            "x": 1218.0854,
+            "y": 1261.1113,
+            "z": 87.0887,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 120
           },
-          "siemens_per_square_cm": 8e-05
-        },
-        {
-          "channel": {
-            "ion_selectivity": {
-              "k": 1,
-              "na": 0,
-              "cl": 0,
-              "ca": 0
-            },
-            "activation": {
-              "gates": 1,
-              "magnitude": {
-                "v_at_half_max_mv": -3,
-                "slope": 10
-              },
-              "time_constant": {
-                "v_at_max_tau_mv": -50,
-                "c_base": 0.005,
-                "c_amp": 0.047,
-                "sigma": 0.03,
-                "type": "Sigmoid"
-              }
-            },
-            "inactivation": {
-              "gates": 1,
-              "magnitude": {
-                "v_at_half_max_mv": -51,
-                "slope": -12
-              },
-              "time_constant": {
-                "v_at_max_tau_mv": -50,
-                "c_base": 0.36,
-                "c_amp": 0.1,
-                "sigma": 50,
-                "type": "Sigmoid"
-              }
-            }
+          {
+            "id": 180,
+            "x": 1213.5438,
+            "y": 1294.5161,
+            "z": 87.5336,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 150
           },
-          "siemens_per_square_cm": 0.04
-        }
-      ]
-    },
-    {
-      "capacitance_farads_per_square_cm": 2e-06,
-      "membrane_channels": [
-        {
-          "channel": {
-            "ion_selectivity": {
-              "k": 0,
-              "na": 1,
-              "cl": 0,
-              "ca": 0
-            },
-            "activation": {
-              "gates": 1,
-              "magnitude": {
-                "v_at_half_max_mv": -30,
-                "slope": 5.5
-              },
-              "time_constant": {
-                "type": "Instantaneous"
-              }
-            },
-            "inactivation": {
-              "gates": 1,
-              "magnitude": {
-                "v_at_half_max_mv": -70,
-                "slope": -5.8
-              },
-              "time_constant": {
-                "coef": 3,
-                "v_offset_mv": -40,
-                "inner_coef": 0.03,
-                "type": "LinearExp"
-              }
-            }
+          {
+            "id": 210,
+            "x": 1210.3291,
+            "y": 1327.8866,
+            "z": 95.006,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 180
           },
-          "siemens_per_square_cm": 0.023
-        },
-        {
-          "channel": {
-            "ion_selectivity": {
-              "k": 0,
-              "na": 0,
-              "cl": 1,
-              "ca": 0
-            },
-            "activation": null,
-            "inactivation": null
+          {
+            "id": 240,
+            "x": 1204.2774,
+            "y": 1361.257,
+            "z": 95.0317,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 210
           },
-          "siemens_per_square_cm": 3e-05
-        },
-        {
-          "channel": {
-            "ion_selectivity": {
-              "na": 0.55,
-              "k": 0.45,
-              "cl": 0,
-              "ca": 0
-            },
-            "activation": null,
-            "inactivation": {
-              "gates": 1,
-              "magnitude": {
-                "v_at_half_max_mv": -90,
-                "slope": -8.5
-              },
-              "time_constant": {
-                "v_at_max_tau_mv": -75,
-                "c_base": 0.01,
-                "c_amp": 0.04,
-                "sigma": 20,
-                "type": "Sigmoid"
-              }
-            }
+          {
+            "id": 270,
+            "x": 1194.8279,
+            "y": 1393.5636,
+            "z": 97.2681,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 240
           },
-          "siemens_per_square_cm": 8e-05
-        },
-        {
-          "channel": {
-            "ion_selectivity": {
-              "k": 1,
-              "na": 0,
-              "cl": 0,
-              "ca": 0
-            },
-            "activation": {
-              "gates": 1,
-              "magnitude": {
-                "v_at_half_max_mv": -3,
-                "slope": 10
-              },
-              "time_constant": {
-                "v_at_max_tau_mv": -50,
-                "c_base": 0.005,
-                "c_amp": 0.047,
-                "sigma": 0.03,
-                "type": "Sigmoid"
-              }
-            },
-            "inactivation": {
-              "gates": 1,
-              "magnitude": {
-                "v_at_half_max_mv": -51,
-                "slope": -12
-              },
-              "time_constant": {
-                "v_at_max_tau_mv": -50,
-                "c_base": 0.36,
-                "c_amp": 0.1,
-                "sigma": 50,
-                "type": "Sigmoid"
-              }
-            }
+          {
+            "id": 300,
+            "x": 1180.1046,
+            "y": 1424.2914,
+            "z": 98.2761,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 270
           },
-          "siemens_per_square_cm": 0.04
-        }
-      ]
-    }
-  ],
-  "segments": [
-    {
-      "id": 1,
-      "x": 220.3916,
-      "y": 401.5223,
-      "z": 32.1182,
-      "r": 5.1554,
-      "type": 1,
-      "parent": -1
-    },
-    {
-      "id": 15,
-      "x": 236.5758,
-      "y": 391.6781,
-      "z": 31.3841,
-      "r": 0.5148,
-      "type": 3,
-      "parent": 1
-    },
-    {
-      "id": 20,
-      "x": 240.4997,
-      "y": 392.1197,
-      "z": 32.8852,
-      "r": 0.4854,
-      "type": 3,
-      "parent": 15
-    },
-    {
-      "id": 30,
-      "x": 246.0744,
-      "y": 396.7392,
-      "z": 36.8287,
-      "r": 0.4118,
-      "type": 3,
-      "parent": 20
-    },
-    {
-      "id": 39,
-      "x": 253.6374,
-      "y": 392.8599,
-      "z": 40.32,
-      "r": 0.2471,
-      "type": 3,
-      "parent": 30
-    },
-    {
-      "id": 40,
-      "x": 246.0675,
-      "y": 397.0961,
-      "z": 37.424,
-      "r": 0.4118,
-      "type": 3,
-      "parent": 30
-    },
-    {
-      "id": 60,
-      "x": 260.9567,
-      "y": 410.4695,
-      "z": 39.4058,
-      "r": 0.2746,
-      "type": 3,
-      "parent": 40
-    },
-    {
-      "id": 64,
-      "x": 264.6072,
-      "y": 412.1832,
-      "z": 38.92,
-      "r": 0.2471,
-      "type": 3,
-      "parent": 60
-    },
-    {
-      "id": 78,
-      "x": 247.104,
-      "y": 383.5832,
-      "z": 28.2153,
-      "r": 0.4221,
-      "type": 3,
-      "parent": 15
-    },
-    {
-      "id": 80,
-      "x": 246.7871,
-      "y": 382.1635,
-      "z": 28.6339,
-      "r": 0.4133,
-      "type": 3,
-      "parent": 78
-    },
-    {
-      "id": 86,
-      "x": 248.1988,
-      "y": 375.7205,
-      "z": 28.6432,
-      "r": 0.3604,
-      "type": 3,
-      "parent": 80
-    },
-    {
-      "id": 99,
-      "x": 255.0834,
-      "y": 366.4632,
-      "z": 32.5534,
-      "r": 0.3295,
-      "type": 3,
-      "parent": 86
-    },
-    {
-      "id": 100,
-      "x": 256.272,
-      "y": 366.7103,
-      "z": 33.0366,
-      "r": 0.3295,
-      "type": 3,
-      "parent": 99
-    },
-    {
-      "id": 103,
-      "x": 259.585,
-      "y": 367.097,
-      "z": 33.9315,
-      "r": 0.3089,
-      "type": 3,
-      "parent": 100
-    },
-    {
-      "id": 120,
-      "x": 251.9992,
-      "y": 373.4519,
-      "z": 50.4515,
-      "r": 0.2313,
-      "type": 3,
-      "parent": 103
-    },
-    {
-      "id": 121,
-      "x": 251.5244,
-      "y": 374.39,
-      "z": 51.24,
-      "r": 0.2265,
-      "type": 3,
-      "parent": 120
-    },
-    {
-      "id": 140,
-      "x": 276.8674,
-      "y": 357.7048,
-      "z": 34.5456,
-      "r": 0.2945,
-      "type": 3,
-      "parent": 103
-    },
-    {
-      "id": 160,
-      "x": 293.7186,
-      "y": 345.3644,
-      "z": 33.8411,
-      "r": 0.2784,
-      "type": 3,
-      "parent": 140
-    },
-    {
-      "id": 180,
-      "x": 311.9665,
-      "y": 335.4219,
-      "z": 30.5645,
-      "r": 0.2625,
-      "type": 3,
-      "parent": 160
-    },
-    {
-      "id": 200,
-      "x": 331.164,
-      "y": 326.5056,
-      "z": 28.56,
-      "r": 0.2465,
-      "type": 3,
-      "parent": 180
-    },
-    {
-      "id": 220,
-      "x": 348.1936,
-      "y": 312.9835,
-      "z": 26.222,
-      "r": 0.2305,
-      "type": 3,
-      "parent": 200
-    },
-    {
-      "id": 225,
-      "x": 352.7032,
-      "y": 310.1327,
-      "z": 25.9199,
-      "r": 0.2265,
-      "type": 3,
-      "parent": 220
-    },
-    {
-      "id": 240,
-      "x": 259.5324,
-      "y": 352.7124,
-      "z": 33.4032,
-      "r": 0.3121,
-      "type": 3,
-      "parent": 99
-    },
-    {
-      "id": 260,
-      "x": 265.0911,
-      "y": 334.1887,
-      "z": 34.643,
-      "r": 0.2873,
-      "type": 3,
-      "parent": 240
-    },
-    {
-      "id": 280,
-      "x": 272.5134,
-      "y": 316.499,
-      "z": 32.9412,
-      "r": 0.2624,
-      "type": 3,
-      "parent": 260
-    },
-    {
-      "id": 300,
-      "x": 287.9448,
-      "y": 304.7158,
-      "z": 28.0672,
-      "r": 0.2377,
-      "type": 3,
-      "parent": 280
-    },
-    {
-      "id": 309,
-      "x": 293.3216,
-      "y": 298.2408,
-      "z": 24.92,
-      "r": 0.2265,
-      "type": 3,
-      "parent": 300
-    },
-    {
-      "id": 314,
-      "x": 247.009,
-      "y": 371.133,
-      "z": 27.036,
-      "r": 0.2883,
-      "type": 3,
-      "parent": 86
-    },
-    {
-      "id": 320,
-      "x": 247.3328,
-      "y": 365.5583,
-      "z": 27.1692,
-      "r": 0.2851,
-      "type": 3,
-      "parent": 314
-    },
-    {
-      "id": 331,
-      "x": 249.4423,
-      "y": 354.3105,
-      "z": 26.8072,
-      "r": 0.278,
-      "type": 3,
-      "parent": 320
-    },
-    {
-      "id": 340,
-      "x": 252.1708,
-      "y": 345.9227,
-      "z": 25.7191,
-      "r": 0.278,
-      "type": 3,
-      "parent": 331
-    },
-    {
-      "id": 360,
-      "x": 269.4337,
-      "y": 336.6197,
-      "z": 25.7726,
-      "r": 0.2647,
-      "type": 3,
-      "parent": 340
-    },
-    {
-      "id": 380,
-      "x": 278.993,
-      "y": 318.9483,
-      "z": 26.3542,
-      "r": 0.2509,
-      "type": 3,
-      "parent": 360
-    },
-    {
-      "id": 400,
-      "x": 287.0296,
-      "y": 305.281,
-      "z": 18.4559,
-      "r": 0.2369,
-      "type": 3,
-      "parent": 380
-    },
-    {
-      "id": 415,
-      "x": 296.1461,
-      "y": 295.025,
-      "z": 12.6,
-      "r": 0.2265,
-      "type": 3,
-      "parent": 400
-    },
-    {
-      "id": 420,
-      "x": 252.4842,
-      "y": 341.7769,
-      "z": 25.2935,
-      "r": 0.2682,
-      "type": 3,
-      "parent": 340
-    },
-    {
-      "id": 437,
-      "x": 250.6504,
-      "y": 323.8664,
-      "z": 26.88,
-      "r": 0.2265,
-      "type": 3,
-      "parent": 420
-    },
-    {
-      "id": 440,
-      "x": 248.6015,
-      "y": 353.8667,
-      "z": 24.1091,
-      "r": 0.2752,
-      "type": 3,
-      "parent": 331
-    },
-    {
-      "id": 460,
-      "x": 243.7738,
-      "y": 337.1654,
-      "z": 17.0864,
-      "r": 0.2473,
-      "type": 3,
-      "parent": 440
-    },
-    {
-      "id": 475,
-      "x": 245.2736,
-      "y": 323.9808,
-      "z": 12.88,
-      "r": 0.2265,
-      "type": 3,
-      "parent": 460
-    },
-    {
-      "id": 480,
-      "x": 243.7853,
-      "y": 369.8621,
-      "z": 25.9552,
-      "r": 0.2788,
-      "type": 3,
-      "parent": 314
-    },
-    {
-      "id": 489,
-      "x": 239.3248,
-      "y": 369.512,
-      "z": 16.8,
-      "r": 0.2574,
-      "type": 3,
-      "parent": 480
-    },
-    {
-      "id": 500,
-      "x": 257.5819,
-      "y": 380.364,
-      "z": 25.8322,
-      "r": 0.1144,
-      "type": 2,
-      "parent": 78
-    },
-    {
-      "id": 520,
-      "x": 261.793,
-      "y": 360.3497,
-      "z": 21.4007,
-      "r": 0.1144,
-      "type": 2,
-      "parent": 500
-    },
-    {
-      "id": 524,
-      "x": 264.7925,
-      "y": 357.1156,
-      "z": 21.56,
-      "r": 0.1144,
-      "type": 2,
-      "parent": 520
-    },
-    {
-      "id": 530,
-      "x": 268.0575,
-      "y": 352.3692,
-      "z": 19.04,
-      "r": 0.1144,
-      "type": 2,
-      "parent": 524
-    },
-    {
-      "id": 540,
-      "x": 269.0631,
-      "y": 348.2702,
-      "z": 24.3566,
-      "r": 0.1144,
-      "type": 2,
-      "parent": 524
-    },
-    {
-      "id": 560,
-      "x": 279.2401,
-      "y": 331.6582,
-      "z": 32.9941,
-      "r": 0.1144,
-      "type": 2,
-      "parent": 540
-    },
-    {
-      "id": 580,
-      "x": 294.9678,
-      "y": 317.0447,
-      "z": 32.8513,
-      "r": 0.1144,
-      "type": 2,
-      "parent": 560
-    },
-    {
-      "id": 600,
-      "x": 309.2644,
-      "y": 300.2657,
-      "z": 34.8233,
-      "r": 0.1144,
-      "type": 2,
-      "parent": 580
-    },
-    {
-      "id": 620,
-      "x": 324.0655,
-      "y": 284.4076,
-      "z": 33.5896,
-      "r": 0.1144,
-      "type": 2,
-      "parent": 600
-    },
-    {
-      "id": 640,
-      "x": 341.2838,
-      "y": 270.4302,
-      "z": 31.8139,
-      "r": 0.1144,
-      "type": 2,
-      "parent": 620
-    },
-    {
-      "id": 660,
-      "x": 358.0937,
-      "y": 255.5353,
-      "z": 28.357,
-      "r": 0.1144,
-      "type": 2,
-      "parent": 640
-    },
-    {
-      "id": 680,
-      "x": 378.505,
-      "y": 246.079,
-      "z": 29.0718,
-      "r": 0.1144,
-      "type": 2,
-      "parent": 660
-    },
-    {
-      "id": 700,
-      "x": 395.4133,
-      "y": 231.0388,
-      "z": 26.9632,
-      "r": 0.1144,
-      "type": 2,
-      "parent": 680
-    },
-    {
-      "id": 706,
-      "x": 401.1299,
-      "y": 227.3563,
-      "z": 26.1201,
-      "r": 0.1144,
-      "type": 2,
-      "parent": 700
-    },
-    {
-      "id": 720,
-      "x": 411.4671,
-      "y": 216.6267,
-      "z": 24.9211,
-      "r": 0.1144,
-      "type": 2,
-      "parent": 706
-    },
-    {
-      "id": 740,
-      "x": 427.5117,
-      "y": 200.4952,
-      "z": 25.4237,
-      "r": 0.1144,
-      "type": 2,
-      "parent": 720
-    },
-    {
-      "id": 760,
-      "x": 445.111,
-      "y": 187.2156,
-      "z": 26.0674,
-      "r": 0.1144,
-      "type": 2,
-      "parent": 740
-    },
-    {
-      "id": 780,
-      "x": 462.1657,
-      "y": 173.6455,
-      "z": 27.5383,
-      "r": 0.1144,
-      "type": 2,
-      "parent": 760
-    },
-    {
-      "id": 800,
-      "x": 477.6966,
-      "y": 158.5676,
-      "z": 24.3631,
-      "r": 0.1144,
-      "type": 2,
-      "parent": 780
-    },
-    {
-      "id": 820,
-      "x": 493.6452,
-      "y": 143.9655,
-      "z": 17.8223,
-      "r": 0.1144,
-      "type": 2,
-      "parent": 800
-    },
-    {
-      "id": 840,
-      "x": 512.7156,
-      "y": 135.1087,
-      "z": 11.9398,
-      "r": 0.1144,
-      "type": 2,
-      "parent": 820
-    },
-    {
-      "id": 860,
-      "x": 530.9144,
-      "y": 121.9824,
-      "z": 9.5068,
-      "r": 0.1144,
-      "type": 2,
-      "parent": 840
-    },
-    {
-      "id": 880,
-      "x": 545.14,
-      "y": 107.8186,
-      "z": 6.8891,
-      "r": 0.1144,
-      "type": 2,
-      "parent": 860
-    },
-    {
-      "id": 900,
-      "x": 562.6867,
-      "y": 96.6329,
-      "z": 4.4638,
-      "r": 0.1144,
-      "type": 2,
-      "parent": 880
-    },
-    {
-      "id": 920,
-      "x": 580.4336,
-      "y": 85.1955,
-      "z": 3.817,
-      "r": 0.1144,
-      "type": 2,
-      "parent": 900
-    },
-    {
-      "id": 937,
-      "x": 596.485,
-      "y": 77.1339,
-      "z": 1.127,
-      "r": 0.1144,
-      "type": 2,
-      "parent": 920
-    },
-    {
-      "id": 940,
-      "x": 402.9042,
-      "y": 229.3892,
-      "z": 25.9608,
-      "r": 0.1144,
-      "type": 2,
-      "parent": 706
-    },
-    {
-      "id": 960,
-      "x": 414.7194,
-      "y": 247.6852,
-      "z": 26.9052,
-      "r": 0.1144,
-      "type": 2,
-      "parent": 940
-    },
-    {
-      "id": 977,
-      "x": 409.2568,
-      "y": 260.4899,
-      "z": 28.28,
-      "r": 0.1144,
-      "type": 2,
-      "parent": 960
-    },
-    {
-      "id": 980,
-      "x": 214.3032,
-      "y": 405.3203,
-      "z": 34.6259,
-      "r": 1.1223,
-      "type": 3,
-      "parent": 1
-    },
-    {
-      "id": 982,
-      "x": 212.315,
-      "y": 406.3968,
-      "z": 35.558,
-      "r": 0.7001,
-      "type": 3,
-      "parent": 980
-    },
-    {
-      "id": 990,
-      "x": 209.1198,
-      "y": 413.5091,
-      "z": 38.0531,
-      "r": 0.5251,
-      "type": 3,
-      "parent": 982
-    },
-    {
-      "id": 994,
-      "x": 205.5345,
-      "y": 412.6705,
-      "z": 39.3198,
-      "r": 0.4839,
-      "type": 3,
-      "parent": 990
-    },
-    {
-      "id": 1000,
-      "x": 200.4574,
-      "y": 415.8943,
-      "z": 40.8929,
-      "r": 0.4614,
-      "type": 3,
-      "parent": 994
-    },
-    {
-      "id": 1011,
-      "x": 192.51,
-      "y": 422.1623,
-      "z": 44.324,
-      "r": 0.4118,
-      "type": 3,
-      "parent": 1000
-    },
-    {
-      "id": 1013,
-      "x": 190.3639,
-      "y": 422.6279,
-      "z": 45.4098,
-      "r": 0.4118,
-      "type": 3,
-      "parent": 1011
-    },
-    {
-      "id": 1020,
-      "x": 186.6333,
-      "y": 427.721,
-      "z": 47.082,
-      "r": 0.4051,
-      "type": 3,
-      "parent": 1013
-    },
-    {
-      "id": 1040,
-      "x": 170.0934,
-      "y": 437.9873,
-      "z": 52.3306,
-      "r": 0.3828,
-      "type": 3,
-      "parent": 1020
-    },
-    {
-      "id": 1060,
-      "x": 154.8884,
-      "y": 449.5931,
-      "z": 59.2371,
-      "r": 0.3605,
-      "type": 3,
-      "parent": 1040
-    },
-    {
-      "id": 1080,
-      "x": 136.3076,
-      "y": 459.8914,
-      "z": 61.6252,
-      "r": 0.3382,
-      "type": 3,
-      "parent": 1060
-    },
-    {
-      "id": 1100,
-      "x": 120.2241,
-      "y": 471.0775,
-      "z": 65.8456,
-      "r": 0.3159,
-      "type": 3,
-      "parent": 1080
-    },
-    {
-      "id": 1120,
-      "x": 112.3883,
-      "y": 487.106,
-      "z": 73.0783,
-      "r": 0.2936,
-      "type": 3,
-      "parent": 1100
-    },
-    {
-      "id": 1140,
-      "x": 105.3635,
-      "y": 505.1618,
-      "z": 76.0281,
-      "r": 0.2711,
-      "type": 3,
-      "parent": 1120
-    },
-    {
-      "id": 1160,
-      "x": 93.1572,
-      "y": 522.0999,
-      "z": 76.5108,
-      "r": 0.2488,
-      "type": 3,
-      "parent": 1140
-    },
-    {
-      "id": 1180,
-      "x": 81.7101,
-      "y": 538.554,
-      "z": 75.5062,
-      "r": 0.2265,
-      "type": 3,
-      "parent": 1160
-    },
-    {
-      "id": 1191,
-      "x": 187.3872,
-      "y": 415.844,
-      "z": 57.12,
-      "r": 0.3089,
-      "type": 3,
-      "parent": 1013
-    },
-    {
-      "id": 1200,
-      "x": 191.1727,
-      "y": 430.2607,
-      "z": 42.0725,
-      "r": 0.4044,
-      "type": 3,
-      "parent": 1011
-    },
-    {
-      "id": 1220,
-      "x": 188.2509,
-      "y": 449.9718,
-      "z": 37.6205,
-      "r": 0.3858,
-      "type": 3,
-      "parent": 1200
-    },
-    {
-      "id": 1240,
-      "x": 176.3808,
-      "y": 466.9533,
-      "z": 37.5724,
-      "r": 0.3672,
-      "type": 3,
-      "parent": 1220
-    },
-    {
-      "id": 1260,
-      "x": 166.0402,
-      "y": 485.39,
-      "z": 36.3681,
-      "r": 0.3486,
-      "type": 3,
-      "parent": 1240
-    },
-    {
-      "id": 1280,
-      "x": 163.4284,
-      "y": 505.3826,
-      "z": 35.4483,
-      "r": 0.3299,
-      "type": 3,
-      "parent": 1260
-    },
-    {
-      "id": 1300,
-      "x": 165.5391,
-      "y": 525.3797,
-      "z": 37.8692,
-      "r": 0.3114,
-      "type": 3,
-      "parent": 1280
-    },
-    {
-      "id": 1320,
-      "x": 153.9023,
-      "y": 541.6074,
-      "z": 40.9433,
-      "r": 0.2927,
-      "type": 3,
-      "parent": 1300
-    },
-    {
-      "id": 1340,
-      "x": 149.9784,
-      "y": 560.9249,
-      "z": 45.0428,
-      "r": 0.2741,
-      "type": 3,
-      "parent": 1320
-    },
-    {
-      "id": 1358,
-      "x": 148.0336,
-      "y": 579.5504,
-      "z": 45.64,
-      "r": 0.2574,
-      "type": 3,
-      "parent": 1340
-    },
-    {
-      "id": 1360,
-      "x": 204.1948,
-      "y": 412.0528,
-      "z": 40.5854,
-      "r": 0.4324,
-      "type": 3,
-      "parent": 994
-    },
-    {
-      "id": 1364,
-      "x": 202.8976,
-      "y": 408.249,
-      "z": 41.16,
-      "r": 0.2265,
-      "type": 3,
-      "parent": 1360
-    },
-    {
-      "id": 1380,
-      "x": 195.1424,
-      "y": 419.6672,
-      "z": 33.9553,
-      "r": 0.4491,
-      "type": 3,
-      "parent": 990
-    },
-    {
-      "id": 1400,
-      "x": 178.7363,
-      "y": 429.2402,
-      "z": 29.3474,
-      "r": 0.348,
-      "type": 3,
-      "parent": 1380
-    },
-    {
-      "id": 1420,
-      "x": 160.3694,
-      "y": 437.2597,
-      "z": 25.5797,
-      "r": 0.2468,
-      "type": 3,
-      "parent": 1400
-    },
-    {
-      "id": 1424,
-      "x": 157.3,
-      "y": 436.436,
-      "z": 25.76,
-      "r": 0.2265,
-      "type": 3,
-      "parent": 1420
-    },
-    {
-      "id": 1440,
-      "x": 197.5036,
-      "y": 412.0768,
-      "z": 33.9578,
-      "r": 0.6057,
-      "type": 3,
-      "parent": 982
-    },
-    {
-      "id": 1460,
-      "x": 177.7822,
-      "y": 407.3784,
-      "z": 38.288,
-      "r": 0.4799,
-      "type": 3,
-      "parent": 1440
-    },
-    {
-      "id": 1480,
-      "x": 158.8444,
-      "y": 401.5646,
-      "z": 42.2722,
-      "r": 0.3541,
-      "type": 3,
-      "parent": 1460
-    },
-    {
-      "id": 1497,
-      "x": 142.8856,
-      "y": 395.252,
-      "z": 46.76,
-      "r": 0.2471,
-      "type": 3,
-      "parent": 1480
-    }
-  ]
+          {
+            "id": 330,
+            "x": 1162.2811,
+            "y": 1453.1774,
+            "z": 98.7963,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 300
+          },
+          {
+            "id": 360,
+            "x": 1155.44,
+            "y": 1486.445,
+            "z": 99.5302,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 330
+          },
+          {
+            "id": 373,
+            "x": 1157.1674,
+            "y": 1501.111,
+            "z": 99.5302,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 360
+          },
+          {
+            "id": 390,
+            "x": 1216.2093,
+            "y": 1214.8136,
+            "z": 87.7033,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 100
+          },
+          {
+            "id": 420,
+            "x": 1185.3327,
+            "y": 1200.3878,
+            "z": 90.8874,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 390
+          },
+          {
+            "id": 450,
+            "x": 1155.6345,
+            "y": 1183.4337,
+            "z": 92.1836,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 420
+          },
+          {
+            "id": 480,
+            "x": 1123.2764,
+            "y": 1173.2978,
+            "z": 89.157,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 450
+          },
+          {
+            "id": 510,
+            "x": 1092.6802,
+            "y": 1158.975,
+            "z": 84.8254,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 480
+          },
+          {
+            "id": 540,
+            "x": 1060.2214,
+            "y": 1149.5026,
+            "z": 82.539,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 510
+          },
+          {
+            "id": 570,
+            "x": 1029.5382,
+            "y": 1137.8167,
+            "z": 75.9746,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 540
+          },
+          {
+            "id": 600,
+            "x": 997.711,
+            "y": 1126.4282,
+            "z": 74.1238,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 570
+          },
+          {
+            "id": 630,
+            "x": 964.4492,
+            "y": 1120.5732,
+            "z": 69.4781,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 600
+          },
+          {
+            "id": 660,
+            "x": 931.2926,
+            "y": 1114.7834,
+            "z": 64.8696,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 630
+          },
+          {
+            "id": 690,
+            "x": 899.0982,
+            "y": 1105.7538,
+            "z": 62.6839,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 660
+          },
+          {
+            "id": 720,
+            "x": 867.3042,
+            "y": 1094.0244,
+            "z": 60.24,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 690
+          },
+          {
+            "id": 750,
+            "x": 842.54,
+            "y": 1078.9945,
+            "z": 60.8653,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 720
+          },
+          {
+            "id": 780,
+            "x": 811.7275,
+            "y": 1069.211,
+            "z": 64.3588,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 750
+          },
+          {
+            "id": 810,
+            "x": 780.518,
+            "y": 1060.639,
+            "z": 64.7242,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 780
+          },
+          {
+            "id": 840,
+            "x": 751.7842,
+            "y": 1045.8311,
+            "z": 70.8109,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 810
+          },
+          {
+            "id": 870,
+            "x": 721.1547,
+            "y": 1034.0582,
+            "z": 70.2134,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 840
+          },
+          {
+            "id": 900,
+            "x": 689.9407,
+            "y": 1025.4644,
+            "z": 76.4347,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 870
+          },
+          {
+            "id": 930,
+            "x": 660.0434,
+            "y": 1013.4547,
+            "z": 78.0332,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 900
+          },
+          {
+            "id": 960,
+            "x": 629.6542,
+            "y": 1001.8065,
+            "z": 81.4568,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 930
+          },
+          {
+            "id": 990,
+            "x": 604.4084,
+            "y": 980.8599,
+            "z": 81.5881,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 960
+          },
+          {
+            "id": 1020,
+            "x": 574.4241,
+            "y": 968.6156,
+            "z": 88.8773,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 990
+          },
+          {
+            "id": 1050,
+            "x": 543.2639,
+            "y": 958.2922,
+            "z": 93.8918,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 1020
+          },
+          {
+            "id": 1080,
+            "x": 511.8382,
+            "y": 946.088,
+            "z": 97.2684,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 1050
+          },
+          {
+            "id": 1110,
+            "x": 479.1518,
+            "y": 940.384,
+            "z": 102.5791,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 1080
+          },
+          {
+            "id": 1140,
+            "x": 446.8842,
+            "y": 931.685,
+            "z": 110.3203,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 1110
+          },
+          {
+            "id": 1170,
+            "x": 412.9154,
+            "y": 932.0351,
+            "z": 116.2148,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 1140
+          },
+          {
+            "id": 1200,
+            "x": 380.3628,
+            "y": 921.381,
+            "z": 117.6594,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 1170
+          },
+          {
+            "id": 1230,
+            "x": 347.6971,
+            "y": 911.784,
+            "z": 125.0326,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 1200
+          },
+          {
+            "id": 1260,
+            "x": 314.4764,
+            "y": 903.5472,
+            "z": 125.7264,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 1230
+          },
+          {
+            "id": 1290,
+            "x": 281.0282,
+            "y": 897.0161,
+            "z": 131.9884,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 1260
+          },
+          {
+            "id": 1320,
+            "x": 247.4518,
+            "y": 890.2391,
+            "z": 134.556,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 1290
+          },
+          {
+            "id": 1350,
+            "x": 214.4542,
+            "y": 880.9589,
+            "z": 134.6629,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 1320
+          },
+          {
+            "id": 1380,
+            "x": 184.8384,
+            "y": 866.604,
+            "z": 137.6371,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 1350
+          },
+          {
+            "id": 1410,
+            "x": 150.7792,
+            "y": 864.6924,
+            "z": 141.3754,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 1380
+          },
+          {
+            "id": 1440,
+            "x": 118.4212,
+            "y": 855.5004,
+            "z": 143.64,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 1410
+          },
+          {
+            "id": 1441,
+            "x": 117.3675,
+            "y": 855.0542,
+            "z": 143.64,
+            "r": 0.1144,
+            "type": 2,
+            "parent": 1440
+          },
+          {
+            "id": 1448,
+            "x": 1260.9854,
+            "y": 1104.5652,
+            "z": 80.33,
+            "r": 0.2883,
+            "type": 3,
+            "parent": 1
+          },
+          {
+            "id": 1463,
+            "x": 1262.8959,
+            "y": 1119.6889,
+            "z": 85.2376,
+            "r": 0.2265,
+            "type": 3,
+            "parent": 1448
+          },
+          {
+            "id": 1470,
+            "x": 1265.6758,
+            "y": 1124.5051,
+            "z": 90.3076,
+            "r": 0.2261,
+            "type": 3,
+            "parent": 1463
+          },
+          {
+            "id": 1500,
+            "x": 1253.2863,
+            "y": 1149.7772,
+            "z": 102.2252,
+            "r": 0.2241,
+            "type": 3,
+            "parent": 1470
+          },
+          {
+            "id": 1530,
+            "x": 1251.5818,
+            "y": 1183.3422,
+            "z": 103.243,
+            "r": 0.2221,
+            "type": 3,
+            "parent": 1500
+          },
+          {
+            "id": 1560,
+            "x": 1245.1182,
+            "y": 1214.5848,
+            "z": 100.4856,
+            "r": 0.2201,
+            "type": 3,
+            "parent": 1530
+          },
+          {
+            "id": 1590,
+            "x": 1250.2662,
+            "y": 1246.6397,
+            "z": 105.2086,
+            "r": 0.218,
+            "type": 3,
+            "parent": 1560
+          },
+          {
+            "id": 1617,
+            "x": 1250.6094,
+            "y": 1276.6354,
+            "z": 109.7093,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 1590
+          },
+          {
+            "id": 1620,
+            "x": 1265.4814,
+            "y": 1120.1979,
+            "z": 88.7121,
+            "r": 0.2258,
+            "type": 3,
+            "parent": 1463
+          },
+          {
+            "id": 1650,
+            "x": 1285.8331,
+            "y": 1133.0039,
+            "z": 124.5628,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 1620
+          },
+          {
+            "id": 1660,
+            "x": 1251.5017,
+            "y": 1100.6447,
+            "z": 83.6668,
+            "r": 0.2471,
+            "type": 3,
+            "parent": 1448
+          },
+          {
+            "id": 1663,
+            "x": 1248.859,
+            "y": 1100.5429,
+            "z": 87.4283,
+            "r": 0.2265,
+            "type": 3,
+            "parent": 1660
+          },
+          {
+            "id": 1680,
+            "x": 1244.1343,
+            "y": 1085.5691,
+            "z": 100.7378,
+            "r": 0.2202,
+            "type": 3,
+            "parent": 1663
+          },
+          {
+            "id": 1690,
+            "x": 1244.1343,
+            "y": 1076.4388,
+            "z": 111.6576,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 1680
+          },
+          {
+            "id": 1696,
+            "x": 1244.1343,
+            "y": 1097.263,
+            "z": 88.7886,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 1663
+          },
+          {
+            "id": 1710,
+            "x": 1229.4911,
+            "y": 1101.537,
+            "z": 89.2139,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 1696
+          },
+          {
+            "id": 1740,
+            "x": 1202.5728,
+            "y": 1117.1183,
+            "z": 90.2006,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 1710
+          },
+          {
+            "id": 1770,
+            "x": 1178.6632,
+            "y": 1135.2541,
+            "z": 97.7561,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 1740
+          },
+          {
+            "id": 1800,
+            "x": 1155.8518,
+            "y": 1151.3445,
+            "z": 103.9192,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 1770
+          },
+          {
+            "id": 1830,
+            "x": 1144.0915,
+            "y": 1180.139,
+            "z": 113.902,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 1800
+          },
+          {
+            "id": 1842,
+            "x": 1136.254,
+            "y": 1190.7896,
+            "z": 113.902,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 1830
+          },
+          {
+            "id": 1860,
+            "x": 1229.3424,
+            "y": 1087.1787,
+            "z": 92.6526,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 1696
+          },
+          {
+            "id": 1889,
+            "x": 1203.7854,
+            "y": 1070.1079,
+            "z": 98.3436,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 1860
+          },
+          {
+            "id": 1890,
+            "x": 1203.1219,
+            "y": 1070.1914,
+            "z": 97.9555,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 1889
+          },
+          {
+            "id": 1920,
+            "x": 1171.2043,
+            "y": 1063.2244,
+            "z": 106.8483,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 1890
+          },
+          {
+            "id": 1944,
+            "x": 1145.5558,
+            "y": 1055.3446,
+            "z": 113.3409,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 1920
+          },
+          {
+            "id": 1950,
+            "x": 1200.1132,
+            "y": 1064.516,
+            "z": 99.8906,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 1889
+          },
+          {
+            "id": 1980,
+            "x": 1178.3086,
+            "y": 1042.4574,
+            "z": 106.4538,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 1950
+          },
+          {
+            "id": 2010,
+            "x": 1157.8767,
+            "y": 1017.9015,
+            "z": 113.3818,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 1980
+          },
+          {
+            "id": 2040,
+            "x": 1136.4713,
+            "y": 992.2781,
+            "z": 111.097,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 2010
+          },
+          {
+            "id": 2063,
+            "x": 1117.9969,
+            "y": 973.8426,
+            "z": 110.5356,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 2040
+          },
+          {
+            "id": 2070,
+            "x": 1250.106,
+            "y": 1106.8063,
+            "z": 95.0485,
+            "r": 0.2256,
+            "type": 3,
+            "parent": 1663
+          },
+          {
+            "id": 2100,
+            "x": 1254.1672,
+            "y": 1136.2769,
+            "z": 114.2613,
+            "r": 0.2207,
+            "type": 3,
+            "parent": 2070
+          },
+          {
+            "id": 2128,
+            "x": 1234.09,
+            "y": 1149.045,
+            "z": 142.5178,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 2100
+          },
+          {
+            "id": 2130,
+            "x": 1249.9802,
+            "y": 1100.0887,
+            "z": 84.0582,
+            "r": 0.2432,
+            "type": 3,
+            "parent": 1660
+          },
+          {
+            "id": 2137,
+            "x": 1243.3221,
+            "y": 1097.1612,
+            "z": 84.1487,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 2130
+          },
+          {
+            "id": 2144,
+            "x": 1235.9204,
+            "y": 1097.7206,
+            "z": 83.9964,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 2137
+          },
+          {
+            "id": 2160,
+            "x": 1219.9273,
+            "y": 1096.818,
+            "z": 82.0952,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 2144
+          },
+          {
+            "id": 2190,
+            "x": 1187.1288,
+            "y": 1102.2737,
+            "z": 80.2799,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 2160
+          },
+          {
+            "id": 2220,
+            "x": 1154.296,
+            "y": 1107.789,
+            "z": 82.4309,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 2190
+          },
+          {
+            "id": 2250,
+            "x": 1121.9368,
+            "y": 1116.3278,
+            "z": 83.8681,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 2220
+          },
+          {
+            "id": 2280,
+            "x": 1089.1155,
+            "y": 1122.7182,
+            "z": 83.263,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 2250
+          },
+          {
+            "id": 2310,
+            "x": 1062.4065,
+            "y": 1139.9846,
+            "z": 82.7271,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 2280
+          },
+          {
+            "id": 2333,
+            "x": 1050.1085,
+            "y": 1159.4554,
+            "z": 74.6474,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 2310
+          },
+          {
+            "id": 2340,
+            "x": 1228.7475,
+            "y": 1098.2411,
+            "z": 80.2841,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 2144
+          },
+          {
+            "id": 2370,
+            "x": 1203.2249,
+            "y": 1117.1091,
+            "z": 78.0385,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 2340
+          },
+          {
+            "id": 2400,
+            "x": 1175.8604,
+            "y": 1133.9374,
+            "z": 77.5989,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 2370
+          },
+          {
+            "id": 2430,
+            "x": 1147.2604,
+            "y": 1147.0659,
+            "z": 83.1046,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 2400
+          },
+          {
+            "id": 2460,
+            "x": 1124.8929,
+            "y": 1165.8962,
+            "z": 77.9906,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 2430
+          },
+          {
+            "id": 2490,
+            "x": 1116.4044,
+            "y": 1194.0271,
+            "z": 73.9228,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 2460
+          },
+          {
+            "id": 2511,
+            "x": 1097.9128,
+            "y": 1200.6966,
+            "z": 62.2815,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 2490
+          },
+          {
+            "id": 2520,
+            "x": 1235.3827,
+            "y": 1092.9215,
+            "z": 84.1694,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 2137
+          },
+          {
+            "id": 2550,
+            "x": 1206.6454,
+            "y": 1080.3021,
+            "z": 92.4809,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 2520
+          },
+          {
+            "id": 2580,
+            "x": 1180.1161,
+            "y": 1064.9553,
+            "z": 106.7643,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 2550
+          },
+          {
+            "id": 2610,
+            "x": 1149.8573,
+            "y": 1053.5382,
+            "z": 113.3317,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 2580
+          },
+          {
+            "id": 2625,
+            "x": 1133.6708,
+            "y": 1048.1854,
+            "z": 112.7798,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 2610
+          },
+          {
+            "id": 2636,
+            "x": 1264.1429,
+            "y": 1119.0196,
+            "z": 63.0084,
+            "r": 0.3707,
+            "type": 3,
+            "parent": 1
+          },
+          {
+            "id": 2638,
+            "x": 1262.8158,
+            "y": 1119.1718,
+            "z": 61.2273,
+            "r": 0.3398,
+            "type": 3,
+            "parent": 2636
+          },
+          {
+            "id": 2640,
+            "x": 1261.9922,
+            "y": 1119.9794,
+            "z": 59.5882,
+            "r": 0.3318,
+            "type": 3,
+            "parent": 2638
+          },
+          {
+            "id": 2648,
+            "x": 1257.1759,
+            "y": 1126.5975,
+            "z": 55.7603,
+            "r": 0.2677,
+            "type": 3,
+            "parent": 2640
+          },
+          {
+            "id": 2670,
+            "x": 1258.7775,
+            "y": 1150.1318,
+            "z": 56.0487,
+            "r": 0.2677,
+            "type": 3,
+            "parent": 2648
+          },
+          {
+            "id": 2674,
+            "x": 1259.361,
+            "y": 1154.4218,
+            "z": 57.0982,
+            "r": 0.2677,
+            "type": 3,
+            "parent": 2670
+          },
+          {
+            "id": 2700,
+            "x": 1267.7465,
+            "y": 1177.8166,
+            "z": 46.3291,
+            "r": 0.2627,
+            "type": 3,
+            "parent": 2674
+          },
+          {
+            "id": 2730,
+            "x": 1270.8124,
+            "y": 1209.8372,
+            "z": 37.0577,
+            "r": 0.2566,
+            "type": 3,
+            "parent": 2700
+          },
+          {
+            "id": 2760,
+            "x": 1279.9072,
+            "y": 1240.485,
+            "z": 31.3978,
+            "r": 0.2505,
+            "type": 3,
+            "parent": 2730
+          },
+          {
+            "id": 2790,
+            "x": 1295.8546,
+            "y": 1268.5015,
+            "z": 25.6326,
+            "r": 0.2445,
+            "type": 3,
+            "parent": 2760
+          },
+          {
+            "id": 2820,
+            "x": 1297.296,
+            "y": 1298.5086,
+            "z": 23.5105,
+            "r": 0.2384,
+            "type": 3,
+            "parent": 2790
+          },
+          {
+            "id": 2828,
+            "x": 1299.1836,
+            "y": 1305.876,
+            "z": 24.7719,
+            "r": 0.2368,
+            "type": 3,
+            "parent": 2820
+          },
+          {
+            "id": 2839,
+            "x": 1306.2764,
+            "y": 1315.0166,
+            "z": 23.7516,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 2828
+          },
+          {
+            "id": 2850,
+            "x": 1309.8686,
+            "y": 1310.8867,
+            "z": 23.4895,
+            "r": 0.2221,
+            "type": 3,
+            "parent": 2828
+          },
+          {
+            "id": 2854,
+            "x": 1313.2434,
+            "y": 1313.9069,
+            "z": 22.6204,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 2850
+          },
+          {
+            "id": 2880,
+            "x": 1259.7614,
+            "y": 1182.8045,
+            "z": 56.8064,
+            "r": 0.2605,
+            "type": 3,
+            "parent": 2674
+          },
+          {
+            "id": 2910,
+            "x": 1258.7546,
+            "y": 1213.4179,
+            "z": 63.7907,
+            "r": 0.2519,
+            "type": 3,
+            "parent": 2880
+          },
+          {
+            "id": 2940,
+            "x": 1253.252,
+            "y": 1245.4156,
+            "z": 64.2718,
+            "r": 0.2434,
+            "type": 3,
+            "parent": 2910
+          },
+          {
+            "id": 2970,
+            "x": 1242.5327,
+            "y": 1276.1778,
+            "z": 63.336,
+            "r": 0.2349,
+            "type": 3,
+            "parent": 2940
+          },
+          {
+            "id": 3000,
+            "x": 1238.6317,
+            "y": 1309.1135,
+            "z": 60.1322,
+            "r": 0.2262,
+            "type": 3,
+            "parent": 2970
+          },
+          {
+            "id": 3030,
+            "x": 1241.6747,
+            "y": 1341.5688,
+            "z": 66.7304,
+            "r": 0.2177,
+            "type": 3,
+            "parent": 3000
+          },
+          {
+            "id": 3035,
+            "x": 1242.7501,
+            "y": 1347.1858,
+            "z": 66.7304,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 3030
+          },
+          {
+            "id": 3060,
+            "x": 1243.0704,
+            "y": 1140.5646,
+            "z": 37.8112,
+            "r": 0.2414,
+            "type": 3,
+            "parent": 2648
+          },
+          {
+            "id": 3083,
+            "x": 1227.6378,
+            "y": 1152.1796,
+            "z": 19.1394,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 3060
+          },
+          {
+            "id": 3090,
+            "x": 1255.0481,
+            "y": 1119.682,
+            "z": 59.8752,
+            "r": 0.2892,
+            "type": 3,
+            "parent": 2638
+          },
+          {
+            "id": 3095,
+            "x": 1249.7056,
+            "y": 1121.112,
+            "z": 59.9292,
+            "r": 0.2471,
+            "type": 3,
+            "parent": 3090
+          },
+          {
+            "id": 3120,
+            "x": 1226.4138,
+            "y": 1111.7117,
+            "z": 55.7052,
+            "r": 0.2426,
+            "type": 3,
+            "parent": 3095
+          },
+          {
+            "id": 3150,
+            "x": 1194.9995,
+            "y": 1103.6717,
+            "z": 46.8006,
+            "r": 0.237,
+            "type": 3,
+            "parent": 3120
+          },
+          {
+            "id": 3180,
+            "x": 1165.5644,
+            "y": 1096.8066,
+            "z": 34.2734,
+            "r": 0.2314,
+            "type": 3,
+            "parent": 3150
+          },
+          {
+            "id": 3210,
+            "x": 1135.3353,
+            "y": 1097.3854,
+            "z": 23.4562,
+            "r": 0.2257,
+            "type": 3,
+            "parent": 3180
+          },
+          {
+            "id": 3240,
+            "x": 1103.5562,
+            "y": 1096.572,
+            "z": 19.7058,
+            "r": 0.2201,
+            "type": 3,
+            "parent": 3210
+          },
+          {
+            "id": 3261,
+            "x": 1080.8032,
+            "y": 1096.6098,
+            "z": 16.2716,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 3240
+          },
+          {
+            "id": 3270,
+            "x": 1240.9883,
+            "y": 1123.8073,
+            "z": 62.6816,
+            "r": 0.2495,
+            "type": 3,
+            "parent": 3095
+          },
+          {
+            "id": 3297,
+            "x": 1216.9872,
+            "y": 1136.5663,
+            "z": 71.9575,
+            "r": 0.2574,
+            "type": 3,
+            "parent": 3270
+          },
+          {
+            "id": 3300,
+            "x": 1213.967,
+            "y": 1135.4417,
+            "z": 74.4355,
+            "r": 0.2563,
+            "type": 3,
+            "parent": 3297
+          },
+          {
+            "id": 3330,
+            "x": 1189.6914,
+            "y": 1125.6285,
+            "z": 94.4916,
+            "r": 0.2385,
+            "type": 3,
+            "parent": 3300
+          },
+          {
+            "id": 3360,
+            "x": 1159.055,
+            "y": 1121.1303,
+            "z": 105.7734,
+            "r": 0.2209,
+            "type": 3,
+            "parent": 3330
+          },
+          {
+            "id": 3368,
+            "x": 1150.0403,
+            "y": 1120.5331,
+            "z": 108.8522,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 3360
+          },
+          {
+            "id": 3390,
+            "x": 1207.6178,
+            "y": 1158.0598,
+            "z": 79.2705,
+            "r": 0.2521,
+            "type": 3,
+            "parent": 3297
+          },
+          {
+            "id": 3420,
+            "x": 1188.5817,
+            "y": 1179.9902,
+            "z": 90.9583,
+            "r": 0.2445,
+            "type": 3,
+            "parent": 3390
+          },
+          {
+            "id": 3450,
+            "x": 1169.454,
+            "y": 1206.3709,
+            "z": 100.4192,
+            "r": 0.2369,
+            "type": 3,
+            "parent": 3420
+          },
+          {
+            "id": 3480,
+            "x": 1160.4393,
+            "y": 1236.2293,
+            "z": 104.0516,
+            "r": 0.2294,
+            "type": 3,
+            "parent": 3450
+          },
+          {
+            "id": 3510,
+            "x": 1150.3149,
+            "y": 1266.9114,
+            "z": 106.3759,
+            "r": 0.2218,
+            "type": 3,
+            "parent": 3480
+          },
+          {
+            "id": 3532,
+            "x": 1146.9401,
+            "y": 1291.5302,
+            "z": 108.5784,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 3510
+          },
+          {
+            "id": 3540,
+            "x": 1266.0991,
+            "y": 1125.0199,
+            "z": 52.9155,
+            "r": 0.3418,
+            "type": 3,
+            "parent": 2636
+          },
+          {
+            "id": 3543,
+            "x": 1266.1792,
+            "y": 1127.8753,
+            "z": 50.5464,
+            "r": 0.3295,
+            "type": 3,
+            "parent": 3540
+          },
+          {
+            "id": 3570,
+            "x": 1259.2351,
+            "y": 1144.7322,
+            "z": 29.6313,
+            "r": 0.2576,
+            "type": 3,
+            "parent": 3543
+          },
+          {
+            "id": 3585,
+            "x": 1255.8031,
+            "y": 1157.6708,
+            "z": 21.8826,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 3570
+          },
+          {
+            "id": 3590,
+            "x": 1270.5722,
+            "y": 1129.859,
+            "z": 47.5126,
+            "r": 0.2574,
+            "type": 3,
+            "parent": 3543
+          },
+          {
+            "id": 3595,
+            "x": 1273.6495,
+            "y": 1130.6724,
+            "z": 44.5805,
+            "r": 0.2883,
+            "type": 3,
+            "parent": 3590
+          },
+          {
+            "id": 3600,
+            "x": 1273.455,
+            "y": 1134.0987,
+            "z": 41.8902,
+            "r": 0.2883,
+            "type": 3,
+            "parent": 3595
+          },
+          {
+            "id": 3613,
+            "x": 1283.385,
+            "y": 1137.0799,
+            "z": 33.1551,
+            "r": 0.2883,
+            "type": 3,
+            "parent": 3600
+          },
+          {
+            "id": 3630,
+            "x": 1270.3319,
+            "y": 1129.4655,
+            "z": 19.7778,
+            "r": 0.2275,
+            "type": 3,
+            "parent": 3613
+          },
+          {
+            "id": 3633,
+            "x": 1268.1583,
+            "y": 1128.3844,
+            "z": 17.3939,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 3630
+          },
+          {
+            "id": 3646,
+            "x": 1291.0383,
+            "y": 1130.6724,
+            "z": 19.0772,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 3613
+          },
+          {
+            "id": 3660,
+            "x": 1283.9226,
+            "y": 1126.9784,
+            "z": 34.8104,
+            "r": 0.2639,
+            "type": 3,
+            "parent": 3595
+          },
+          {
+            "id": 3669,
+            "x": 1289.2766,
+            "y": 1123.7672,
+            "z": 27.5416,
+            "r": 0.2471,
+            "type": 3,
+            "parent": 3660
+          },
+          {
+            "id": 3683,
+            "x": 1286.9199,
+            "y": 1110.2417,
+            "z": 19.6384,
+            "r": 0.2265,
+            "type": 3,
+            "parent": 3669
+          },
+          {
+            "id": 3690,
+            "x": 1291.1985,
+            "y": 1116.8517,
+            "z": 22.1063,
+            "r": 0.2359,
+            "type": 3,
+            "parent": 3669
+          },
+          {
+            "id": 3695,
+            "x": 1292.4111,
+            "y": 1111.4509,
+            "z": 20.1995,
+            "r": 0.2265,
+            "type": 3,
+            "parent": 3690
+          },
+          {
+            "id": 3720,
+            "x": 1288.9334,
+            "y": 1148.4387,
+            "z": 40.5062,
+            "r": 0.2457,
+            "type": 3,
+            "parent": 3590
+          },
+          {
+            "id": 3750,
+            "x": 1307.0658,
+            "y": 1174.8537,
+            "z": 32.8098,
+            "r": 0.2312,
+            "type": 3,
+            "parent": 3720
+          },
+          {
+            "id": 3780,
+            "x": 1322.5555,
+            "y": 1200.9712,
+            "z": 21.6182,
+            "r": 0.2167,
+            "type": 3,
+            "parent": 3750
+          },
+          {
+            "id": 3781,
+            "x": 1323.5622,
+            "y": 1201.4746,
+            "z": 22.8001,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 3780
+          },
+          {
+            "id": 3802,
+            "x": 1296.6096,
+            "y": 1120.0446,
+            "z": 76.4064,
+            "r": 0.2265,
+            "type": 3,
+            "parent": 1
+          },
+          {
+            "id": 3810,
+            "x": 1303.2906,
+            "y": 1122.8921,
+            "z": 79.7415,
+            "r": 0.2265,
+            "type": 3,
+            "parent": 3802
+          },
+          {
+            "id": 3822,
+            "x": 1313.6209,
+            "y": 1128.9186,
+            "z": 82.8528,
+            "r": 0.2265,
+            "type": 3,
+            "parent": 3810
+          },
+          {
+            "id": 3840,
+            "x": 1332.4511,
+            "y": 1129.0697,
+            "z": 89.2508,
+            "r": 0.2237,
+            "type": 3,
+            "parent": 3822
+          },
+          {
+            "id": 3870,
+            "x": 1364.4145,
+            "y": 1129.7629,
+            "z": 102.2227,
+            "r": 0.2186,
+            "type": 3,
+            "parent": 3840
+          },
+          {
+            "id": 3884,
+            "x": 1379.4352,
+            "y": 1130.8577,
+            "z": 107.5119,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 3870
+          },
+          {
+            "id": 3900,
+            "x": 1396.6524,
+            "y": 1131.8747,
+            "z": 111.3336,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 3884
+          },
+          {
+            "id": 3930,
+            "x": 1430.4919,
+            "y": 1131.2261,
+            "z": 111.8614,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 3900
+          },
+          {
+            "id": 3960,
+            "x": 1461.9176,
+            "y": 1118.5483,
+            "z": 108.964,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 3930
+          },
+          {
+            "id": 3972,
+            "x": 1475.3939,
+            "y": 1118.3286,
+            "z": 108.5784,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 3960
+          },
+          {
+            "id": 3990,
+            "x": 1394.0441,
+            "y": 1120.0126,
+            "z": 109.5968,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 3884
+          },
+          {
+            "id": 4020,
+            "x": 1422.5983,
+            "y": 1103.4521,
+            "z": 113.1024,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 3990
+          },
+          {
+            "id": 4050,
+            "x": 1442.4925,
+            "y": 1076.742,
+            "z": 115.2936,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 4020
+          },
+          {
+            "id": 4064,
+            "x": 1449.345,
+            "y": 1062.4145,
+            "z": 117.6263,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 4050
+          },
+          {
+            "id": 4073,
+            "x": 1320.073,
+            "y": 1134.5117,
+            "z": 87.6711,
+            "r": 0.2265,
+            "type": 3,
+            "parent": 3822
+          },
+          {
+            "id": 4080,
+            "x": 1326.0333,
+            "y": 1136.5057,
+            "z": 93.7196,
+            "r": 0.2256,
+            "type": 3,
+            "parent": 4073
+          },
+          {
+            "id": 4110,
+            "x": 1351.8419,
+            "y": 1151.9622,
+            "z": 111.1933,
+            "r": 0.221,
+            "type": 3,
+            "parent": 4080
+          },
+          {
+            "id": 4140,
+            "x": 1374.3215,
+            "y": 1172.9203,
+            "z": 125.5274,
+            "r": 0.2163,
+            "type": 3,
+            "parent": 4110
+          },
+          {
+            "id": 4141,
+            "x": 1375.3054,
+            "y": 1173.5152,
+            "z": 125.5436,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 4140
+          },
+          {
+            "id": 4170,
+            "x": 1333.1032,
+            "y": 1159.8673,
+            "z": 101.4692,
+            "r": 0.2235,
+            "type": 3,
+            "parent": 4073
+          },
+          {
+            "id": 4200,
+            "x": 1343.731,
+            "y": 1188.1813,
+            "z": 117.3987,
+            "r": 0.2203,
+            "type": 3,
+            "parent": 4170
+          },
+          {
+            "id": 4230,
+            "x": 1359.5067,
+            "y": 1216.5754,
+            "z": 127.8049,
+            "r": 0.2171,
+            "type": 3,
+            "parent": 4200
+          },
+          {
+            "id": 4238,
+            "x": 1360.3533,
+            "y": 1225.6358,
+            "z": 128.9366,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 4230
+          },
+          {
+            "id": 4260,
+            "x": 1314.1471,
+            "y": 1135.5184,
+            "z": 73.311,
+            "r": 0.2342,
+            "type": 3,
+            "parent": 3802
+          },
+          {
+            "id": 4267,
+            "x": 1316.6754,
+            "y": 1142.5723,
+            "z": 70.9257,
+            "r": 0.2368,
+            "type": 3,
+            "parent": 4260
+          },
+          {
+            "id": 4290,
+            "x": 1325.5986,
+            "y": 1164.592,
+            "z": 68.6627,
+            "r": 0.2337,
+            "type": 3,
+            "parent": 4267
+          },
+          {
+            "id": 4320,
+            "x": 1331.7762,
+            "y": 1190.3434,
+            "z": 75.742,
+            "r": 0.2296,
+            "type": 3,
+            "parent": 4290
+          },
+          {
+            "id": 4350,
+            "x": 1348.9133,
+            "y": 1218.1312,
+            "z": 77.5505,
+            "r": 0.2255,
+            "type": 3,
+            "parent": 4320
+          },
+          {
+            "id": 4380,
+            "x": 1368.3498,
+            "y": 1243.4594,
+            "z": 81.5192,
+            "r": 0.2214,
+            "type": 3,
+            "parent": 4350
+          },
+          {
+            "id": 4410,
+            "x": 1387.6606,
+            "y": 1269.8629,
+            "z": 90.4585,
+            "r": 0.2171,
+            "type": 3,
+            "parent": 4380
+          },
+          {
+            "id": 4417,
+            "x": 1395.4741,
+            "y": 1271.6361,
+            "z": 90.482,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 4410
+          },
+          {
+            "id": 4424,
+            "x": 1322.7729,
+            "y": 1145.6245,
+            "z": 68.0842,
+            "r": 0.2265,
+            "type": 3,
+            "parent": 4267
+          },
+          {
+            "id": 4440,
+            "x": 1338.7431,
+            "y": 1151.0013,
+            "z": 59.2746,
+            "r": 0.2254,
+            "type": 3,
+            "parent": 4424
+          },
+          {
+            "id": 4470,
+            "x": 1369.3566,
+            "y": 1157.2018,
+            "z": 46.7362,
+            "r": 0.2232,
+            "type": 3,
+            "parent": 4440
+          },
+          {
+            "id": 4500,
+            "x": 1397.3045,
+            "y": 1173.5152,
+            "z": 41.5358,
+            "r": 0.221,
+            "type": 3,
+            "parent": 4470
+          },
+          {
+            "id": 4530,
+            "x": 1421.0997,
+            "y": 1194.1758,
+            "z": 34.1144,
+            "r": 0.2188,
+            "type": 3,
+            "parent": 4500
+          },
+          {
+            "id": 4560,
+            "x": 1450.1001,
+            "y": 1210.1804,
+            "z": 26.542,
+            "r": 0.2167,
+            "type": 3,
+            "parent": 4530
+          },
+          {
+            "id": 4567,
+            "x": 1456.312,
+            "y": 1215.031,
+            "z": 26.0137,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 4560
+          },
+          {
+            "id": 4590,
+            "x": 1334.6934,
+            "y": 1164.7865,
+            "z": 59.0086,
+            "r": 0.2254,
+            "type": 3,
+            "parent": 4424
+          },
+          {
+            "id": 4620,
+            "x": 1355.0566,
+            "y": 1189.3253,
+            "z": 51.8067,
+            "r": 0.2238,
+            "type": 3,
+            "parent": 4590
+          },
+          {
+            "id": 4650,
+            "x": 1368.6702,
+            "y": 1217.8681,
+            "z": 45.2455,
+            "r": 0.2222,
+            "type": 3,
+            "parent": 4620
+          },
+          {
+            "id": 4680,
+            "x": 1384.629,
+            "y": 1245.9762,
+            "z": 37.6102,
+            "r": 0.2206,
+            "type": 3,
+            "parent": 4650
+          },
+          {
+            "id": 4710,
+            "x": 1400.725,
+            "y": 1272.5398,
+            "z": 33.3847,
+            "r": 0.219,
+            "type": 3,
+            "parent": 4680
+          },
+          {
+            "id": 4740,
+            "x": 1417.3474,
+            "y": 1300.4763,
+            "z": 29.3471,
+            "r": 0.2175,
+            "type": 3,
+            "parent": 4710
+          },
+          {
+            "id": 4763,
+            "x": 1431.6245,
+            "y": 1321.4687,
+            "z": 26.0137,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 4740
+          },
+          {
+            "id": 4770,
+            "x": 1278.0082,
+            "y": 1117.8196,
+            "z": 76.4834,
+            "r": 0.3464,
+            "type": 3,
+            "parent": 1
+          },
+          {
+            "id": 4781,
+            "x": 1278.8433,
+            "y": 1126.0449,
+            "z": 82.7476,
+            "r": 0.2265,
+            "type": 3,
+            "parent": 4770
+          },
+          {
+            "id": 4800,
+            "x": 1290.3634,
+            "y": 1138.8955,
+            "z": 103.1926,
+            "r": 0.2168,
+            "type": 3,
+            "parent": 4781
+          },
+          {
+            "id": 4801,
+            "x": 1291.2671,
+            "y": 1139.5967,
+            "z": 103.8024,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 4800
+          },
+          {
+            "id": 4830,
+            "x": 1302.9359,
+            "y": 1141.6342,
+            "z": 90.9244,
+            "r": 0.2265,
+            "type": 3,
+            "parent": 4781
+          },
+          {
+            "id": 4849,
+            "x": 1321.217,
+            "y": 1149.434,
+            "z": 95.7606,
+            "r": 0.2265,
+            "type": 3,
+            "parent": 4830
+          },
+          {
+            "id": 4860,
+            "x": 1331.1698,
+            "y": 1154.0329,
+            "z": 102.8222,
+            "r": 0.2256,
+            "type": 3,
+            "parent": 4849
+          },
+          {
+            "id": 4890,
+            "x": 1359.0148,
+            "y": 1169.1337,
+            "z": 110.7182,
+            "r": 0.223,
+            "type": 3,
+            "parent": 4860
+          },
+          {
+            "id": 4920,
+            "x": 1387.775,
+            "y": 1183.6167,
+            "z": 125.0242,
+            "r": 0.2203,
+            "type": 3,
+            "parent": 4890
+          },
+          {
+            "id": 4950,
+            "x": 1416.5122,
+            "y": 1199.9302,
+            "z": 130.4153,
+            "r": 0.2177,
+            "type": 3,
+            "parent": 4920
+          },
+          {
+            "id": 4967,
+            "x": 1430.9266,
+            "y": 1212.6743,
+            "z": 136.8539,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 4950
+          },
+          {
+            "id": 4980,
+            "x": 1327.1201,
+            "y": 1161.9837,
+            "z": 98.4122,
+            "r": 0.2255,
+            "type": 3,
+            "parent": 4849
+          },
+          {
+            "id": 5010,
+            "x": 1342.9988,
+            "y": 1190.618,
+            "z": 103.9427,
+            "r": 0.2229,
+            "type": 3,
+            "parent": 4980
+          },
+          {
+            "id": 5040,
+            "x": 1365.9932,
+            "y": 1216.0491,
+            "z": 104.7351,
+            "r": 0.2202,
+            "type": 3,
+            "parent": 5010
+          },
+          {
+            "id": 5070,
+            "x": 1389.388,
+            "y": 1240.9769,
+            "z": 108.3762,
+            "r": 0.2176,
+            "type": 3,
+            "parent": 5040
+          },
+          {
+            "id": 5086,
+            "x": 1403.7681,
+            "y": 1251.7076,
+            "z": 115.3645,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 5070
+          },
+          {
+            "id": 5100,
+            "x": 1270.5378,
+            "y": 1136.8386,
+            "z": 90.1953,
+            "r": 0.2265,
+            "type": 3,
+            "parent": 4781
+          },
+          {
+            "id": 5107,
+            "x": 1265.5157,
+            "y": 1142.7713,
+            "z": 90.4112,
+            "r": 0.2265,
+            "type": 3,
+            "parent": 5100
+          },
+          {
+            "id": 5130,
+            "x": 1266.9914,
+            "y": 1165.3585,
+            "z": 98.0319,
+            "r": 0.2249,
+            "type": 3,
+            "parent": 5107
+          },
+          {
+            "id": 5160,
+            "x": 1242.9102,
+            "y": 1185.6645,
+            "z": 104.9177,
+            "r": 0.2226,
+            "type": 3,
+            "parent": 5130
+          },
+          {
+            "id": 5190,
+            "x": 1221.6776,
+            "y": 1209.2881,
+            "z": 112.3786,
+            "r": 0.2204,
+            "type": 3,
+            "parent": 5160
+          },
+          {
+            "id": 5220,
+            "x": 1193.867,
+            "y": 1222.7644,
+            "z": 115.7517,
+            "r": 0.2182,
+            "type": 3,
+            "parent": 5190
+          },
+          {
+            "id": 5246,
+            "x": 1187.6322,
+            "y": 1242.5098,
+            "z": 115.3645,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 5220
+          },
+          {
+            "id": 5250,
+            "x": 1261.3973,
+            "y": 1143.9451,
+            "z": 91.5309,
+            "r": 0.2263,
+            "type": 3,
+            "parent": 5107
+          },
+          {
+            "id": 5280,
+            "x": 1232.8774,
+            "y": 1155.337,
+            "z": 105.4208,
+            "r": 0.2234,
+            "type": 3,
+            "parent": 5250
+          },
+          {
+            "id": 5310,
+            "x": 1203.4079,
+            "y": 1167.269,
+            "z": 115.1637,
+            "r": 0.2207,
+            "type": 3,
+            "parent": 5280
+          },
+          {
+            "id": 5340,
+            "x": 1182.0723,
+            "y": 1187.1288,
+            "z": 118.333,
+            "r": 0.2179,
+            "type": 3,
+            "parent": 5310
+          },
+          {
+            "id": 5359,
+            "x": 1168.8477,
+            "y": 1203.671,
+            "z": 117.8296,
+            "r": 0.2162,
+            "type": 3,
+            "parent": 5340
+          },
+          {
+            "id": 5370,
+            "x": 1281.1542,
+            "y": 1090.1599,
+            "z": 69.4204,
+            "r": 1.0193,
+            "type": 4,
+            "parent": 1
+          },
+          {
+            "id": 5388,
+            "x": 1288.7846,
+            "y": 1072.8032,
+            "z": 62.2969,
+            "r": 1.0193,
+            "type": 4,
+            "parent": 5370
+          },
+          {
+            "id": 5400,
+            "x": 1294.3102,
+            "y": 1071.7907,
+            "z": 50.4274,
+            "r": 0.3775,
+            "type": 4,
+            "parent": 5388
+          },
+          {
+            "id": 5401,
+            "x": 1294.825,
+            "y": 1070.8298,
+            "z": 49.6418,
+            "r": 0.3192,
+            "type": 4,
+            "parent": 5400
+          },
+          {
+            "id": 5420,
+            "x": 1310.8066,
+            "y": 1077.1504,
+            "z": 38.4745,
+            "r": 0.2883,
+            "type": 4,
+            "parent": 5401
+          },
+          {
+            "id": 5430,
+            "x": 1320.279,
+            "y": 1072.2071,
+            "z": 37.1216,
+            "r": 0.282,
+            "type": 4,
+            "parent": 5420
+          },
+          {
+            "id": 5460,
+            "x": 1352.5855,
+            "y": 1066.1874,
+            "z": 28.2248,
+            "r": 0.2612,
+            "type": 4,
+            "parent": 5430
+          },
+          {
+            "id": 5490,
+            "x": 1385.1209,
+            "y": 1071.0963,
+            "z": 24.3046,
+            "r": 0.2404,
+            "type": 4,
+            "parent": 5460
+          },
+          {
+            "id": 5510,
+            "x": 1406.1247,
+            "y": 1076.2043,
+            "z": 19.2273,
+            "r": 0.2265,
+            "type": 4,
+            "parent": 5490
+          },
+          {
+            "id": 5520,
+            "x": 1320.4849,
+            "y": 1079.9955,
+            "z": 35.4897,
+            "r": 0.2815,
+            "type": 4,
+            "parent": 5420
+          },
+          {
+            "id": 5550,
+            "x": 1352.7457,
+            "y": 1078.2669,
+            "z": 27.174,
+            "r": 0.2589,
+            "type": 4,
+            "parent": 5520
+          },
+          {
+            "id": 5580,
+            "x": 1384.995,
+            "y": 1079.189,
+            "z": 19.3082,
+            "r": 0.2364,
+            "type": 4,
+            "parent": 5550
+          },
+          {
+            "id": 5593,
+            "x": 1397.0986,
+            "y": 1083.4687,
+            "z": 20.3585,
+            "r": 0.2265,
+            "type": 4,
+            "parent": 5580
+          },
+          {
+            "id": 5610,
+            "x": 1300.9682,
+            "y": 1072.2941,
+            "z": 29.0424,
+            "r": 0.2722,
+            "type": 4,
+            "parent": 5401
+          },
+          {
+            "id": 5622,
+            "x": 1295.1567,
+            "y": 1065.2264,
+            "z": 20.3157,
+            "r": 0.2368,
+            "type": 4,
+            "parent": 5610
+          },
+          {
+            "id": 5630,
+            "x": 1289.6655,
+            "y": 1059.7341,
+            "z": 20.7606,
+            "r": 0.2162,
+            "type": 4,
+            "parent": 5622
+          },
+          {
+            "id": 5636,
+            "x": 1292.1823,
+            "y": 1063.1661,
+            "z": 27.4935,
+            "r": 0.2162,
+            "type": 4,
+            "parent": 5622
+          },
+          {
+            "id": 5640,
+            "x": 1286.9886,
+            "y": 1069.3666,
+            "z": 61.2066,
+            "r": 0.7928,
+            "type": 4,
+            "parent": 5388
+          },
+          {
+            "id": 5643,
+            "x": 1289.0134,
+            "y": 1066.8315,
+            "z": 61.4314,
+            "r": 0.5663,
+            "type": 4,
+            "parent": 5640
+          },
+          {
+            "id": 5644,
+            "x": 1289.7685,
+            "y": 1066.3293,
+            "z": 61.3914,
+            "r": 0.5148,
+            "type": 4,
+            "parent": 5643
+          },
+          {
+            "id": 5654,
+            "x": 1285.0438,
+            "y": 1058.1828,
+            "z": 58.1392,
+            "r": 0.2677,
+            "type": 4,
+            "parent": 5644
+          },
+          {
+            "id": 5670,
+            "x": 1278.6946,
+            "y": 1045.4684,
+            "z": 49.2792,
+            "r": 0.2898,
+            "type": 4,
+            "parent": 5654
+          },
+          {
+            "id": 5700,
+            "x": 1271.2929,
+            "y": 1015.7599,
+            "z": 38.6736,
+            "r": 0.3339,
+            "type": 4,
+            "parent": 5670
+          },
+          {
+            "id": 5711,
+            "x": 1264.1429,
+            "y": 1006.9957,
+            "z": 33.5068,
+            "r": 0.3501,
+            "type": 4,
+            "parent": 5700
+          },
+          {
+            "id": 5730,
+            "x": 1245.1182,
+            "y": 1000.3685,
+            "z": 24.4572,
+            "r": 0.2698,
+            "type": 4,
+            "parent": 5711
+          },
+          {
+            "id": 5742,
+            "x": 1235.051,
+            "y": 994.2092,
+            "z": 20.3585,
+            "r": 0.2162,
+            "type": 4,
+            "parent": 5730
+          },
+          {
+            "id": 5760,
+            "x": 1263.5594,
+            "y": 993.2505,
+            "z": 19.7574,
+            "r": 0.259,
+            "type": 4,
+            "parent": 5711
+          },
+          {
+            "id": 5768,
+            "x": 1259.7614,
+            "y": 985.5125,
+            "z": 18.0964,
+            "r": 0.2162,
+            "type": 4,
+            "parent": 5760
+          },
+          {
+            "id": 5790,
+            "x": 1268.1812,
+            "y": 1042.0982,
+            "z": 55.6153,
+            "r": 0.2576,
+            "type": 4,
+            "parent": 5654
+          },
+          {
+            "id": 5812,
+            "x": 1250.7581,
+            "y": 1028.3874,
+            "z": 49.2909,
+            "r": 0.2471,
+            "type": 4,
+            "parent": 5790
+          },
+          {
+            "id": 5820,
+            "x": 1250.4034,
+            "y": 1020.3897,
+            "z": 46.6654,
+            "r": 0.2456,
+            "type": 4,
+            "parent": 5812
+          },
+          {
+            "id": 5850,
+            "x": 1234.5362,
+            "y": 991.6627,
+            "z": 42.9901,
+            "r": 0.2393,
+            "type": 4,
+            "parent": 5820
+          },
+          {
+            "id": 5880,
+            "x": 1214.8136,
+            "y": 965.1093,
+            "z": 44.1132,
+            "r": 0.2331,
+            "type": 4,
+            "parent": 5850
+          },
+          {
+            "id": 5910,
+            "x": 1191.0413,
+            "y": 942.3094,
+            "z": 42.7196,
+            "r": 0.2269,
+            "type": 4,
+            "parent": 5880
+          },
+          {
+            "id": 5940,
+            "x": 1174.0186,
+            "y": 914.0995,
+            "z": 40.6034,
+            "r": 0.2206,
+            "type": 4,
+            "parent": 5910
+          },
+          {
+            "id": 5961,
+            "x": 1158.5974,
+            "y": 897.1683,
+            "z": 42.9789,
+            "r": 0.2162,
+            "type": 4,
+            "parent": 5940
+          },
+          {
+            "id": 5970,
+            "x": 1243.8483,
+            "y": 1023.1719,
+            "z": 42.9083,
+            "r": 0.2446,
+            "type": 4,
+            "parent": 5812
+          },
+          {
+            "id": 6000,
+            "x": 1228.0611,
+            "y": 1000.4658,
+            "z": 28.847,
+            "r": 0.2353,
+            "type": 4,
+            "parent": 5970
+          },
+          {
+            "id": 6030,
+            "x": 1201.5775,
+            "y": 982.3231,
+            "z": 21.0039,
+            "r": 0.2261,
+            "type": 4,
+            "parent": 6000
+          },
+          {
+            "id": 6060,
+            "x": 1176.5239,
+            "y": 960.8742,
+            "z": 18.4089,
+            "r": 0.2168,
+            "type": 4,
+            "parent": 6030
+          },
+          {
+            "id": 6062,
+            "x": 1176.0434,
+            "y": 958.6583,
+            "z": 18.4733,
+            "r": 0.2162,
+            "type": 4,
+            "parent": 6060
+          },
+          {
+            "id": 6064,
+            "x": 1290.6837,
+            "y": 1064.4977,
+            "z": 61.3088,
+            "r": 0.5148,
+            "type": 4,
+            "parent": 5644
+          },
+          {
+            "id": 6090,
+            "x": 1319.2494,
+            "y": 1064.7677,
+            "z": 65.2366,
+            "r": 0.3616,
+            "type": 4,
+            "parent": 6064
+          },
+          {
+            "id": 6107,
+            "x": 1338.0453,
+            "y": 1065.6166,
+            "z": 66.7038,
+            "r": 0.2574,
+            "type": 4,
+            "parent": 6090
+          },
+          {
+            "id": 6120,
+            "x": 1347.9294,
+            "y": 1059.8588,
+            "z": 79.112,
+            "r": 0.2533,
+            "type": 4,
+            "parent": 6107
+          },
+          {
+            "id": 6150,
+            "x": 1378.2912,
+            "y": 1053.3403,
+            "z": 97.9401,
+            "r": 0.2431,
+            "type": 4,
+            "parent": 6120
+          },
+          {
+            "id": 6180,
+            "x": 1411.124,
+            "y": 1054.2967,
+            "z": 109.3526,
+            "r": 0.2329,
+            "type": 4,
+            "parent": 6150
+          },
+          {
+            "id": 6210,
+            "x": 1444.9178,
+            "y": 1055.5802,
+            "z": 116.4954,
+            "r": 0.2227,
+            "type": 4,
+            "parent": 6180
+          },
+          {
+            "id": 6229,
+            "x": 1466.6309,
+            "y": 1056.4851,
+            "z": 116.4954,
+            "r": 0.2162,
+            "type": 4,
+            "parent": 6210
+          },
+          {
+            "id": 6240,
+            "x": 1349.7942,
+            "y": 1066.5501,
+            "z": 66.7229,
+            "r": 0.254,
+            "type": 4,
+            "parent": 6107
+          },
+          {
+            "id": 6270,
+            "x": 1382.5698,
+            "y": 1070.6021,
+            "z": 66.7276,
+            "r": 0.2439,
+            "type": 4,
+            "parent": 6240
+          },
+          {
+            "id": 6300,
+            "x": 1416.1919,
+            "y": 1071.022,
+            "z": 64.547,
+            "r": 0.2337,
+            "type": 4,
+            "parent": 6270
+          },
+          {
+            "id": 6330,
+            "x": 1449.5166,
+            "y": 1075.2685,
+            "z": 65.6359,
+            "r": 0.2237,
+            "type": 4,
+            "parent": 6300
+          },
+          {
+            "id": 6352,
+            "x": 1473.0258,
+            "y": 1080.2643,
+            "z": 66.7304,
+            "r": 0.2162,
+            "type": 4,
+            "parent": 6330
+          },
+          {
+            "id": 6357,
+            "x": 1292.4226,
+            "y": 1059.8188,
+            "z": 61.6134,
+            "r": 0.4736,
+            "type": 4,
+            "parent": 6064
+          },
+          {
+            "id": 6360,
+            "x": 1293.7725,
+            "y": 1057.1898,
+            "z": 61.6512,
+            "r": 0.4726,
+            "type": 4,
+            "parent": 6357
+          },
+          {
+            "id": 6379,
+            "x": 1301.1398,
+            "y": 1038.3527,
+            "z": 58.5416,
+            "r": 0.4633,
+            "type": 4,
+            "parent": 6360
+          },
+          {
+            "id": 6390,
+            "x": 1304.4803,
+            "y": 1026.8109,
+            "z": 58.8627,
+            "r": 0.4633,
+            "type": 4,
+            "parent": 6379
+          },
+          {
+            "id": 6395,
+            "x": 1307.8551,
+            "y": 1022.7314,
+            "z": 59.1326,
+            "r": 0.4633,
+            "type": 4,
+            "parent": 6390
+          },
+          {
+            "id": 6420,
+            "x": 1315.417,
+            "y": 996.4686,
+            "z": 61.4253,
+            "r": 0.4633,
+            "type": 4,
+            "parent": 6395
+          },
+          {
+            "id": 6450,
+            "x": 1326.6396,
+            "y": 965.552,
+            "z": 59.2838,
+            "r": 0.4633,
+            "type": 4,
+            "parent": 6420
+          },
+          {
+            "id": 6460,
+            "x": 1330.7237,
+            "y": 955.5866,
+            "z": 57.113,
+            "r": 0.4633,
+            "type": 4,
+            "parent": 6450
+          },
+          {
+            "id": 6480,
+            "x": 1344.1542,
+            "y": 939.8029,
+            "z": 64.0928,
+            "r": 0.4575,
+            "type": 4,
+            "parent": 6460
+          },
+          {
+            "id": 6510,
+            "x": 1356.5323,
+            "y": 909.5075,
+            "z": 70.7062,
+            "r": 0.4483,
+            "type": 4,
+            "parent": 6480
+          },
+          {
+            "id": 6540,
+            "x": 1362.7328,
+            "y": 877.6837,
+            "z": 73.1452,
+            "r": 0.4392,
+            "type": 4,
+            "parent": 6510
+          },
+          {
+            "id": 6562,
+            "x": 1367.4575,
+            "y": 853.6654,
+            "z": 72.6194,
+            "r": 0.4324,
+            "type": 4,
+            "parent": 6540
+          },
+          {
+            "id": 6570,
+            "x": 1375.6943,
+            "y": 852.5523,
+            "z": 77.8946,
+            "r": 0.4084,
+            "type": 4,
+            "parent": 6562
+          },
+          {
+            "id": 6575,
+            "x": 1380.053,
+            "y": 849.5172,
+            "z": 79.6701,
+            "r": 0.3912,
+            "type": 4,
+            "parent": 6570
+          },
+          {
+            "id": 6600,
+            "x": 1394.7076,
+            "y": 832.9315,
+            "z": 99.3356,
+            "r": 0.3606,
+            "type": 4,
+            "parent": 6575
+          },
+          {
+            "id": 6630,
+            "x": 1415.8602,
+            "y": 815.7384,
+            "z": 125.7245,
+            "r": 0.3223,
+            "type": 4,
+            "parent": 6600
+          },
+          {
+            "id": 6660,
+            "x": 1446.3478,
+            "y": 806.4079,
+            "z": 129.96,
+            "r": 0.2839,
+            "type": 4,
+            "parent": 6630
+          },
+          {
+            "id": 6690,
+            "x": 1464.3658,
+            "y": 777.6523,
+            "z": 129.96,
+            "r": 0.2456,
+            "type": 4,
+            "parent": 6660
+          },
+          {
+            "id": 6713,
+            "x": 1476.0002,
+            "y": 754.5012,
+            "z": 129.96,
+            "r": 0.2162,
+            "type": 4,
+            "parent": 6690
+          },
+          {
+            "id": 6720,
+            "x": 1387.3059,
+            "y": 846.2477,
+            "z": 80.0268,
+            "r": 0.3838,
+            "type": 4,
+            "parent": 6575
+          },
+          {
+            "id": 6750,
+            "x": 1409.5796,
+            "y": 826.9484,
+            "z": 89.418,
+            "r": 0.3469,
+            "type": 4,
+            "parent": 6720
+          },
+          {
+            "id": 6780,
+            "x": 1443.4534,
+            "y": 827.1967,
+            "z": 97.9625,
+            "r": 0.3099,
+            "type": 4,
+            "parent": 6750
+          },
+          {
+            "id": 6810,
+            "x": 1476.1032,
+            "y": 826.0103,
+            "z": 99.4311,
+            "r": 0.273,
+            "type": 4,
+            "parent": 6780
+          },
+          {
+            "id": 6840,
+            "x": 1506.6823,
+            "y": 835.9219,
+            "z": 101.838,
+            "r": 0.2359,
+            "type": 4,
+            "parent": 6810
+          },
+          {
+            "id": 6856,
+            "x": 1517.4817,
+            "y": 845.4446,
+            "z": 115.3645,
+            "r": 0.2162,
+            "type": 4,
+            "parent": 6840
+          },
+          {
+            "id": 6870,
+            "x": 1369.5854,
+            "y": 838.2168,
+            "z": 73.1721,
+            "r": 0.4319,
+            "type": 4,
+            "parent": 6562
+          },
+          {
+            "id": 6900,
+            "x": 1377.0099,
+            "y": 805.4389,
+            "z": 75.2399,
+            "r": 0.4305,
+            "type": 4,
+            "parent": 6870
+          },
+          {
+            "id": 6930,
+            "x": 1387.775,
+            "y": 773.6369,
+            "z": 75.1467,
+            "r": 0.4291,
+            "type": 4,
+            "parent": 6900
+          },
+          {
+            "id": 6960,
+            "x": 1399.5124,
+            "y": 742.559,
+            "z": 70.7568,
+            "r": 0.4277,
+            "type": 4,
+            "parent": 6930
+          },
+          {
+            "id": 6990,
+            "x": 1410.5978,
+            "y": 711.5829,
+            "z": 68.4639,
+            "r": 0.4264,
+            "type": 4,
+            "parent": 6960
+          },
+          {
+            "id": 7020,
+            "x": 1421.4543,
+            "y": 681.8663,
+            "z": 73.0786,
+            "r": 0.4251,
+            "type": 4,
+            "parent": 6990
+          },
+          {
+            "id": 7050,
+            "x": 1429.8398,
+            "y": 649.6501,
+            "z": 75.6218,
+            "r": 0.4237,
+            "type": 4,
+            "parent": 7020
+          },
+          {
+            "id": 7080,
+            "x": 1433.8553,
+            "y": 615.9365,
+            "z": 75.6767,
+            "r": 0.4224,
+            "type": 4,
+            "parent": 7050
+          },
+          {
+            "id": 7110,
+            "x": 1443.7166,
+            "y": 584.8483,
+            "z": 79.7098,
+            "r": 0.421,
+            "type": 4,
+            "parent": 7080
+          },
+          {
+            "id": 7140,
+            "x": 1451.7589,
+            "y": 552.941,
+            "z": 76.1485,
+            "r": 0.4196,
+            "type": 4,
+            "parent": 7110
+          },
+          {
+            "id": 7170,
+            "x": 1466.7682,
+            "y": 523.5928,
+            "z": 75.3724,
+            "r": 0.4182,
+            "type": 4,
+            "parent": 7140
+          },
+          {
+            "id": 7200,
+            "x": 1475.7371,
+            "y": 491.4944,
+            "z": 72.7661,
+            "r": 0.417,
+            "type": 4,
+            "parent": 7170
+          },
+          {
+            "id": 7230,
+            "x": 1490.9523,
+            "y": 462.1451,
+            "z": 72.5068,
+            "r": 0.4156,
+            "type": 4,
+            "parent": 7200
+          },
+          {
+            "id": 7260,
+            "x": 1509.8626,
+            "y": 434.9408,
+            "z": 72.4646,
+            "r": 0.4142,
+            "type": 4,
+            "parent": 7230
+          },
+          {
+            "id": 7290,
+            "x": 1520.8679,
+            "y": 403.117,
+            "z": 70.6801,
+            "r": 0.4129,
+            "type": 4,
+            "parent": 7260
+          },
+          {
+            "id": 7313,
+            "x": 1531.7931,
+            "y": 379.4282,
+            "z": 70.6877,
+            "r": 0.4118,
+            "type": 4,
+            "parent": 7290
+          },
+          {
+            "id": 7320,
+            "x": 1529.0361,
+            "y": 372.269,
+            "z": 67.9773,
+            "r": 0.4042,
+            "type": 4,
+            "parent": 7313
+          },
+          {
+            "id": 7350,
+            "x": 1534.6074,
+            "y": 339.8732,
+            "z": 64.1164,
+            "r": 0.3659,
+            "type": 4,
+            "parent": 7320
+          },
+          {
+            "id": 7380,
+            "x": 1543.4276,
+            "y": 307.3676,
+            "z": 61.455,
+            "r": 0.3274,
+            "type": 4,
+            "parent": 7350
+          },
+          {
+            "id": 7410,
+            "x": 1546.0931,
+            "y": 273.9457,
+            "z": 57.5305,
+            "r": 0.2891,
+            "type": 4,
+            "parent": 7380
+          },
+          {
+            "id": 7440,
+            "x": 1542.3294,
+            "y": 241.5373,
+            "z": 50.1561,
+            "r": 0.2508,
+            "type": 4,
+            "parent": 7410
+          },
+          {
+            "id": 7467,
+            "x": 1546.1389,
+            "y": 212.4557,
+            "z": 45.6,
+            "r": 0.2162,
+            "type": 4,
+            "parent": 7440
+          },
+          {
+            "id": 7470,
+            "x": 1534.1612,
+            "y": 376.8233,
+            "z": 70.709,
+            "r": 0.41,
+            "type": 4,
+            "parent": 7313
+          },
+          {
+            "id": 7500,
+            "x": 1545.2466,
+            "y": 344.9126,
+            "z": 73.9768,
+            "r": 0.3821,
+            "type": 4,
+            "parent": 7470
+          },
+          {
+            "id": 7530,
+            "x": 1557.8763,
+            "y": 313.8667,
+            "z": 75.2293,
+            "r": 0.3542,
+            "type": 4,
+            "parent": 7500
+          },
+          {
+            "id": 7560,
+            "x": 1571.1582,
+            "y": 282.6961,
+            "z": 71.7298,
+            "r": 0.3263,
+            "type": 4,
+            "parent": 7530
+          },
+          {
+            "id": 7590,
+            "x": 1589.6566,
+            "y": 255.8579,
+            "z": 64.4918,
+            "r": 0.2984,
+            "type": 4,
+            "parent": 7560
+          },
+          {
+            "id": 7620,
+            "x": 1603.0986,
+            "y": 225.749,
+            "z": 59.4773,
+            "r": 0.2704,
+            "type": 4,
+            "parent": 7590
+          },
+          {
+            "id": 7623,
+            "x": 1604.5515,
+            "y": 222.6441,
+            "z": 59.6644,
+            "r": 0.2677,
+            "type": 4,
+            "parent": 7620
+          },
+          {
+            "id": 7650,
+            "x": 1625.7613,
+            "y": 204.6902,
+            "z": 69.7217,
+            "r": 0.2477,
+            "type": 4,
+            "parent": 7623
+          },
+          {
+            "id": 7680,
+            "x": 1650.2314,
+            "y": 192.4059,
+            "z": 77.5485,
+            "r": 0.2247,
+            "type": 4,
+            "parent": 7650
+          },
+          {
+            "id": 7691,
+            "x": 1649.7738,
+            "y": 180.8069,
+            "z": 85.9578,
+            "r": 0.2162,
+            "type": 4,
+            "parent": 7680
+          },
+          {
+            "id": 7710,
+            "x": 1600.1014,
+            "y": 203.0966,
+            "z": 59.1399,
+            "r": 0.2536,
+            "type": 4,
+            "parent": 7623
+          },
+          {
+            "id": 7740,
+            "x": 1602.6525,
+            "y": 170.877,
+            "z": 57.2914,
+            "r": 0.2303,
+            "type": 4,
+            "parent": 7710
+          },
+          {
+            "id": 7758,
+            "x": 1591.6472,
+            "y": 157.0048,
+            "z": 53.158,
+            "r": 0.2162,
+            "type": 4,
+            "parent": 7740
+          },
+          {
+            "id": 7767,
+            "x": 1333.8354,
+            "y": 946.3614,
+            "z": 55.5215,
+            "r": 0.4633,
+            "type": 4,
+            "parent": 6460
+          },
+          {
+            "id": 7770,
+            "x": 1335.0594,
+            "y": 943.1433,
+            "z": 55.2364,
+            "r": 0.4627,
+            "type": 4,
+            "parent": 7767
+          },
+          {
+            "id": 7800,
+            "x": 1352.0478,
+            "y": 917.1299,
+            "z": 52.848,
+            "r": 0.4544,
+            "type": 4,
+            "parent": 7770
+          },
+          {
+            "id": 7805,
+            "x": 1353.1232,
+            "y": 911.8355,
+            "z": 53.944,
+            "r": 0.453,
+            "type": 4,
+            "parent": 7800
+          },
+          {
+            "id": 7830,
+            "x": 1368.979,
+            "y": 904.1112,
+            "z": 31.9852,
+            "r": 0.3393,
+            "type": 4,
+            "parent": 7805
+          },
+          {
+            "id": 7856,
+            "x": 1381.0711,
+            "y": 884.8096,
+            "z": 16.9655,
+            "r": 0.2162,
+            "type": 4,
+            "parent": 7830
+          },
+          {
+            "id": 7860,
+            "x": 1353.9926,
+            "y": 907.5341,
+            "z": 55.4786,
+            "r": 0.4521,
+            "type": 4,
+            "parent": 7805
+          },
+          {
+            "id": 7890,
+            "x": 1368.1096,
+            "y": 879.4958,
+            "z": 57.2062,
+            "r": 0.4424,
+            "type": 4,
+            "parent": 7860
+          },
+          {
+            "id": 7920,
+            "x": 1380.1674,
+            "y": 849.3788,
+            "z": 56.2758,
+            "r": 0.4327,
+            "type": 4,
+            "parent": 7890
+          },
+          {
+            "id": 7950,
+            "x": 1392.1794,
+            "y": 818.6658,
+            "z": 56.6913,
+            "r": 0.4231,
+            "type": 4,
+            "parent": 7920
+          },
+          {
+            "id": 7980,
+            "x": 1405.976,
+            "y": 788.0421,
+            "z": 54.7198,
+            "r": 0.4133,
+            "type": 4,
+            "parent": 7950
+          },
+          {
+            "id": 8010,
+            "x": 1418.6401,
+            "y": 757.2845,
+            "z": 54.1691,
+            "r": 0.4036,
+            "type": 4,
+            "parent": 7980
+          },
+          {
+            "id": 8040,
+            "x": 1430.8351,
+            "y": 726.8759,
+            "z": 54.591,
+            "r": 0.394,
+            "type": 4,
+            "parent": 8010
+          },
+          {
+            "id": 8070,
+            "x": 1441.6116,
+            "y": 696.0897,
+            "z": 52.9592,
+            "r": 0.3843,
+            "type": 4,
+            "parent": 8040
+          },
+          {
+            "id": 8100,
+            "x": 1448.4756,
+            "y": 663.5658,
+            "z": 51.886,
+            "r": 0.3745,
+            "type": 4,
+            "parent": 8070
+          },
+          {
+            "id": 8130,
+            "x": 1460.6821,
+            "y": 634.0998,
+            "z": 49.21,
+            "r": 0.3649,
+            "type": 4,
+            "parent": 8100
+          },
+          {
+            "id": 8160,
+            "x": 1472.9572,
+            "y": 603.9668,
+            "z": 45.0979,
+            "r": 0.3552,
+            "type": 4,
+            "parent": 8130
+          },
+          {
+            "id": 8190,
+            "x": 1485.1522,
+            "y": 573.3373,
+            "z": 45.1679,
+            "r": 0.3455,
+            "type": 4,
+            "parent": 8160
+          },
+          {
+            "id": 8220,
+            "x": 1493.5835,
+            "y": 542.2503,
+            "z": 48.2602,
+            "r": 0.3359,
+            "type": 4,
+            "parent": 8190
+          },
+          {
+            "id": 8250,
+            "x": 1513.409,
+            "y": 516.7997,
+            "z": 40.7823,
+            "r": 0.3262,
+            "type": 4,
+            "parent": 8220
+          },
+          {
+            "id": 8280,
+            "x": 1526.0617,
+            "y": 487.4595,
+            "z": 36.871,
+            "r": 0.3164,
+            "type": 4,
+            "parent": 8250
+          },
+          {
+            "id": 8310,
+            "x": 1538.5542,
+            "y": 456.6024,
+            "z": 34.5036,
+            "r": 0.3068,
+            "type": 4,
+            "parent": 8280
+          },
+          {
+            "id": 8340,
+            "x": 1553.0601,
+            "y": 426.8127,
+            "z": 34.0393,
+            "r": 0.2971,
+            "type": 4,
+            "parent": 8310
+          },
+          {
+            "id": 8370,
+            "x": 1564.4658,
+            "y": 395.9807,
+            "z": 29.5996,
+            "r": 0.2874,
+            "type": 4,
+            "parent": 8340
+          },
+          {
+            "id": 8400,
+            "x": 1574.1097,
+            "y": 364.3606,
+            "z": 27.2908,
+            "r": 0.2778,
+            "type": 4,
+            "parent": 8370
+          },
+          {
+            "id": 8430,
+            "x": 1586.1331,
+            "y": 333.3467,
+            "z": 25.0726,
+            "r": 0.268,
+            "type": 4,
+            "parent": 8400
+          },
+          {
+            "id": 8460,
+            "x": 1598.6142,
+            "y": 302.5571,
+            "z": 25.6102,
+            "r": 0.2583,
+            "type": 4,
+            "parent": 8430
+          },
+          {
+            "id": 8463,
+            "x": 1599.9641,
+            "y": 299.6891,
+            "z": 25.6836,
+            "r": 0.2574,
+            "type": 4,
+            "parent": 8460
+          },
+          {
+            "id": 8490,
+            "x": 1606.0387,
+            "y": 270.3901,
+            "z": 28.9125,
+            "r": 0.2416,
+            "type": 4,
+            "parent": 8463
+          },
+          {
+            "id": 8520,
+            "x": 1611.324,
+            "y": 237.4017,
+            "z": 34.0374,
+            "r": 0.2235,
+            "type": 4,
+            "parent": 8490
+          },
+          {
+            "id": 8532,
+            "x": 1607.5145,
+            "y": 226.1917,
+            "z": 27.3599,
+            "r": 0.2162,
+            "type": 4,
+            "parent": 8520
+          },
+          {
+            "id": 8550,
+            "x": 1614.5958,
+            "y": 286.2791,
+            "z": 23.6578,
+            "r": 0.2452,
+            "type": 4,
+            "parent": 8463
+          },
+          {
+            "id": 8580,
+            "x": 1643.173,
+            "y": 271.7389,
+            "z": 18.202,
+            "r": 0.2234,
+            "type": 4,
+            "parent": 8550
+          },
+          {
+            "id": 8590,
+            "x": 1653.3088,
+            "y": 269.2324,
+            "z": 18.24,
+            "r": 0.2162,
+            "type": 4,
+            "parent": 8580
+          },
+          {
+            "id": 8610,
+            "x": 1316.2292,
+            "y": 934.2751,
+            "z": 52.6504,
+            "r": 0.3945,
+            "type": 4,
+            "parent": 7767
+          },
+          {
+            "id": 8640,
+            "x": 1300.8767,
+            "y": 908.0992,
+            "z": 46.8756,
+            "r": 0.2858,
+            "type": 4,
+            "parent": 8610
+          },
+          {
+            "id": 8645,
+            "x": 1298.1654,
+            "y": 903.2143,
+            "z": 46.6925,
+            "r": 0.2677,
+            "type": 4,
+            "parent": 8640
+          },
+          {
+            "id": 8670,
+            "x": 1280.7995,
+            "y": 885.877,
+            "z": 31.9516,
+            "r": 0.2484,
+            "type": 4,
+            "parent": 8645
+          },
+          {
+            "id": 8700,
+            "x": 1266.3165,
+            "y": 862.8574,
+            "z": 16.9238,
+            "r": 0.2242,
+            "type": 4,
+            "parent": 8670
+          },
+          {
+            "id": 8710,
+            "x": 1258.8462,
+            "y": 855.5141,
+            "z": 15.8343,
+            "r": 0.2162,
+            "type": 4,
+            "parent": 8700
+          },
+          {
+            "id": 8730,
+            "x": 1287.7093,
+            "y": 884.9595,
+            "z": 50.5926,
+            "r": 0.2608,
+            "type": 4,
+            "parent": 8645
+          },
+          {
+            "id": 8760,
+            "x": 1292.7086,
+            "y": 856.6798,
+            "z": 55.8922,
+            "r": 0.2501,
+            "type": 4,
+            "parent": 8730
+          },
+          {
+            "id": 8790,
+            "x": 1298.1082,
+            "y": 824.7599,
+            "z": 62.328,
+            "r": 0.2392,
+            "type": 4,
+            "parent": 8760
+          },
+          {
+            "id": 8820,
+            "x": 1296.0033,
+            "y": 793.7278,
+            "z": 68.7336,
+            "r": 0.2285,
+            "type": 4,
+            "parent": 8790
+          },
+          {
+            "id": 8850,
+            "x": 1296.3808,
+            "y": 760.4088,
+            "z": 76.2392,
+            "r": 0.2177,
+            "type": 4,
+            "parent": 8820
+          },
+          {
+            "id": 8854,
+            "x": 1295.9232,
+            "y": 756.6427,
+            "z": 80.3026,
+            "r": 0.2162,
+            "type": 4,
+            "parent": 8850
+          },
+          {
+            "id": 8877,
+            "x": 1327.2002,
+            "y": 1008.9016,
+            "z": 53.6388,
+            "r": 0.3398,
+            "type": 4,
+            "parent": 6395
+          },
+          {
+            "id": 8880,
+            "x": 1325.5757,
+            "y": 1007.8732,
+            "z": 50.1096,
+            "r": 0.3344,
+            "type": 4,
+            "parent": 8877
+          },
+          {
+            "id": 8910,
+            "x": 1345.4241,
+            "y": 997.6927,
+            "z": 26.047,
+            "r": 0.2539,
+            "type": 4,
+            "parent": 8880
+          },
+          {
+            "id": 8924,
+            "x": 1355.0909,
+            "y": 990.2796,
+            "z": 17.927,
+            "r": 0.2162,
+            "type": 4,
+            "parent": 8910
+          },
+          {
+            "id": 8940,
+            "x": 1340.2189,
+            "y": 999.2279,
+            "z": 50.9029,
+            "r": 0.3272,
+            "type": 4,
+            "parent": 8877
+          },
+          {
+            "id": 8970,
+            "x": 1368.2126,
+            "y": 983.9224,
+            "z": 49.6084,
+            "r": 0.3019,
+            "type": 4,
+            "parent": 8940
+          },
+          {
+            "id": 9000,
+            "x": 1399.1349,
+            "y": 971.4013,
+            "z": 50.1491,
+            "r": 0.2767,
+            "type": 4,
+            "parent": 8970
+          },
+          {
+            "id": 9030,
+            "x": 1415.2767,
+            "y": 945.6979,
+            "z": 40.8979,
+            "r": 0.2516,
+            "type": 4,
+            "parent": 9000
+          },
+          {
+            "id": 9060,
+            "x": 1419.5896,
+            "y": 914.9598,
+            "z": 28.7224,
+            "r": 0.2263,
+            "type": 4,
+            "parent": 9030
+          },
+          {
+            "id": 9072,
+            "x": 1422.2666,
+            "y": 906.3237,
+            "z": 22.6204,
+            "r": 0.2162,
+            "type": 4,
+            "parent": 9060
+          },
+          {
+            "id": 9090,
+            "x": 1300.831,
+            "y": 1027.5179,
+            "z": 32.996,
+            "r": 0.374,
+            "type": 4,
+            "parent": 6379
+          },
+          {
+            "id": 9120,
+            "x": 1329.9801,
+            "y": 1031.1421,
+            "z": 15.96,
+            "r": 0.2162,
+            "type": 4,
+            "parent": 9090
+          },
+          {
+            "id": 9144,
+            "x": 1281.6918,
+            "y": 1038.2029,
+            "z": 70.2523,
+            "r": 0.2574,
+            "type": 4,
+            "parent": 6357
+          },
+          {
+            "id": 9150,
+            "x": 1281.3486,
+            "y": 1034.4849,
+            "z": 74.265,
+            "r": 0.2598,
+            "type": 4,
+            "parent": 9144
+          },
+          {
+            "id": 9166,
+            "x": 1284.4832,
+            "y": 1020.8095,
+            "z": 82.4256,
+            "r": 0.2677,
+            "type": 4,
+            "parent": 9150
+          },
+          {
+            "id": 9180,
+            "x": 1275.1825,
+            "y": 1010.4105,
+            "z": 89.6678,
+            "r": 0.2492,
+            "type": 4,
+            "parent": 9166
+          },
+          {
+            "id": 9203,
+            "x": 1268.4672,
+            "y": 989.1745,
+            "z": 105.1851,
+            "r": 0.2162,
+            "type": 4,
+            "parent": 9180
+          },
+          {
+            "id": 9210,
+            "x": 1287.5148,
+            "y": 1015.1639,
+            "z": 84.7179,
+            "r": 0.2637,
+            "type": 4,
+            "parent": 9166
+          },
+          {
+            "id": 9240,
+            "x": 1313.7238,
+            "y": 999.5723,
+            "z": 96.4715,
+            "r": 0.2439,
+            "type": 4,
+            "parent": 9210
+          },
+          {
+            "id": 9270,
+            "x": 1336.8098,
+            "y": 975.7817,
+            "z": 104.1001,
+            "r": 0.2241,
+            "type": 4,
+            "parent": 9240
+          },
+          {
+            "id": 9282,
+            "x": 1345.6643,
+            "y": 965.6264,
+            "z": 108.5784,
+            "r": 0.2162,
+            "type": 4,
+            "parent": 9270
+          },
+          {
+            "id": 9300,
+            "x": 1270.126,
+            "y": 1022.5392,
+            "z": 71.5148,
+            "r": 0.2449,
+            "type": 4,
+            "parent": 9144
+          },
+          {
+            "id": 9325,
+            "x": 1255.3913,
+            "y": 1000.4143,
+            "z": 69.8748,
+            "r": 0.2265,
+            "type": 4,
+            "parent": 9300
+          },
+          {
+            "id": 9330,
+            "x": 1251.3301,
+            "y": 997.846,
+            "z": 70.0806,
+            "r": 0.2263,
+            "type": 4,
+            "parent": 9325
+          },
+          {
+            "id": 9360,
+            "x": 1223.8054,
+            "y": 979.6083,
+            "z": 75.707,
+            "r": 0.2245,
+            "type": 4,
+            "parent": 9330
+          },
+          {
+            "id": 9390,
+            "x": 1197.6193,
+            "y": 960.3056,
+            "z": 80.2091,
+            "r": 0.2227,
+            "type": 4,
+            "parent": 9360
+          },
+          {
+            "id": 9420,
+            "x": 1168.2642,
+            "y": 944.5653,
+            "z": 84.8268,
+            "r": 0.2209,
+            "type": 4,
+            "parent": 9390
+          },
+          {
+            "id": 9450,
+            "x": 1136.1087,
+            "y": 934.2465,
+            "z": 86.4265,
+            "r": 0.2192,
+            "type": 4,
+            "parent": 9420
+          },
+          {
+            "id": 9480,
+            "x": 1108.8781,
+            "y": 915.3441,
+            "z": 87.0887,
+            "r": 0.2174,
+            "type": 4,
+            "parent": 9450
+          },
+          {
+            "id": 9500,
+            "x": 1088.707,
+            "y": 908.8908,
+            "z": 87.0887,
+            "r": 0.2162,
+            "type": 4,
+            "parent": 9480
+          },
+          {
+            "id": 9510,
+            "x": 1253.7554,
+            "y": 989.4696,
+            "z": 68.9892,
+            "r": 0.2258,
+            "type": 4,
+            "parent": 9325
+          },
+          {
+            "id": 9540,
+            "x": 1244.1114,
+            "y": 958.6457,
+            "z": 63.9775,
+            "r": 0.2234,
+            "type": 4,
+            "parent": 9510
+          },
+          {
+            "id": 9570,
+            "x": 1227.2031,
+            "y": 930.4816,
+            "z": 63.3142,
+            "r": 0.2211,
+            "type": 4,
+            "parent": 9540
+          },
+          {
+            "id": 9600,
+            "x": 1203.8541,
+            "y": 906.89,
+            "z": 62.7133,
+            "r": 0.2188,
+            "type": 4,
+            "parent": 9570
+          },
+          {
+            "id": 9630,
+            "x": 1185.9505,
+            "y": 878.9158,
+            "z": 66.3734,
+            "r": 0.2164,
+            "type": 4,
+            "parent": 9600
+          },
+          {
+            "id": 9633,
+            "x": 1185.2298,
+            "y": 875.5627,
+            "z": 66.7304,
+            "r": 0.2162,
+            "type": 4,
+            "parent": 9630
+          },
+          {
+            "id": 9648,
+            "x": 1294.4589,
+            "y": 1063.7049,
+            "z": 45.5991,
+            "r": 0.3604,
+            "type": 4,
+            "parent": 5643
+          },
+          {
+            "id": 9660,
+            "x": 1289.4024,
+            "y": 1055.7061,
+            "z": 38.8279,
+            "r": 0.3226,
+            "type": 4,
+            "parent": 9648
+          },
+          {
+            "id": 9690,
+            "x": 1276.2922,
+            "y": 1033.3546,
+            "z": 18.6113,
+            "r": 0.2196,
+            "type": 4,
+            "parent": 9660
+          },
+          {
+            "id": 9691,
+            "x": 1276.2464,
+            "y": 1032.6591,
+            "z": 15.8343,
+            "r": 0.2162,
+            "type": 4,
+            "parent": 9690
+          },
+          {
+            "id": 9720,
+            "x": 1321.137,
+            "y": 1070.8057,
+            "z": 30.4858,
+            "r": 0.3087,
+            "type": 4,
+            "parent": 9648
+          },
+          {
+            "id": 9750,
+            "x": 1351.6131,
+            "y": 1079.912,
+            "z": 24.3872,
+            "r": 0.2532,
+            "type": 4,
+            "parent": 9720
+          },
+          {
+            "id": 9770,
+            "x": 1372.8343,
+            "y": 1083.4687,
+            "z": 15.8343,
+            "r": 0.2162,
+            "type": 4,
+            "parent": 9750
+          }
+        ]
 }
