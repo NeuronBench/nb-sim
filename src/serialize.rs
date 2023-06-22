@@ -11,7 +11,15 @@ pub struct Scene {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SceneNeuron {
     pub neuron: Neuron,
+    pub location: Location,
     pub stimulator_segments: Vec<StimulatorSegment>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Location {
+    pub x_mm: f32,
+    pub y_mm: f32,
+    pub z_mm: f32,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

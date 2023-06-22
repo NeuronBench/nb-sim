@@ -124,6 +124,7 @@ pub fn spawn_neuron(
     materials: &mut ResMut<Assets<StandardMaterial>>,
 ) -> Entity {
     let neuron = &scene_neuron.neuron;
+    let serialize::Location { x_mm, y_mm, z_mm } = &scene_neuron.location;
     let v0 = MilliVolts(-88.0);
     let microns_to_screen = 1.0;
     let entry_map = segments_as_map(neuron);
@@ -149,9 +150,9 @@ pub fn spawn_neuron(
                 r,
                 parent
                 } = segment;
-        let x_screen = (x - soma.x) * microns_to_screen;
-        let y_screen = (y - soma.y) * microns_to_screen;
-        let z_screen = (z - soma.z) * microns_to_screen;
+        let x_screen = (x - soma.x + x_mm*1000.0) * microns_to_screen;
+        let y_screen = (y - soma.y + y_mm*1000.0) * microns_to_screen;
+        let z_screen = (z - soma.z + z_mm*1000.0) * microns_to_screen;
         let default_length_cm = 2.0 * r * 0.0001;
         let length_cm = match (type_, entry_map.get(&parent)) {
             (1, _) => default_length_cm,
@@ -182,9 +183,9 @@ pub fn spawn_neuron(
                 Vec3::ZERO
             },
             Some(p) => {
-                let p_x = (p.x - soma.x) * microns_to_screen;
-                let p_y = (p.y - soma.y) * microns_to_screen;
-                let p_z = (p.z - soma.z) * microns_to_screen;
+                let p_x = (p.x - soma.x + x_mm*1000.0) * microns_to_screen;
+                let p_y = (p.y - soma.y + y_mm*1000.0) * microns_to_screen;
+                let p_z = (p.z - soma.z + z_mm*1000.0) * microns_to_screen;
                 Vec3::new(p_x, p_y, p_z)
             }
         };
@@ -345,7 +346,12 @@ pub mod sample {
         let n = neuron();
         serialize::Scene {
             neurons: vec![serialize::SceneNeuron {
-                neuron: n,
+                neuron: n.clone(),
+                location: serialize::Location {
+                  x_mm: 0.5,
+                  y_mm: 0.5,
+                  z_mm: 0.5,
+                },
                 stimulator_segments: vec![
                     serialize::StimulatorSegment {
                         stimulator: serialize::Stimulator {
@@ -362,7 +368,18 @@ pub mod sample {
                         segment: 100,
                     }
                 ]
-            }],
+            }
+            , serialize::SceneNeuron {
+                neuron: n.clone(),
+                location: serialize::Location {
+                    x_mm: -0.5, y_mm: 0.0, z_mm: 0.0
+                },
+                stimulator_segments: vec![]
+            }
+            ],
+
+
+
             // synapses: vec![],
         }
     }
