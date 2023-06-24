@@ -1,13 +1,11 @@
 use bevy::prelude::{Component, Resource};
 
+// TODO: What are the units?
 #[derive(Component, Debug, Clone)]
 pub struct Diameter(pub f32);
 
-impl Diameter {
-    pub fn mm(d: f32) -> Diameter {
-        Diameter(d / 1000.0)
-    }
-}
+#[derive(Component, Debug, Clone)]
+pub struct AreaSquareMillimeters(pub f32);
 
 #[derive(Component, Debug, Clone)]
 pub struct P3 {

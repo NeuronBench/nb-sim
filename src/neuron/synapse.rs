@@ -1,5 +1,5 @@
 use crate::dimension::{
-    Diameter, Interval, Kelvin, MicroAmps, MilliVolts, Molar,
+    AreaSquareMillimeters, Interval, Kelvin, MicroAmps, MilliVolts, Molar,
 };
 use crate::neuron::channel::{ca_reversal, cl_reversal, k_reversal, na_reversal};
 use crate::neuron::membrane::MembraneChannel;
@@ -12,7 +12,7 @@ pub struct Synapse {
     pub transmitter_concentrations: TransmitterConcentrations,
     pub presynaptic_pumps: Vec<TransmitterPump>,
     pub postsynaptic_receptors: Vec<Receptor>,
-    pub surface_area: Diameter,
+    pub surface_area: AreaSquareMillimeters,
 }
 
 #[derive(Clone, Debug)]
@@ -61,6 +61,21 @@ impl Synapse {
         });
     }
 
+    pub fn apply_current(&self, interval: &Interval, temperature: &Kelvin, postsynaptic_segment: &mut Segment) {
+        // TODO: Not sure how to handle the I->V conversion
+        // for post-synaptic current.
+        let synapse_resistance_ohms = 1000000000.0;
+
+        let dv_dt_volts_per_second =
+            self.current(temperature, postsynaptic_segment).0 * 0.000001 * synapse_resistance_ohms * -1.0;
+
+        let delta_mv = MilliVolts(dv_dt_volts_per_second * interval.0 * 1000.0);
+        // dbg!(&delta_mv);
+
+        postsynaptic_segment.membrane_potential = MilliVolts(
+            postsynaptic_segment.membrane_potential.0 + delta_mv.0);
+    }
+
     pub fn current(&self, temperature: &Kelvin, postsynaptic_segment: &Segment) -> MicroAmps {
         let current_per_square_cm = self
             .postsynaptic_receptors
@@ -92,8 +107,8 @@ impl Synapse {
                 let gating_coefficient = receptor
                     .neurotransmitter_sensitivity
                     .gating_coefficient(&self.transmitter_concentrations);
-                dbg!(channel_current_per_cm);
-                dbg!(gating_coefficient);
+                // dbg!(channel_current_per_cm);
+                // dbg!(gating_coefficient);
                 channel_current_per_cm * gating_coefficient
             })
             .sum::<f32>();
@@ -127,7 +142,7 @@ impl Sensitivity {
         transmitter_concentrations: &TransmitterConcentrations,
     ) -> f32 {
         let mk_coefficient = |concentration: &Molar| {
-            1.0 / (1.0 + ((self.concentration_at_half_max.0 - concentration.0) / self.slope).exp())
+            1.0 / (1.0 + ((-1.0 * (concentration.0 - self.concentration_at_half_max.0) * self.slope)).exp())
         };
         match self.transmitter {
             Transmitter::Glutamate => mk_coefficient(&transmitter_concentrations.glutamate),
@@ -182,48 +197,12 @@ pub mod examples {
     use crate::neuron::solution::INTERSTICIAL_FLUID;
 
     // Note: The numbers here are totally made up.
-    pub fn glutamate_removal() -> TransmitterPump {
-        TransmitterPump {
-            transmitter: Transmitter::Glutamate,
-            scale: 1.0,
-            params: TransmitterPumpParams {
-                target_concentration_max: Molar(1.1e-4),
-                target_concentration_min: Molar(1e-4),
-                target_concentration_v_at_half_max: MilliVolts(0.0),
-                target_concentration_v_slope: 1.0,
-                time_constant_c_amp: 1e-6,
-                time_constant_c_base: 1e-3,
-                time_constant_sigma: 1.0,
-                time_constant_v_at_max_tau: MilliVolts(0.0),
-            },
-        }
-    }
-
-    // Note: The numbers here are totally made up.
     pub fn glutamate_release() -> TransmitterPump {
         TransmitterPump {
             transmitter: Transmitter::Glutamate,
             scale: 1.0,
             params: TransmitterPumpParams {
                 target_concentration_max: Molar(1.1e-2),
-                target_concentration_min: Molar(1e-4),
-                target_concentration_v_at_half_max: MilliVolts(0.0),
-                target_concentration_v_slope: 1.0,
-                time_constant_c_amp: 1e-6,
-                time_constant_c_base: 1e-3,
-                time_constant_sigma: 1.0,
-                time_constant_v_at_max_tau: MilliVolts(0.0),
-            },
-        }
-    }
-
-    // Note: The numbers here are totally made up.
-    pub fn gaba_removal() -> TransmitterPump {
-        TransmitterPump {
-            transmitter: Transmitter::Gaba,
-            scale: 1.0,
-            params: TransmitterPumpParams {
-                target_concentration_max: Molar(1.1e-4),
                 target_concentration_min: Molar(1e-4),
                 target_concentration_v_at_half_max: MilliVolts(0.0),
                 target_concentration_v_slope: 1.0,
@@ -262,8 +241,8 @@ pub mod examples {
             },
             neurotransmitter_sensitivity: Sensitivity {
                 transmitter: Transmitter::Glutamate,
-                concentration_at_half_max: Molar(1e-3), // TODO: determine the right value.
-                slope: 1e-3,                            // TODO: determine the right value.
+                concentration_at_half_max: Molar(3e-3), // TODO: determine the right value.
+                slope: 10000.0,                            // TODO: determine the right value.
             },
         }
     }
@@ -274,9 +253,9 @@ pub mod examples {
                 glutamate: Molar(0.1e-3),
                 gaba: Molar(0.1e-3),
             },
-            presynaptic_pumps: vec![glutamate_removal(), glutamate_release()],
+            presynaptic_pumps: vec![glutamate_release()],
             postsynaptic_receptors: vec![ampa_receptor(initial_voltage)],
-            surface_area: Diameter(1e-6),
+            surface_area: AreaSquareMillimeters(1e-6),
         }
     }
 }
@@ -290,13 +269,76 @@ mod tests {
     use crate::neuron::solution::INTERSTICIAL_FLUID;
 
     #[test]
+    fn sensitivity_function() {
+        let sensitivity = Sensitivity {
+            transmitter: Transmitter::Glutamate,
+            concentration_at_half_max: Molar(1.0),
+            slope: 100.0,
+        };
+        let epsilon = 1e-9;
+
+        // Low concentrations should have low gating.
+        assert!((sensitivity.gating_coefficient(
+            &TransmitterConcentrations {
+                glutamate: Molar(1e-8),
+                gaba: Molar(1e-8),
+            }) - 0.0).abs() < epsilon);
+
+        // Half-max concentrations should have 0.5 gating.
+        assert!((sensitivity.gating_coefficient(
+            &TransmitterConcentrations {
+                glutamate: Molar(1.0),
+                gaba: Molar(1e-8),
+            }) - 0.5).abs() < epsilon);
+
+        // Slighly higher concentrations concentrations should have slightly higher gating.
+        assert!((sensitivity.gating_coefficient(
+            &TransmitterConcentrations {
+                glutamate: Molar(1.01),
+                gaba: Molar(1e-8),
+            }) - 0.7310584).abs() < epsilon);
+
+        // High concentrations should have high gating.
+        assert!((sensitivity.gating_coefficient(
+            &TransmitterConcentrations {
+                glutamate: Molar(2.0),
+                gaba: Molar(1e-8),
+            }) - 1.0).abs() < epsilon);
+
+    }
+
+    #[test]
+    fn instantaneous_cleft_pereability() {
+        let initial_voltage = MilliVolts(-80.0);
+        let mut synapse = examples::excitatory_synapse(&initial_voltage);
+
+        // Empty cleft should have low gating.
+        assert!(synapse
+            .postsynaptic_receptors[0]
+            .neurotransmitter_sensitivity
+            .gating_coefficient(&TransmitterConcentrations {
+                glutamate: Molar(0.0),
+                gaba: Molar(0.0),
+            }) < 0.1);
+
+        // Full cleft should have high gating.
+        assert!(synapse
+            .postsynaptic_receptors[0]
+            .neurotransmitter_sensitivity
+            .gating_coefficient(&TransmitterConcentrations {
+                glutamate: Molar(0.5),
+                gaba: Molar(0.0),
+            }) > 0.95);
+    }
+
+    #[test]
     fn excited_synapse_releases_glutamate() {
         let mut segment_1 = crate::neuron::segment::examples::giant_squid_axon();
         let mut segment_2 = crate::neuron::segment::examples::giant_squid_axon();
         let initial_voltage = MilliVolts(-70.0);
         segment_1.membrane_potential = initial_voltage.clone();
         segment_2.membrane_potential = initial_voltage.clone();
-        segment_2.input_current = MicroAmpsPerSquareCm(-15.0);
+        segment_2.input_current = MicroAmpsPerSquareCm(-20.0);
         let mut synapse = examples::excitatory_synapse(&initial_voltage);
 
         // Before glutamate builds up in the synapse, synaptic current should be
@@ -304,8 +346,21 @@ mod tests {
         dbg!(synapse.current(&BODY_TEMPERATURE, &segment_2));
         assert!(synapse.current(&BODY_TEMPERATURE, &segment_2).0 < 1.0);
 
+        // Run forward by 1.5ms. This is enough time for segment_1 to spike,
+        // which should push glutamate into the synapse and trigger some
+        // postsynaptic current.
         let interval = Interval(1e-6);
-        for n in 0..2000 {
+        for n in 0..1500 {
+            segment_1.step(&BODY_TEMPERATURE, &INTERSTICIAL_FLUID, &interval);
+            segment_2.step(&BODY_TEMPERATURE, &INTERSTICIAL_FLUID, &interval);
+            synapse.step(&BODY_TEMPERATURE, &segment_1, &segment_2, &interval);
+            synapse.apply_current(&interval, &BODY_TEMPERATURE, &mut segment_2);
+
+            // Pretend there are 1000 of these synapses behaving the same way.
+            for n in 0..1000 {
+                synapse.apply_current(&interval, &BODY_TEMPERATURE, &mut segment_2);
+            }
+
             if n % 100 == 0 {
                 let m_g = &synapse.transmitter_concentrations.glutamate.0;
                 let coeff = &synapse.postsynaptic_receptors[0]
@@ -319,13 +374,15 @@ mod tests {
                 dbg!(m_g);
                 dbg!(coeff);
                 dbg!(i);
+                dbg!(synapse.current(&BODY_TEMPERATURE, &segment_2).0);
             }
-            segment_1.step(&BODY_TEMPERATURE, &INTERSTICIAL_FLUID, &interval);
-            segment_2.step(&BODY_TEMPERATURE, &INTERSTICIAL_FLUID, &interval);
-            synapse.step(&BODY_TEMPERATURE, &segment_1, &segment_2, &interval);
         }
 
+        let glu_pump = &synapse.presynaptic_pumps[0];
+
         dbg!(synapse.current(&BODY_TEMPERATURE, &segment_2));
-        assert!(synapse.current(&BODY_TEMPERATURE, &segment_2).0 == 1.0);
+        dbg!(glu_pump.target_concentration( &segment_1.membrane_potential ));
+        assert_eq!(synapse.transmitter_concentrations.glutamate, Molar(1.0));
+        assert_eq!(synapse.current(&BODY_TEMPERATURE, &segment_2).0, 1.0);
     }
 }
