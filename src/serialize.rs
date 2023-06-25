@@ -5,7 +5,7 @@ use uuid::Uuid;
 pub struct Scene {
     // pub extracellular_solution: Solution,
     pub neurons: Vec<SceneNeuron>,
-    // pub synapses: Vec<Synapse>,
+    pub synapses: Vec<Synapse>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -158,10 +158,69 @@ pub enum TimeConstant {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Synapse {
-    pre_segment: Uuid,
-    post_segment: Uuid,
-    cleft_solution: Solution,
-    // TODO: other synapse properties.
+    pub pre_neuron: usize,
+    pub pre_segment: usize,
+    pub post_neuron: usize,
+    pub post_segment: usize,
+    pub synapse_membranes: SynapseMembranes,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SynapseMembranes {
+    pub cleft_solution: Solution,
+    pub transmitter_concentrations: TransmitterConcentrations,
+    pub presynaptic_pumps: Vec<TransmitterPump>,
+    pub postsynaptic_receptors: Vec<Receptor>,
+    pub surface_area_square_mm: f32
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct TransmitterConcentrations {
+    pub glutamate_molar: f32,
+    pub gaba_molar: f32,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct TransmitterPump {
+    pub transmitter: String,
+    pub params: TransmitterPumpParams,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct BellFunc {
+    pub amplitude: f32,
+    pub base: f32,
+    pub x_at_max: f32,
+    pub sigma: f32,
+}
+
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Sigmoid {
+    pub base: f32,
+    pub amplitude: f32,
+    pub x_at_half_point: f32,
+    pub slope: f32,
+    pub log_space: bool,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct TransmitterPumpParams {
+    pub target_concentration_func: Sigmoid,
+    pub time_constant_func: BellFunc,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Receptor {
+    pub membrane_channel: MembraneChannel,
+    pub neurotransmitter_sensitivity: Sensitivity,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Sensitivity {
+    pub transmitter: String,
+    pub concentration_at_half_max: f32,
+    pub slope: f32,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

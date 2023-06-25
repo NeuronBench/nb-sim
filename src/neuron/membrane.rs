@@ -141,6 +141,13 @@ impl MembraneChannel {
         channel_current
     }
 
+    pub fn serialize(&self) -> serialize::MembraneChannel {
+        serialize::MembraneChannel {
+            channel: self.channel.serialize(),
+            siemens_per_square_cm: self.siemens_per_square_cm
+        }
+    }
+
     pub fn deserialize(c: &serialize::MembraneChannel) -> Self {
         let serialize::MembraneChannel { channel, siemens_per_square_cm } = c;
         MembraneChannel {

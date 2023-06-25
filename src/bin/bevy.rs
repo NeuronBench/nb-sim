@@ -93,7 +93,7 @@ fn setup_grace_neuron(
 ) {
   let grace_scene = GraceScene ( grace::sample::scene() );
   // grace_neuron.simplify().spawn(Vec3::new(0.0,0.0,0.0), &mut commands, &mut meshes, materials);
-  grace_scene.spawn(Vec3::new(0.0,0.0,0.0), &mut commands, &mut meshes, membrane_materials, &mut materials);
+  grace_scene.spawn(Vec3::new(0.0,0.0,0.0), commands, &mut meshes, membrane_materials, &mut materials);
 }
 
 

@@ -13,6 +13,7 @@ use crate::neuron::Junction;
 use crate::neuron::membrane::{self, Membrane, MembraneVoltage, MembraneMaterials};
 use crate::neuron::solution::EXAMPLE_CYTOPLASM;
 use crate::neuron::segment::{ecs::Segment, ecs::InputCurrent, Geometry};
+use crate::neuron::synapse::{SynapseMembranes};
 use crate::stimulator;
 use crate::serialize;
 use crate::neuron::ecs::Neuron;
@@ -31,14 +32,19 @@ impl GraceScene {
     pub fn spawn(
         &self,
         soma_location_cm: Vec3,
-        mut commands: &mut Commands,
+        mut commands: Commands,
         mut meshes: &mut ResMut<Assets<Mesh>>,
         membrane_materials: Res<MembraneMaterials>,
         mut materials: &mut ResMut<Assets<StandardMaterial>>
-    ) -> Vec<Entity> {
-        self.0.neurons.iter().map(move |scene_neuron| {
-            spawn_neuron(&scene_neuron, soma_location_cm, commands, meshes, &membrane_materials, materials)
-        }).collect()
+    ) -> Vec<(Entity, Vec<Entity>)> {
+        let neuron_entities = self.0.neurons.iter().map(|scene_neuron| {
+            spawn_neuron(&scene_neuron, soma_location_cm, &mut commands, &mut meshes, &membrane_materials, materials)
+        }).collect();
+
+        for synapse in &self.0.synapses {
+            spawn_synapse(&mut commands, &synapse, &neuron_entities, meshes, materials);
+        }
+        neuron_entities
 
     }
 
@@ -122,7 +128,7 @@ pub fn spawn_neuron(
     mut meshes: &mut ResMut<Assets<Mesh>>,
     membrane_materials: &MembraneMaterials,
     materials: &mut ResMut<Assets<StandardMaterial>>,
-) -> Entity {
+) -> (Entity, Vec<Entity>) {
     let neuron = &scene_neuron.neuron;
     let serialize::Location { x_mm, y_mm, z_mm } = &scene_neuron.location;
     let v0 = MilliVolts(-88.0);
@@ -140,7 +146,7 @@ pub fn spawn_neuron(
         )).id();
 
     // Spawn segments.
-    for segment in neuron.segments.iter() {
+    let segment_entities : Vec<Entity> = neuron.segments.iter().map(|segment|  {
         let serialize::Segment
                 { id,
                 type_,
@@ -225,7 +231,8 @@ pub fn spawn_neuron(
         ).id();
         commands.entity(neuron_entity).push_children(&[segment_entity]);
         entities_and_parents.insert(id.clone(), (segment_entity, segment.parent, Diameter(1.0), transform));
-    }
+        segment_entity
+    }).into_iter().collect();
 
     // Spawn segment-segment junctions.
     for (entry_id, (entity, parent_id, diameter, _)) in entities_and_parents.iter() {
@@ -272,7 +279,34 @@ pub fn spawn_neuron(
         }
     } 
 
-    neuron_entity
+    (neuron_entity, segment_entities)
+}
+
+#[derive(Component)]
+pub struct Synapse {
+    pub pre_segment: Entity,
+    pub post_segment: Entity,
+    pub synapse_membranes: SynapseMembranes,
+}
+
+pub fn spawn_synapse(
+    mut commands: &mut Commands,
+    synapse: &serialize::Synapse,
+    neurons_and_segments: &Vec<(Entity, Vec<Entity>)>,
+    mut meshes: &mut ResMut<Assets<Mesh>>,
+    materials: &mut ResMut<Assets<StandardMaterial>>
+) {
+    // for (nrn, segs) in neurons_and_segments {
+    //     eprintln!("Neuron: {}", nrn.to_bits());
+    //     for seg in segs {
+    //         eprintln!("  Segment: {}", seg.to_bits());
+    //     }
+    // }
+    if let Ok(parsed_synapse_membranes) = SynapseMembranes::deserialize(&synapse.synapse_membranes) {
+        let pre_segment = neurons_and_segments[synapse.pre_neuron].1[synapse.pre_segment];
+        let post_segment = neurons_and_segments[synapse.post_neuron].1[synapse.post_segment];
+        commands.spawn(Synapse { pre_segment, post_segment, synapse_membranes: parsed_synapse_membranes});
+    }
 }
 
 pub fn add_stimulation(
@@ -337,6 +371,9 @@ pub fn delete_stimulations(
 pub mod sample {
     use std::include_str;
     use crate::serialize;
+    use crate::dimension::MilliVolts;
+    use crate::neuron::synapse;
+
     pub fn neuron() -> serialize::Neuron {
         let s = include_str!("../../sample_data/swc_neuron.json");
         serde_json::from_str(s).expect("should parse")
@@ -378,9 +415,13 @@ pub mod sample {
             }
             ],
 
-
-
-            // synapses: vec![],
+            synapses: vec![ serialize::Synapse {
+                pre_neuron: 0,
+                pre_segment: 0,
+                post_neuron: 1,
+                post_segment: 0,
+                synapse_membranes: synapse::examples::excitatory_synapse(&MilliVolts(-80.0)).serialize(),
+            }],
         }
     }
 }

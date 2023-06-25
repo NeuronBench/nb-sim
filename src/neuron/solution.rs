@@ -21,6 +21,15 @@ impl Solution {
             k: k_concentration.0,
         }
     }
+
+    pub fn deserialize(s: &serialize::Solution) -> Result<Self, String> {
+        Ok(Solution {
+            na_concentration: Molar(s.na),
+            k_concentration: Molar(s.k),
+            ca_concentration: Molar(s.ca),
+            cl_concentration: Molar(s.cl),
+        })
+    }
 }
 
 pub const INTERSTICIAL_FLUID: Solution = Solution {

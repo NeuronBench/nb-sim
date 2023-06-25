@@ -1,3 +1,7 @@
+
+use std::str::FromStr;
+use bevy::prelude::Component;
+
 use crate::dimension::{
     AreaSquareMillimeters, Interval, Kelvin, MicroAmps, MilliVolts, Molar,
 };
@@ -5,9 +9,10 @@ use crate::neuron::channel::{ca_reversal, cl_reversal, k_reversal, na_reversal};
 use crate::neuron::membrane::MembraneChannel;
 use crate::neuron::segment::Segment;
 use crate::neuron::Solution;
+use crate::serialize;
 
-#[derive(Clone, Debug)]
-pub struct Synapse {
+#[derive(Clone, Debug, Component)]
+pub struct SynapseMembranes {
     pub cleft_solution: Solution,
     pub transmitter_concentrations: TransmitterConcentrations,
     pub presynaptic_pumps: Vec<TransmitterPump>,
@@ -21,24 +26,40 @@ pub struct TransmitterConcentrations {
     pub gaba: Molar,
 }
 
-impl Synapse {
+impl TransmitterConcentrations {
+    pub fn serialize(&self) -> serialize::TransmitterConcentrations {
+        serialize::TransmitterConcentrations {
+            glutamate_molar: self.glutamate.0,
+            gaba_molar: self.gaba.0,
+        }
+    }
+
+    pub fn deserialize(s: &serialize::TransmitterConcentrations) -> Result<TransmitterConcentrations, String> {
+        Ok(TransmitterConcentrations {
+            glutamate: Molar(s.glutamate_molar),
+            gaba: Molar(s.gaba_molar),
+        })
+    }
+}
+
+impl SynapseMembranes {
     /// Update the state of the synaptic cleft, and report the current that flows into the
     /// post-synaptic segment.
     pub fn step(
         &mut self,
         temperature: &Kelvin,
-        presynaptic_segment: &Segment,
-        postsynaptic_segment: &Segment,
+        presynaptic_potential: &MilliVolts,
+        postsynaptic_potential: &MilliVolts,
         interval: &Interval,
     ) {
         // First update the concentration of synaptic messengers.
         self.presynaptic_pumps.iter_mut().for_each(|pump| {
             let update_concentration = |initial_concentration: &Molar| {
-                let v = &presynaptic_segment.membrane_potential;
+                let v = &presynaptic_potential;
                 let concentration_slope = (pump.target_concentration(v).0
                     - initial_concentration.0)
                     / pump.time_constant(v);
-                Molar(initial_concentration.0 + pump.scale * concentration_slope * interval.0)
+                Molar(initial_concentration.0 + concentration_slope * interval.0)
             };
             match pump.transmitter {
                 Transmitter::Glutamate => {
@@ -57,52 +78,63 @@ impl Synapse {
             receptor
                 .membrane_channel
                 .channel
-                .step(&postsynaptic_segment.membrane_potential, interval)
+                .step(&postsynaptic_potential, interval)
         });
     }
 
-    pub fn apply_current(&self, interval: &Interval, temperature: &Kelvin, postsynaptic_segment: &mut Segment) {
+    pub fn apply_current(
+        &self,
+        interval: &Interval,
+        temperature: &Kelvin,
+        postsynaptic_potential: &mut MilliVolts,
+        postsynaptic_solution: &Solution
+    ) {
         // TODO: Not sure how to handle the I->V conversion
         // for post-synaptic current.
         let synapse_resistance_ohms = 1000000000.0;
 
         let dv_dt_volts_per_second =
-            self.current(temperature, postsynaptic_segment).0 * 0.000001 * synapse_resistance_ohms * -1.0;
+            self.current(temperature, postsynaptic_potential, postsynaptic_solution).0 * 0.000001 * synapse_resistance_ohms * -1.0;
 
         let delta_mv = MilliVolts(dv_dt_volts_per_second * interval.0 * 1000.0);
         // dbg!(&delta_mv);
 
-        postsynaptic_segment.membrane_potential = MilliVolts(
-            postsynaptic_segment.membrane_potential.0 + delta_mv.0);
+        postsynaptic_potential.0 =
+            postsynaptic_potential.0 + delta_mv.0;
     }
 
-    pub fn current(&self, temperature: &Kelvin, postsynaptic_segment: &Segment) -> MicroAmps {
+    pub fn current(
+        &self,
+        temperature: &Kelvin,
+        postsynaptic_potential: &MilliVolts,
+        postsynaptic_solution: &Solution
+    ) -> MicroAmps {
         let current_per_square_cm = self
             .postsynaptic_receptors
             .iter()
             .map(|receptor| {
                 let channel_current_per_cm = receptor.membrane_channel.channel_current_per_cm(
                     &k_reversal(
-                        &postsynaptic_segment.intracellular_solution,
+                        &postsynaptic_solution,
                         &self.cleft_solution,
                         temperature,
                     ),
                     &na_reversal(
-                        &postsynaptic_segment.intracellular_solution,
+                        &postsynaptic_solution,
                         &self.cleft_solution,
                         temperature,
                     ),
                     &cl_reversal(
-                        &postsynaptic_segment.intracellular_solution,
+                        &postsynaptic_solution,
                         &self.cleft_solution,
                         temperature,
                     ),
                     &ca_reversal(
-                        &postsynaptic_segment.intracellular_solution,
+                        &postsynaptic_solution,
                         &self.cleft_solution,
                         temperature,
                     ),
-                    &postsynaptic_segment.membrane_potential,
+                    &postsynaptic_potential,
                 );
                 let gating_coefficient = receptor
                     .neurotransmitter_sensitivity
@@ -115,6 +147,26 @@ impl Synapse {
 
         MicroAmps(current_per_square_cm * self.surface_area.0)
     }
+
+    pub fn serialize(&self) -> serialize::SynapseMembranes {
+        serialize::SynapseMembranes {
+            cleft_solution: self.cleft_solution.serialize(),
+            transmitter_concentrations: self.transmitter_concentrations.serialize(),
+            presynaptic_pumps: self.presynaptic_pumps.iter().map(|p| p.serialize()).collect(),
+            postsynaptic_receptors: self.postsynaptic_receptors.iter().map(|r| r.serialize()).collect(),
+            surface_area_square_mm: self.surface_area.0,
+        }
+    }
+
+    pub fn deserialize(s: &serialize::SynapseMembranes) -> Result<Self, String> {
+        Ok(SynapseMembranes {
+            cleft_solution: Solution::deserialize(&s.cleft_solution)?,
+            transmitter_concentrations: TransmitterConcentrations::deserialize(&s.transmitter_concentrations)?,
+            presynaptic_pumps: s.presynaptic_pumps.iter().map(|p| TransmitterPump::deserialize(p)).collect::<Result<_,_>>()?,
+            postsynaptic_receptors: s.postsynaptic_receptors.iter().map(|r| Receptor::deserialize(r)).collect::<Result<_,_>>()?,
+            surface_area: AreaSquareMillimeters(s.surface_area_square_mm),
+        })
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -123,10 +175,46 @@ pub enum Transmitter {
     Gaba,
 }
 
+impl Transmitter {
+    pub fn to_string(&self) -> String {
+        match self {
+            Transmitter::Glutamate => "glutamate".to_string(),
+            Transmitter::Gaba => "gaba".to_string(),
+        }
+    }
+}
+
+impl FromStr for Transmitter {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, String> {
+        match s {
+            "glutamate" => Ok(Transmitter::Glutamate),
+            "gaba" => Ok(Transmitter::Gaba),
+            _ => Err(format!("Unknown transmitter {s}")),
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Receptor {
     pub membrane_channel: MembraneChannel,
     pub neurotransmitter_sensitivity: Sensitivity,
+}
+
+impl Receptor {
+    pub fn serialize(&self) -> serialize::Receptor {
+        serialize::Receptor {
+            membrane_channel: self.membrane_channel.serialize(),
+            neurotransmitter_sensitivity: self.neurotransmitter_sensitivity.serialize(),
+        }
+    }
+
+    pub fn deserialize(s: &serialize::Receptor) -> Result<Self, String> {
+        Ok(Receptor {
+            membrane_channel: MembraneChannel::deserialize(&s.membrane_channel),
+            neurotransmitter_sensitivity: Sensitivity::deserialize(&s.neurotransmitter_sensitivity)?,
+        })
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -149,11 +237,26 @@ impl Sensitivity {
             Transmitter::Gaba => mk_coefficient(&transmitter_concentrations.gaba),
         }
     }
+
+    pub fn serialize(&self) -> serialize::Sensitivity {
+        serialize::Sensitivity {
+            transmitter: self.transmitter.to_string(),
+            concentration_at_half_max: self.concentration_at_half_max.0,
+            slope: self.slope,
+        }
+    }
+
+    pub fn deserialize(s: &serialize::Sensitivity) -> Result<Self, String> {
+        Ok(Sensitivity {
+            transmitter: Transmitter::from_str(&s.transmitter)?,
+            concentration_at_half_max: Molar(s.concentration_at_half_max),
+            slope: s.slope,
+        })
+    }
 }
 
 #[derive(Clone, Debug)]
 pub struct TransmitterPump {
-    pub scale: f32,
     pub transmitter: Transmitter,
     pub params: TransmitterPumpParams,
 }
@@ -176,8 +279,25 @@ impl TransmitterPump {
         self.params.time_constant_c_base
             + self.params.time_constant_c_amp * (numerator / denominator).exp()
     }
+
+    pub fn serialize(&self) -> serialize::TransmitterPump {
+        serialize::TransmitterPump {
+            transmitter: self.transmitter.to_string(),
+            params: self.params.serialize(),
+        }
+    }
+
+    pub fn deserialize(s: &serialize::TransmitterPump) -> Result<Self, String> {
+        Ok(TransmitterPump {
+            transmitter: Transmitter::from_str(&s.transmitter)?,
+            params: TransmitterPumpParams::deserialize(&s.params)?,
+        })
+    }
 }
 
+// TODO: The time-constant-as-function-of-voltage doesn't do what I wanted it to do:
+// Release transmitter at one rate and remove it at a different rate.
+// To achieve that, we need to have two different pumps, one in, one out.
 #[derive(Clone, Debug)]
 pub struct TransmitterPumpParams {
     pub target_concentration_max: Molar,
@@ -190,6 +310,39 @@ pub struct TransmitterPumpParams {
     pub time_constant_sigma: f32,
 }
 
+impl TransmitterPumpParams {
+    pub fn serialize(&self) -> serialize::TransmitterPumpParams {
+        serialize::TransmitterPumpParams {
+            target_concentration_func: serialize::Sigmoid {
+                amplitude: self.target_concentration_max.0 - self.target_concentration_min.0,
+                base: self.target_concentration_min.0,
+                x_at_half_point: self.target_concentration_v_at_half_max.0,
+                slope: self.target_concentration_v_slope,
+                log_space: false,
+            },
+            time_constant_func: serialize::BellFunc {
+                base: self.time_constant_c_base,
+                amplitude: self.time_constant_c_amp,
+                x_at_max: self.time_constant_v_at_max_tau.0,
+                sigma: self.time_constant_sigma,
+            },
+        }
+    }
+
+    pub fn deserialize(s: &serialize::TransmitterPumpParams) -> Result<Self, String> {
+        Ok(TransmitterPumpParams {
+            target_concentration_max: Molar(s.target_concentration_func.amplitude + s.target_concentration_func.base),
+            target_concentration_min: Molar(s.target_concentration_func.base),
+            target_concentration_v_at_half_max: MilliVolts(s.target_concentration_func.x_at_half_point),
+            target_concentration_v_slope: s.target_concentration_func.slope,
+            time_constant_c_base: s.time_constant_func.base,
+            time_constant_c_amp: s.time_constant_func.amplitude,
+            time_constant_v_at_max_tau: MilliVolts(s.time_constant_func.x_at_max),
+            time_constant_sigma: s.time_constant_func.sigma,
+        })
+    }
+}
+
 pub mod examples {
     use super::*;
     use crate::dimension::{MilliVolts, Molar};
@@ -200,7 +353,6 @@ pub mod examples {
     pub fn glutamate_release() -> TransmitterPump {
         TransmitterPump {
             transmitter: Transmitter::Glutamate,
-            scale: 1.0,
             params: TransmitterPumpParams {
                 target_concentration_max: Molar(1.1e-2),
                 target_concentration_min: Molar(1e-4),
@@ -218,7 +370,6 @@ pub mod examples {
     pub fn gaba_release() -> TransmitterPump {
         TransmitterPump {
             transmitter: Transmitter::Gaba,
-            scale: 1.0,
             params: TransmitterPumpParams {
                 target_concentration_max: Molar(1.1e-2),
                 target_concentration_min: Molar(1e-4),
@@ -237,7 +388,7 @@ pub mod examples {
         Receptor {
             membrane_channel: MembraneChannel {
                 channel: AMPA_CHANNEL.build(initial_voltage),
-                siemens_per_square_cm: 100.0,
+                siemens_per_square_cm: 1e7,
             },
             neurotransmitter_sensitivity: Sensitivity {
                 transmitter: Transmitter::Glutamate,
@@ -246,8 +397,8 @@ pub mod examples {
             },
         }
     }
-    pub fn excitatory_synapse(initial_voltage: &MilliVolts) -> Synapse {
-        Synapse {
+    pub fn excitatory_synapse(initial_voltage: &MilliVolts) -> SynapseMembranes {
+        SynapseMembranes {
             cleft_solution: INTERSTICIAL_FLUID,
             transmitter_concentrations: TransmitterConcentrations {
                 glutamate: Molar(0.1e-3),

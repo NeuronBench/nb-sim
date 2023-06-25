@@ -18,8 +18,9 @@ use crate::dimension::{
 };
 use crate::constants::{BODY_TEMPERATURE, CONDUCTANCE_PER_SQUARE_CM, SIMULATION_STEPS_PER_FRAME};
 use crate::stimulator::{StimulatorMaterials, Stimulator, Stimulation};
-// use crate::serialize;
+
 use crate::neuron::Junction;
+use crate::integrations::grace::Synapse;
 use crate::neuron::segment::{Geometry, ecs::Segment, ecs::InputCurrent};
 use crate::neuron::solution::{Solution, INTERSTICIAL_FLUID, EXAMPLE_CYTOPLASM};
 use crate::neuron::membrane::{self, Membrane, MembraneMaterials, MembraneVoltage};
@@ -81,7 +82,8 @@ fn step_biophysics(
            Option<&InputCurrent>,
            Option<&Stimulator>
           )>,
-  junctions_query: Query<&Junction>
+  junctions_query: Query<&Junction>,
+  mut synapses_query: Query<(&mut Synapse)>
 ){
     for (_,
          solution,
@@ -169,6 +171,35 @@ fn step_biophysics(
             Ok(_) => panic!("wrong number of results"),
             Err(e) => panic!("Other error {e}"),
 
+        }
+    }
+
+    for (mut synapse) in &mut synapses_query {
+        // TODO: This fails if the source and target of the synapse are the same Entity.
+        let interval_seconds = simulation_step.0;
+        let results = segments_query.get_many_mut([synapse.pre_segment.clone(), synapse.post_segment.clone()]);
+        match results {
+            Ok([(_,_,_,_,mut vm1,_,_), (_,solution,_,_,mut vm2,_,_)]) => {
+                synapse.synapse_membranes.step(
+                    &BODY_TEMPERATURE,
+                    &vm1.0,
+                    &vm2.0,
+                    &Interval(interval_seconds)
+                );
+                let i = synapse.synapse_membranes.current(&BODY_TEMPERATURE, &vm2.0, solution);
+                if i.0.abs() > 1e-4 {
+                    dbg!(i);
+                }
+                synapse.synapse_membranes.apply_current(
+                    &Interval(interval_seconds),
+                    &BODY_TEMPERATURE,
+                    &mut vm2.0,
+                    &solution
+                );
+            }
+            Err(e) => {
+                eprintln!("Synapse query error: {e}");
+            }
         }
     }
 

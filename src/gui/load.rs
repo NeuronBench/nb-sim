@@ -168,7 +168,7 @@ pub fn handle_loaded_neuron(
     match grace_scene_receiver.0.try_recv() {
         Err(_) => {},
         Ok(n) => {
-            n.spawn(Vec3::new(0.0, 0.0, 0.0), &mut commands, &mut meshes, membrane_materials, &mut materials);
+            n.spawn(Vec3::new(0.0, 0.0, 0.0), commands, &mut meshes, membrane_materials, &mut materials);
         }
     }
 }
