@@ -380,18 +380,7 @@ pub mod sample {
     }
 
     pub fn scene() -> serialize::Scene {
-        let n = neuron();
-        serialize::Scene {
-            neurons: vec![serialize::SceneNeuron {
-                neuron: n.clone(),
-                location: serialize::Location {
-                  x_mm: 0.5,
-                  y_mm: 0.5,
-                  z_mm: 0.5,
-                },
-                stimulator_segments: vec![
-                    serialize::StimulatorSegment {
-                        stimulator: serialize::Stimulator {
+        let stimulator = serialize::Stimulator {
                             envelope: serialize::Envelope {
                                 period_sec: 0.1,
                                 onset_sec: 0.001,
@@ -401,7 +390,19 @@ pub mod sample {
                                 on_current_uamps_per_square_cm: 200.0,
                                 off_current_uamps_per_square_cm: -1.0,
                             },
-                        },
+                        };
+        let n = neuron();
+        serialize::Scene {
+            neurons: vec![serialize::SceneNeuron {
+                neuron: n.clone(),
+                location: serialize::Location {
+                  x_mm: 0.5,
+                  y_mm: 0.1,
+                  z_mm: 0.0,
+                },
+                stimulator_segments: vec![
+                    serialize::StimulatorSegment {
+                        stimulator: stimulator.clone(),
                         segment: 100,
                     }
                 ]
@@ -409,7 +410,7 @@ pub mod sample {
             , serialize::SceneNeuron {
                 neuron: n.clone(),
                 location: serialize::Location {
-                    x_mm: -0.5, y_mm: 0.0, z_mm: 0.0
+                    x_mm: -0.4, y_mm: 0.5, z_mm: 0.0
                 },
                 stimulator_segments: vec![]
             }
@@ -417,9 +418,9 @@ pub mod sample {
 
             synapses: vec![ serialize::Synapse {
                 pre_neuron: 0,
-                pre_segment: 0,
+                pre_segment: 37,
                 post_neuron: 1,
-                post_segment: 0,
+                post_segment: 333,
                 synapse_membranes: synapse::examples::excitatory_synapse(&MilliVolts(-80.0)).serialize(),
             }],
         }
