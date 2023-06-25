@@ -424,6 +424,7 @@ pub mod sample {
                 synapse_membranes: synapse::examples::excitatory_synapse(&MilliVolts(-80.0)).serialize(),
             }],
         }
+
     }
 }
 
