@@ -31,6 +31,7 @@ pub struct Junction {
     pub pore_diameter: Diameter,
 }
 
+
 impl Neuron {
     pub fn step(
         &mut self,
