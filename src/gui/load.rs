@@ -89,6 +89,7 @@ pub fn startup_load_ffg_scene(
     }
 }
 
+
 pub fn load_ffg_scene(
     mut commands: Commands,
     mut is_loading: ResMut<IsLoading>,
