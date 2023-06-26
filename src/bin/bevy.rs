@@ -92,7 +92,7 @@ fn setup_grace_neuron(
   grace_scene_source: Res<GraceSceneSource>
 ) {
 
-  if grace_scene_source.0.len == 0 {
+  if grace_scene_source.0.len() == 0 {
     let grace_scene = GraceScene ( grace::sample::scene() );
     grace_scene.spawn(Vec3::new(0.0,0.0,0.0), commands, &mut meshes, membrane_materials, &mut materials);
   }
