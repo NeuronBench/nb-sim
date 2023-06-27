@@ -113,6 +113,13 @@
           cat Trunk.toml
 
            trunk build --release --dist $out index.html
+
+           filename=$(ls $out/*.wasm)
+           filesize=$(wc -c $filename)
+           if [ $filesize -le 1000000 ]; then
+             echo "Aborting build because $filename is too small: $filesize"
+           fi
+           wasm-opt -Oz -o $(ls $out/*.wasm) $(ls $out/*.wasm)
         '';
         checkPhase = "echo 'Skipping tests'";
         installPhase = "echo 'Skipping install phase'";
