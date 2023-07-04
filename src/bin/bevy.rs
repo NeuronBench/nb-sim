@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy::core_pipeline::bloom::BloomSettings;
 use bevy::diagnostic::{LogDiagnosticsPlugin, FrameTimeDiagnosticsPlugin};
 use bevy::pbr::CascadeShadowConfigBuilder;
-use bevy_egui::{egui, EguiPlugin};
+use bevy_egui::{egui, EguiPlugin, EguiContext};
 use bevy_mod_picking::prelude::*;
 // use bevy_mod_picking::{
 //     // DebugCursorPickingPlugin, DebugEventsPickingPlugin, DefaultPickingPlugins,
@@ -47,11 +47,23 @@ pub fn main() {
         // .add_startup_system(setup_swc_neuron)
         .add_startup_system(setup_grace_neuron)
         .insert_resource(ClearColor(Color::rgb(0.2,0.2,0.2)))
-        .add_system(pan_orbit_camera)
+        .add_system(pan_orbit_camera.run_if(pan_orbit_condition))
         .add_system(run_gui)
         .add_system(handle_loaded_neuron);
 
         app.run();
+}
+
+fn pan_orbit_condition(query: Query<(&EguiContext)>) -> bool {
+  // TODO: Is it safe and fast to clone the egui context?
+  // It seemed to be necessary because we are supposed to
+  // get the context via `get_mut`, however passing a mutable
+  // query to `pan_orbit_condition` fails because
+  // "the trait `ReadOnlyWorldQuery` is not implemented for `&mut EguiContext`"
+  let mut bevy_egui_context =
+    query.get_single().expect("egui should exist").clone();
+  let mut egui_context = bevy_egui_context.get_mut();
+  !egui_context.wants_pointer_input()
 }
 
 fn setup_swc_neuron(
@@ -128,9 +140,13 @@ fn setup_scene(
         ..default()
     });
 
+    let camera_x : f32 = -100.0;
+    let camera_y = 1000.5;
+    let camera_z = 2000.0;
+    let camera_radius = (camera_x * camera_x + camera_y * camera_y + camera_z * camera_z).sqrt();
     commands.spawn(
         (Camera3dBundle {
-            transform: Transform::from_xyz(-200.0,200.5, 1000.0).looking_at(Vec3::ZERO, Vec3::Y),
+            transform: Transform::from_xyz(camera_x,camera_y,camera_z).looking_at(Vec3::ZERO, Vec3::Y),
             camera: Camera {
                 hdr: true,
                 ..default()
@@ -143,7 +159,7 @@ fn setup_scene(
          RaycastPickCamera::default(),
 
          PanOrbitCamera {
-             radius: 500.0,
+             radius: camera_radius,
              ..default()
          }
         ));
