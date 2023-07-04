@@ -187,9 +187,6 @@ fn step_biophysics(
                     &Interval(interval_seconds)
                 );
                 let i = synapse.synapse_membranes.current(&BODY_TEMPERATURE, &vm2.0, solution);
-                if i.0.abs() > 1e-4 {
-                    dbg!(i);
-                }
                 synapse.synapse_membranes.apply_current(
                     &Interval(interval_seconds),
                     &BODY_TEMPERATURE,
@@ -204,7 +201,7 @@ fn step_biophysics(
     }
 
     // ***************************************
-    // ***** Advance stimulation time. *******
+    // ***** Advance simulation time. *******
     // ***************************************
     timestamp.0 += simulation_step.0;
 

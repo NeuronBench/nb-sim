@@ -9,6 +9,7 @@ use crate::neuron::ecs::Neuron;
 use crate::neuron::Junction;
 use crate::neuron::segment::ecs::Segment;
 use crate::stimulator::{Stimulation};
+use crate::selection::{Highlight, Selection};
 use crate::integrations::grace::{
     GraceScene,
     GraceSceneSender,
@@ -165,11 +166,13 @@ pub fn handle_loaded_neuron(
     mut meshes: ResMut<Assets<Mesh>>,
     membrane_materials: Res<MembraneMaterials>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    mut selections: Query<Entity, With<Selection>>,
+    mut highlights: Query<Entity, With<Highlight>>,
 ) {
     match grace_scene_receiver.0.try_recv() {
         Err(_) => {},
         Ok(n) => {
-            n.spawn(Vec3::new(0.0, 0.0, 0.0), commands, &mut meshes, membrane_materials, &mut materials);
+            n.spawn(Vec3::new(0.0, 0.0, 0.0), commands, &mut meshes, membrane_materials, &mut materials, selections, highlights);
         }
     }
 }

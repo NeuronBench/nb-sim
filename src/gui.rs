@@ -13,6 +13,7 @@ use crate::integrations::grace::{GraceSceneSender, GraceSceneReceiver};
 use crate::neuron::ecs::Neuron;
 use crate::neuron::segment::ecs::Segment;
 use crate::neuron::membrane::{MembraneMaterials};
+use crate::selection::Selection;
 
 
 pub fn run_gui(
@@ -28,6 +29,9 @@ pub fn run_gui(
     mut segments: Query<(Entity, &Segment)>,
     mut junctions: Query<(Entity, &Junction)>,
     mut stimulations: Query<(Entity, &Stimulation)>,
+    mut selected_stimulators: Query<(&mut Stimulator), (With<Selection>)>,
+    anything_selected: Query<Entity, With<Selection>>,
+    // mut segments2: Query<(Entity, &Segment, &mut Stimulator), With<Selection>>,
     grace_scene_sender: Res<GraceSceneSender>,
 ) {
     egui::Window::new("Reuron").show(contexts.ctx_mut(), |ui| {
@@ -50,7 +54,14 @@ pub fn run_gui(
             ui.label("Stimulation")
         })
         .body(|ui| {
-            new_stimulators.widget(ui);
+            match selected_stimulators.get_single_mut() {
+                Ok(mut s) => {
+                    s.widget(ui);
+                },
+                Err(_) => {
+                    new_stimulators.widget(ui);
+                }
+            }
         });
 
         let id = ui.make_persistent_id("build_header");

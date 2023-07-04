@@ -19,6 +19,7 @@ use reuron::integrations::grace::{self, GraceScene};
 use reuron::neuron::segment::ecs::Segment;
 use reuron::neuron::membrane::MembraneMaterials;
 use reuron::pan_orbit_camera::{PanOrbitCamera, pan_orbit_camera};
+use reuron::selection::{Selection, Highlight};
 
 #[derive(Component)]
 struct MyCamera;
@@ -89,12 +90,14 @@ fn setup_grace_neuron(
   mut meshes: ResMut<Assets<Mesh>>,
   mut membrane_materials: Res<MembraneMaterials>,
   mut materials: ResMut<Assets<StandardMaterial>>,
-  grace_scene_source: Res<GraceSceneSource>
+  grace_scene_source: Res<GraceSceneSource>,
+  selections: Query<Entity, With<Selection>>,
+  highlights: Query<Entity, With<Highlight>>,
 ) {
 
   if grace_scene_source.0.len() == 0 {
     let grace_scene = GraceScene ( grace::sample::scene() );
-    grace_scene.spawn(Vec3::new(0.0,0.0,0.0), commands, &mut meshes, membrane_materials, &mut materials);
+    grace_scene.spawn(Vec3::new(0.0,0.0,0.0), commands, &mut meshes, membrane_materials, &mut materials, selections, highlights);
   }
 
 }

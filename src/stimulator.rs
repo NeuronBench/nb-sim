@@ -1,4 +1,4 @@
-use bevy::prelude::{Assets, Color, Component, Entity, FromWorld, Handle, Resource, StandardMaterial, World};
+use bevy::prelude::{Assets, Color, Component, Entity, EventWriter, FromWorld, Handle, Resource, StandardMaterial, World};
 use bevy_egui::egui::widgets::plot::{Plot, Line, PlotPoints};
 use bevy_egui::egui::{self, Ui};
 use std::default::Default;
@@ -174,6 +174,7 @@ impl Stimulator {
     }
 
     pub fn widget(&mut self, ui: &mut Ui) {
+        let mut stimulator_for_update = self.clone();
         let Envelope { ref mut period, ref mut onset, ref mut offset } = &mut self.envelope;
         let mut current_shape = &mut self.current_shape;
         // let current_shape_copy = current_shape.clone();
@@ -315,7 +316,6 @@ impl Stimulator {
         }
 
         self.plot(ui);
-        dbg!(&self);
 
     }
 }
