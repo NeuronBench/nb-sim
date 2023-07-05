@@ -118,6 +118,7 @@
            filesize=$(wc -c $filename)
            if [ $filesize -le 1000000 ]; then
              echo "Aborting build because $filename is too small: $filesize"
+             exit 1
            fi
            wasm-opt -Oz -o $(ls $out/*.wasm) $(ls $out/*.wasm)
         '';
