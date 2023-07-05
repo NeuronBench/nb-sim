@@ -316,7 +316,6 @@ impl Stimulator {
         }
 
         self.plot(ui);
-
     }
 }
 
