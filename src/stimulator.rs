@@ -319,6 +319,7 @@ impl Stimulator {
     }
 }
 
+
 #[derive(Resource)]
 pub struct StimulatorMaterials {
     pub handles: Vec<Handle<StandardMaterial>>,
