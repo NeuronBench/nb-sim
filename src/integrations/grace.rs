@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy_mod_picking::{
     prelude::{RaycastPickTarget,ListenedEvent,Bubble, OnPointer},
     PickableBundle,
-    events::{Click, Drag}
+    events::{Click}
 };
 use crossbeam::channel::{Sender, Receiver};
 // use std::sync::mpsc::{channel, Sender, Receiver};
@@ -10,7 +10,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::dimension::{MilliVolts, Diameter, MicroAmpsPerSquareCm};
 use crate::neuron::Junction;
-use crate::neuron::membrane::{self, Membrane, MembraneVoltage, MembraneMaterials};
+use crate::neuron::membrane::{Membrane, MembraneVoltage, MembraneMaterials};
 use crate::neuron::solution::EXAMPLE_CYTOPLASM;
 use crate::neuron::segment::{ecs::Segment, ecs::InputCurrent, Geometry};
 use crate::neuron::synapse::{SynapseMembranes};
@@ -36,9 +36,9 @@ impl GraceScene {
         mut commands: Commands,
         mut meshes: &mut ResMut<Assets<Mesh>>,
         membrane_materials: Res<MembraneMaterials>,
-        mut materials: &mut ResMut<Assets<StandardMaterial>>,
-        mut selections: Query<Entity, With<Selection>>,
-        mut highlights: Query<Entity, With<Highlight>>,
+        materials: &mut ResMut<Assets<StandardMaterial>>,
+        selections: Query<Entity, With<Selection>>,
+        highlights: Query<Entity, With<Highlight>>,
     ) -> Vec<(Entity, Vec<Entity>)> {
         let neuron_entities = self.0.neurons.iter().map(|scene_neuron| {
             spawn_neuron(&scene_neuron, soma_location_cm, &mut commands, &mut meshes, &membrane_materials, materials, &selections, &highlights)
@@ -63,7 +63,7 @@ pub fn get_children(neuron: &serialize::Neuron) -> HashMap<i32, Vec<i32>> {
     for segment in neuron.segments.iter() {
         // Modify self's parent, inserting self as a child.
         children_map.entry(segment.parent)
-            .and_modify(|mut children: &mut Vec<i32>| (children).push(segment.id))
+            .and_modify(|children: &mut Vec<i32>| (children).push(segment.id))
             .or_insert(vec![segment.id]);
     }
     children_map
@@ -76,7 +76,6 @@ pub fn segments_as_map(neuron: &serialize::Neuron) -> HashMap<i32, &serialize::S
 
 pub fn simplify(mut neuron: serialize::Neuron) -> serialize::Neuron {
 
-    let segments_copy = neuron.segments.clone();
     let children_map = get_children(&neuron);
 
     let neuron_for_map = neuron.clone();
@@ -127,8 +126,8 @@ pub fn distance_to_segment_cm(source: &serialize::Segment, dest: &serialize::Seg
 pub fn spawn_neuron(
     scene_neuron: &serialize::SceneNeuron,
     soma_location_cm: Vec3,
-    mut commands: &mut Commands,
-    mut meshes: &mut ResMut<Assets<Mesh>>,
+    commands: &mut Commands,
+    meshes: &mut ResMut<Assets<Mesh>>,
     membrane_materials: &MembraneMaterials,
     materials: &mut ResMut<Assets<StandardMaterial>>,
     selections:  &Query<Entity, With<Selection>>,
@@ -141,7 +140,6 @@ pub fn spawn_neuron(
     let entry_map = segments_as_map(neuron);
     let soma = soma(neuron).expect("should have soma");
     let mut entities_and_parents : HashMap<i32, (Entity, i32, Diameter, Transform)> = HashMap::new();
-    let mut children_map = get_children(neuron);
     let neuron_entity = commands.spawn(
         (Neuron,
             Transform::from_translation(soma_location_cm),
@@ -262,7 +260,7 @@ pub fn spawn_neuron(
             Some((entity,_,_,transform)) => {
                 let stim = stimulator::Stimulator::deserialize(stimulator);
                 println!("INSERTING A STIMULATOR");
-                let stimulation = commands.spawn(
+                commands.spawn(
                     (stimulator::Stimulation { stimulation_segment: entity.clone() },
                      PbrBundle {
                         mesh: meshes.add(shape::UVSphere{
@@ -291,15 +289,15 @@ pub fn spawn_neuron(
 }
 
 fn deselect_all(
-    mut commands: &mut Commands,
-    mut selections: &Query<Entity, With<Selection>>,
-    mut highlights: &Query<Entity, With<Highlight>>,
+    commands: &mut Commands,
+    selections: &Query<Entity, With<Selection>>,
+    highlights: &Query<Entity, With<Highlight>>,
 ) {
-    for (mut entity) in selections.iter() {
+    for entity in selections.iter() {
         eprintln!("Removing selection from {}", entity.to_bits());
         commands.entity(entity).remove::<Selection>();
     }
-    for (mut entity) in highlights.iter() {
+    for entity in highlights.iter() {
         commands.entity(entity).despawn();
     }
 }
@@ -311,19 +309,14 @@ pub struct Synapse {
     pub synapse_membranes: SynapseMembranes,
 }
 
+// TODO: Meshes for synapse.
 pub fn spawn_synapse(
-    mut commands: &mut Commands,
+    commands: &mut Commands,
     synapse: &serialize::Synapse,
     neurons_and_segments: &Vec<(Entity, Vec<Entity>)>,
-    mut meshes: &mut ResMut<Assets<Mesh>>,
-    materials: &mut ResMut<Assets<StandardMaterial>>
+    _meshes: &mut ResMut<Assets<Mesh>>,
+    _materials: &mut ResMut<Assets<StandardMaterial>>
 ) {
-    // for (nrn, segs) in neurons_and_segments {
-    //     eprintln!("Neuron: {}", nrn.to_bits());
-    //     for seg in segs {
-    //         eprintln!("  Segment: {}", seg.to_bits());
-    //     }
-    // }
     if let Ok(parsed_synapse_membranes) = SynapseMembranes::deserialize(&synapse.synapse_membranes) {
         let pre_segment = neurons_and_segments[synapse.pre_neuron].1[synapse.pre_segment];
         let post_segment = neurons_and_segments[synapse.post_neuron].1[synapse.post_segment];
@@ -339,7 +332,7 @@ pub fn add_stimulation(
     selections: Query<Entity, With<Selection>>,
     highlights: Query<Entity, With<Highlight>>,
     new_stimulators: Res<stimulator::Stimulator>,
-    mut selected_stimulators: Query<(&mut stimulator::Stimulator)>,
+    // selected_stimulators: Query<(&mut stimulator::Stimulator)>,
     segments_query: Query<(&Segment, &GlobalTransform)>
 ) -> Bubble {
     match segments_query.get(event.target) {
@@ -387,18 +380,18 @@ pub fn select_stimulator(
 
 pub fn handle_click_stimulator(
     In(event): In<ListenedEvent<Click>>,
-    mut commands: Commands,
+    commands: Commands,
     mut stimulations_query: Query<&stimulator::Stimulation>,
-    mut segments_query: Query<(&Segment, Entity, &stimulator::Stimulator)>,
+    segments_query: Query<(&Segment, Entity, &stimulator::Stimulator)>,
     selections: Query<Entity, With<Selection>>,
     highlights: Query<Entity, With<Highlight>>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    meshes: ResMut<Assets<Mesh>>,
+    materials: ResMut<Assets<StandardMaterial>>,
 ) -> Bubble {
     if let Ok(stimulator::Stimulation { stimulation_segment }) = stimulations_query.get_mut(event.target) {
         let results = segments_query.get(stimulation_segment.clone());
         match results {
-            Ok((_, segment_entity, stimulator)) => {
+            Ok((_, segment_entity, _)) => {
                 eprintln!("Ok, seeing a stimulator. Selecting its entity.");
                 select_stimulator(
                     segment_entity,
@@ -421,14 +414,14 @@ pub fn delete_stimulations(
     In(event): In<ListenedEvent<Click>>,
     mut commands: Commands,
     mut stimulations_query: Query<&stimulator::Stimulation>,
-    mut segments_query: Query<(&Segment, Entity, &stimulator::Stimulator)>,
+    segments_query: Query<(&Segment, Entity, &stimulator::Stimulator)>,
 ) -> Bubble {
   if let Ok(stimulator::Stimulation { stimulation_segment }) = stimulations_query.get_mut(event.target) {
 
       // Remove stimulation from the segment.
       let results = segments_query.get(stimulation_segment.clone());
       match results {
-          Ok((_, segment_entity, stimulator)) => {
+          Ok((_, segment_entity, _)) => {
               commands.entity(segment_entity.clone()).remove::<stimulator::Stimulator>();
           },
           Err(_) => {

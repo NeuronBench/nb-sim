@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy::core_pipeline::bloom::BloomSettings;
 use bevy::diagnostic::{LogDiagnosticsPlugin, FrameTimeDiagnosticsPlugin};
 use bevy::pbr::CascadeShadowConfigBuilder;
-use bevy_egui::{egui, EguiPlugin, EguiContext};
+use bevy_egui::{EguiPlugin, EguiContext};
 use bevy_mod_picking::prelude::*;
 // use bevy_mod_picking::{
 //     // DebugCursorPickingPlugin, DebugEventsPickingPlugin, DefaultPickingPlugins,
@@ -14,9 +14,7 @@ use std::f32::consts::PI;
 use reuron::plugin::ReuronPlugin;
 use reuron::gui::run_gui;
 use reuron::gui::load::{handle_loaded_neuron, GraceSceneSource};
-use reuron::integrations::swc_file::SwcFile;
 use reuron::integrations::grace::{self, GraceScene};
-use reuron::neuron::segment::ecs::Segment;
 use reuron::neuron::membrane::MembraneMaterials;
 use reuron::pan_orbit_camera::{PanOrbitCamera, pan_orbit_camera};
 use reuron::selection::{Selection, Highlight};
@@ -42,19 +40,19 @@ pub fn main() {
         // .add_plugin(DebugCursorPickingPlugin)
         // .add_plugin(DebugEventsPickingPlugin)
         .add_plugin(ReuronPlugin)
-        .add_system(bevy::window::close_on_esc)
-        .add_startup_system(setup_scene)
+        .add_systems(Update, bevy::window::close_on_esc)
+        .add_systems(Startup, setup_scene)
         // .add_startup_system(setup_swc_neuron)
-        .add_startup_system(setup_grace_neuron)
+        .add_systems(Startup, setup_grace_neuron)
         .insert_resource(ClearColor(Color::rgb(0.2,0.2,0.2)))
-        .add_system(pan_orbit_camera.run_if(pan_orbit_condition))
-        .add_system(run_gui)
-        .add_system(handle_loaded_neuron);
+        .add_systems(Update, pan_orbit_camera.run_if(pan_orbit_condition))
+        .add_systems(Update, run_gui)
+        .add_systems(Update, handle_loaded_neuron);
 
         app.run();
 }
 
-fn pan_orbit_condition(query: Query<(&EguiContext)>) -> bool {
+fn pan_orbit_condition(query: Query<&EguiContext>) -> bool {
   // TODO: Is it safe and fast to clone the egui context?
   // It seemed to be necessary because we are supposed to
   // get the context via `get_mut`, however passing a mutable
@@ -62,45 +60,14 @@ fn pan_orbit_condition(query: Query<(&EguiContext)>) -> bool {
   // "the trait `ReadOnlyWorldQuery` is not implemented for `&mut EguiContext`"
   let mut bevy_egui_context =
     query.get_single().expect("egui should exist").clone();
-  let mut egui_context = bevy_egui_context.get_mut();
+  let egui_context = bevy_egui_context.get_mut();
   !egui_context.wants_pointer_input()
 }
 
-fn setup_swc_neuron(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    segments_query: Query<(&Segment, &GlobalTransform)>,
-    mut materials: Res<MembraneMaterials>,
-) {
-  // let swc_neuron_1 = SwcFile::read_file("/Users/greghale/Downloads/H17.03.010.11.13.06_651089035_m.swc").expect("should parse");
-  let swc_neuron_2 = SwcFile::read_str(reuron::integrations::swc_file::sample::neuron()).expect("should parse");
-
-  let location_cm = Vec3::new(0.0, 0.0, 0.0);
-  // let soma_entity = swc_neuron_1.clone().simplify().spawn(location_cm, &mut commands, &mut meshes, &mut materials);
-  let soma_entity = swc_neuron_2.clone().simplify().spawn(location_cm, &mut commands, &mut meshes, &mut materials);
-
-  // let location_cm = Vec3::new(500.0, 0.0, 0.0);
-  // let soma_entity = swc_neuron_2.clone().simplify().spawn(location_cm, &mut commands, &mut meshes, &mut materials);
-
-  // let location_cm = Vec3::new(500.0, 800.0, 0.0);
-  // let soma_entity = swc_neuron_1.simplify().spawn(location_cm, &mut commands, &mut meshes, &mut materials);
-
-  // for i in 0..0 {
-  //   let location_cm = Vec3::new(500.0, 200.0, -2000.0 + 300.0 * i as f32);
-  //   let soma_entity = swc_neuron_2.clone().simplify().spawn(location_cm, &mut commands, &mut meshes, &mut materials);
-  // }
-
-  // let soma_entity = SwcFile::sample().spawn(commands, meshes, materials);
-  // let soma_transform = segments_query.get_component::<GlobalTransform>(soma_entity).expect("soma exists");
-  // println!("Soma translation: {:?}", soma_transform.translation());
-  // let (_, mut camera_transform) = camera_query.get_single().expect("just one camera");
-  // camera_transform = &camera_transform.looking_at(soma_transform.translation(), Vec3::Y);
-}
-
 fn setup_grace_neuron(
-  mut commands: Commands,
+  commands: Commands,
   mut meshes: ResMut<Assets<Mesh>>,
-  mut membrane_materials: Res<MembraneMaterials>,
+  membrane_materials: Res<MembraneMaterials>,
   mut materials: ResMut<Assets<StandardMaterial>>,
   grace_scene_source: Res<GraceSceneSource>,
   selections: Query<Entity, With<Selection>>,

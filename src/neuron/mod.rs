@@ -39,12 +39,6 @@ impl Neuron {
         extracellular_solution: &Solution,
         interval: &Interval,
     ) {
-        // Take a snapshot of all segment potentials.
-        let membrane_potentials: Vec<MilliVolts> = self
-            .segments
-            .iter()
-            .map(|s| s.membrane_potential.clone())
-            .collect();
 
         self.segments
             .iter_mut()

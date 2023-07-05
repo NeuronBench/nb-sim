@@ -1,8 +1,7 @@
 use bevy::prelude::*;
 use bevy_mod_picking::{
-    prelude::{RaycastPickTarget,ListenedEvent,Bubble, OnPointer},
+    prelude::{RaycastPickTarget},
     PickableBundle,
-    events::{Click, Drag}
 };
 
 #[derive(Component)]
@@ -12,9 +11,9 @@ pub struct Selection;
 pub struct Highlight;
 
 pub fn spawn_highlight(
-    mut commands: &mut Commands,
-    mut meshes: &mut ResMut<Assets<Mesh>>,
-    mut materials: &mut ResMut<Assets<StandardMaterial>>,
+    commands: &mut Commands,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    materials: &mut ResMut<Assets<StandardMaterial>>,
     selected_entity: Entity,
 ) {
     eprintln!("Spawn highlight");

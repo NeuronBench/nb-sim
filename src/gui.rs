@@ -9,29 +9,26 @@ use crate::neuron::Junction;
 use crate::dimension::{Timestamp, SimulationStepSeconds, Hz, MicroAmpsPerSquareCm, Interval};
 use crate::constants::SIMULATION_STEPS_PER_FRAME;
 use crate::stimulator::{Stimulator, Stimulation, Envelope, CurrentShape};
-use crate::integrations::grace::{GraceSceneSender, GraceSceneReceiver};
+use crate::integrations::grace::{GraceSceneSender};
 use crate::neuron::ecs::Neuron;
 use crate::neuron::segment::ecs::Segment;
-use crate::neuron::membrane::{MembraneMaterials};
 use crate::selection::Selection;
 
 
 pub fn run_gui(
-    mut commands: Commands,
+    commands: Commands,
     mut contexts: EguiContexts,
-    mut diagnostics: ResMut<Diagnostics>,
+    diagnostics: ResMut<Diagnostics>,
     timestamp: Res<Timestamp>,
-    mut simulation_step: ResMut<SimulationStepSeconds>,
+    simulation_step: ResMut<SimulationStepSeconds>,
     mut new_stimulators: ResMut<Stimulator>,
-    mut is_loading: ResMut<load::IsLoading>,
-    mut source: ResMut<load::GraceSceneSource>,
-    mut neurons: Query<(Entity, &Neuron)>,
-    mut segments: Query<(Entity, &Segment)>,
-    mut junctions: Query<(Entity, &Junction)>,
-    mut stimulations: Query<(Entity, &Stimulation)>,
-    mut selected_stimulators: Query<(&mut Stimulator), (With<Selection>)>,
-    anything_selected: Query<Entity, With<Selection>>,
-    // mut segments2: Query<(Entity, &Segment, &mut Stimulator), With<Selection>>,
+    is_loading: ResMut<load::IsLoading>,
+    source: ResMut<load::GraceSceneSource>,
+    neurons: Query<(Entity, &Neuron)>,
+    segments: Query<(Entity, &Segment)>,
+    junctions: Query<(Entity, &Junction)>,
+    stimulations: Query<(Entity, &Stimulation)>,
+    mut selected_stimulators: Query<&mut Stimulator, With<Selection>>,
     grace_scene_sender: Res<GraceSceneSender>,
 ) {
     egui::Window::new("Reuron").show(contexts.ctx_mut(), |ui| {
@@ -84,7 +81,7 @@ pub fn build_info(ui: &mut Ui) {
 
 pub fn runtime_stats_header(
     ui: &mut Ui,
-    mut diagnostics: ResMut<Diagnostics>,
+    diagnostics: ResMut<Diagnostics>,
     timestamp: Res<Timestamp>,
     mut simulation_step: ResMut<SimulationStepSeconds>,
 ) {

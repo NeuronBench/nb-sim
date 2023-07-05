@@ -7,7 +7,6 @@ use crate::dimension::{
 };
 use crate::neuron::channel::{ca_reversal, cl_reversal, k_reversal, na_reversal};
 use crate::neuron::membrane::MembraneChannel;
-use crate::neuron::segment::Segment;
 use crate::neuron::Solution;
 use crate::serialize;
 
@@ -42,12 +41,13 @@ impl TransmitterConcentrations {
     }
 }
 
+// TODO: Should the synapse mechanisms be temperature-dependent?
 impl SynapseMembranes {
     /// Update the state of the synaptic cleft, and report the current that flows into the
     /// post-synaptic segment.
     pub fn step(
         &mut self,
-        temperature: &Kelvin,
+        _temperature: &Kelvin,
         presynaptic_potential: &MilliVolts,
         postsynaptic_potential: &MilliVolts,
         interval: &Interval,

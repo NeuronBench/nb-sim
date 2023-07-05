@@ -1,5 +1,4 @@
 use serde::{Serialize, Deserialize};
-use uuid::Uuid;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Scene {

@@ -1,9 +1,7 @@
 use bevy::prelude::*;
-use bevy_egui::{egui::{self, Ui}, EguiContexts};
-use bevy::tasks::{IoTaskPool, Task};
-use ehttp::{Request, Response, fetch};
+use bevy_egui::{egui::{self, Ui}};
+use ehttp::{Request, fetch};
 use crossbeam::channel::unbounded;
-use web_sys::{Location, window};
 
 use crate::neuron::ecs::Neuron;
 use crate::neuron::Junction;
@@ -32,7 +30,7 @@ impl FromWorld for GraceSceneSource {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    fn from_world(world: &mut World) -> Self {
+    fn from_world(_world: &mut World) -> Self {
         GraceSceneSource("".to_string())
     }
 
@@ -69,17 +67,17 @@ pub fn setup(app: &mut App) {
   let (tx, rx) = unbounded();
   app.insert_resource(GraceSceneSender(tx));
   app.insert_resource(GraceSceneReceiver(rx));
-  app.add_startup_system(startup_load_ffg_scene);
+  app.add_systems(Startup, startup_load_ffg_scene);
 }
 
 pub fn startup_load_ffg_scene(
-    mut commands: Commands,
-    mut is_loading: ResMut<IsLoading>,
-    mut source: ResMut<GraceSceneSource>,
-    mut neurons: Query<(Entity, &Neuron)>,
-    mut segments: Query<(Entity, &Segment)>,
-    mut junctions: Query<(Entity, &Junction)>,
-    mut stimulations: Query<(Entity, &Stimulation)>,
+    commands: Commands,
+    is_loading: ResMut<IsLoading>,
+    source: ResMut<GraceSceneSource>,
+    neurons: Query<(Entity, &Neuron)>,
+    segments: Query<(Entity, &Segment)>,
+    junctions: Query<(Entity, &Junction)>,
+    stimulations: Query<(Entity, &Stimulation)>,
     grace_scene_sender: Res<GraceSceneSender>,
 ) {
     if source.0.len() > 0 {
@@ -91,10 +89,11 @@ pub fn startup_load_ffg_scene(
 }
 
 
+// TODO: update is_loading for status spinner.
 pub fn load_ffg_scene(
     mut commands: Commands,
-    mut is_loading: ResMut<IsLoading>,
-    mut source: ResMut<GraceSceneSource>,
+    _is_loading: ResMut<IsLoading>,
+    source: ResMut<GraceSceneSource>,
     mut neurons: Query<(Entity, &Neuron)>,
     mut segments: Query<(Entity, &Segment)>,
     mut junctions: Query<(Entity, &Junction)>,
@@ -103,17 +102,17 @@ pub fn load_ffg_scene(
 
 ) {
 
-    for (entity, stimulation) in &mut stimulations {
-        commands.entity(entity).despawn();
+    for (stimulation_entity, _) in &mut stimulations {
+        commands.entity(stimulation_entity).despawn();
     }
-    for (entity, junction) in &mut junctions {
-        commands.entity(entity).despawn();
+    for (junction_entity, _) in &mut junctions {
+        commands.entity(junction_entity).despawn();
     }
-    for (entity, segment) in &mut segments {
-        commands.entity(entity).despawn();
+    for (segment_entity, _) in &mut segments {
+        commands.entity(segment_entity).despawn();
     }
-    for (entity, neuron) in &mut neurons {
-        commands.entity(entity).despawn();
+    for (neuron_entity, _) in &mut neurons {
+        commands.entity(neuron_entity).despawn();
     }
     eprintln!("Requesting from reuron.io: {}", source.0);
     let request = Request::post("https://reuron.io/interpret", source.0.clone().into_bytes());
@@ -144,30 +143,30 @@ pub fn load_ffg_scene(
 }
 
 pub fn run_grace_load_widget(
-    mut commands: Commands,
-    mut ui: &mut Ui,
-    mut is_loading: ResMut<IsLoading>,
+    commands: Commands,
+    ui: &mut Ui,
+    is_loading: ResMut<IsLoading>,
     mut source: ResMut<GraceSceneSource>,
-    mut neurons: Query<(Entity, &Neuron)>,
-    mut segments: Query<(Entity, &Segment)>,
-    mut junctions: Query<(Entity, &Junction)>,
-    mut stimulations: Query<(Entity, &Stimulation)>,
+    neurons: Query<(Entity, &Neuron)>,
+    segments: Query<(Entity, &Segment)>,
+    junctions: Query<(Entity, &Junction)>,
+    stimulations: Query<(Entity, &Stimulation)>,
     grace_scene_sender: Res<GraceSceneSender>,
 ) {
-    let response = ui.add(egui::TextEdit::singleline(&mut source.0));
+    let _response = ui.add(egui::TextEdit::singleline(&mut source.0));
     if ui.button("Load").clicked() {
         load_ffg_scene(commands, is_loading, source, neurons, segments, junctions, stimulations, grace_scene_sender);
     }
 }
 
 pub fn handle_loaded_neuron(
-    mut commands: Commands,
+    commands: Commands,
     grace_scene_receiver: Res<GraceSceneReceiver>,
     mut meshes: ResMut<Assets<Mesh>>,
     membrane_materials: Res<MembraneMaterials>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    mut selections: Query<Entity, With<Selection>>,
-    mut highlights: Query<Entity, With<Highlight>>,
+    selections: Query<Entity, With<Selection>>,
+    highlights: Query<Entity, With<Highlight>>,
 ) {
     match grace_scene_receiver.0.try_recv() {
         Err(_) => {},
