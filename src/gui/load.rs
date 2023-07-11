@@ -15,6 +15,7 @@ use crate::integrations::grace::{
 };
 use crate::serialize;
 use crate::neuron::membrane::{MembraneMaterials};
+use web_sys::window;
 
 #[derive(Resource)]
 pub struct IsLoading(pub bool);

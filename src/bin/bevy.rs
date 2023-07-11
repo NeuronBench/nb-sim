@@ -44,7 +44,7 @@ pub fn main() {
         .add_systems(Startup, setup_scene)
         // .add_startup_system(setup_swc_neuron)
         .add_systems(Startup, setup_grace_neuron)
-        .insert_resource(ClearColor(Color::rgb(0.2,0.2,0.2)))
+        .insert_resource(ClearColor(Color::hex("#0e0e1f").expect("valid hex")))
         .add_systems(Update, pan_orbit_camera.run_if(pan_orbit_condition))
         .add_systems(Update, run_gui)
         .add_systems(Update, handle_loaded_neuron);
