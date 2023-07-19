@@ -281,6 +281,7 @@ pub fn spawn_neuron(
                 deselect_all(commands, &selections, highlights);
                 // commands.entity(*entity).insert(Selection);
                 // spawn_highlight(commands, meshes, materials, entity.clone());
+                //
             }
         }
     } 
