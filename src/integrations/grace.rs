@@ -279,8 +279,8 @@ pub fn spawn_neuron(
                 );
                 commands.entity(*entity).insert(stim);
                 deselect_all(commands, &selections, highlights);
-                commands.entity(*entity).insert(Selection);
-                spawn_highlight(commands, meshes, materials, entity.clone());
+                // commands.entity(*entity).insert(Selection);
+                // spawn_highlight(commands, meshes, materials, entity.clone());
             }
         }
     } 
