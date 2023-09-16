@@ -73,12 +73,10 @@ fn setup_grace_neuron(
   selections: Query<Entity, With<Selection>>,
   highlights: Query<Entity, With<Highlight>>,
 ) {
-
   if grace_scene_source.0.len() == 0 {
-    let grace_scene = GraceScene ( grace::sample::scene() );
+    let grace_scene = GraceScene ( grace::sample::scene2() );
     grace_scene.spawn(Vec3::new(0.0,0.0,0.0), commands, &mut meshes, membrane_materials, &mut materials, selections, highlights);
   }
-
 }
 
 

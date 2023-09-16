@@ -495,6 +495,11 @@ pub mod sample {
         }
 
     }
+
+    pub fn scene2() -> serialize::Scene {
+        let s = include_stn!("../../sample_data/sample_scene.json");
+        serde_json::from_str(s).expect("should parse")
+    }
 }
 
 #[cfg(test)]
