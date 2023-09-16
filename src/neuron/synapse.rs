@@ -188,8 +188,8 @@ impl FromStr for Transmitter {
     type Err = String;
     fn from_str(s: &str) -> Result<Self, String> {
         match s {
-            "glutamate" => Ok(Transmitter::Glutamate),
-            "gaba" => Ok(Transmitter::Gaba),
+            "Glutamate" => Ok(Transmitter::Glutamate),
+            "GABA" => Ok(Transmitter::Gaba),
             _ => Err(format!("Unknown transmitter {s}")),
         }
     }

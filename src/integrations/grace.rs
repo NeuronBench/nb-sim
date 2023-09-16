@@ -322,6 +322,9 @@ pub fn spawn_synapse(
         let pre_segment = neurons_and_segments[synapse.pre_neuron].1[synapse.pre_segment];
         let post_segment = neurons_and_segments[synapse.post_neuron].1[synapse.post_segment];
         commands.spawn(Synapse { pre_segment, post_segment, synapse_membranes: parsed_synapse_membranes});
+    } else {
+        eprintln!("Parse result: {:?}", SynapseMembranes::deserialize(&synapse.synapse_membranes));
+        panic!("TEMPORARY, quit if synapse parsing fails");
     }
 }
 
@@ -497,7 +500,7 @@ pub mod sample {
     }
 
     pub fn scene2() -> serialize::Scene {
-        let s = include_stn!("../../sample_data/sample_scene.json");
+        let s = include_str!("../../sample_data/sample_scene.json");
         serde_json::from_str(s).expect("should parse")
     }
 }
