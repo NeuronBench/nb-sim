@@ -182,7 +182,7 @@ pub struct TransmitterConcentrations {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TransmitterPump {
     pub transmitter: String,
-    pub params: TransmitterPumpParams,
+    pub transmitter_pump_params: TransmitterPumpParams,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -196,17 +196,17 @@ pub struct BellFunc {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Sigmoid {
-    pub base: f32,
-    pub amplitude: f32,
-    pub x_at_half_point: f32,
+    pub min_molar: f32,
+    pub max_molar: f32,
+    pub v_at_half_max_mv: f32,
     pub slope: f32,
-    pub log_space: bool,
+    // pub log_space: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TransmitterPumpParams {
-    pub target_concentration_func: Sigmoid,
-    pub time_constant_func: BellFunc,
+    pub target_concentration: Sigmoid,
+    pub time_constant: TimeConstant,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -218,7 +218,7 @@ pub struct Receptor {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Sensitivity {
     pub transmitter: String,
-    pub concentration_at_half_max: f32,
+    pub concentration_at_half_max_molar: f32,
     pub slope: f32,
 }
 

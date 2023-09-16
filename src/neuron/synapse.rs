@@ -241,7 +241,7 @@ impl Sensitivity {
     pub fn serialize(&self) -> serialize::Sensitivity {
         serialize::Sensitivity {
             transmitter: self.transmitter.to_string(),
-            concentration_at_half_max: self.concentration_at_half_max.0,
+            concentration_at_half_max_molar: self.concentration_at_half_max.0,
             slope: self.slope,
         }
     }
@@ -249,7 +249,7 @@ impl Sensitivity {
     pub fn deserialize(s: &serialize::Sensitivity) -> Result<Self, String> {
         Ok(Sensitivity {
             transmitter: Transmitter::from_str(&s.transmitter)?,
-            concentration_at_half_max: Molar(s.concentration_at_half_max),
+            concentration_at_half_max: Molar(s.concentration_at_half_max_molar),
             slope: s.slope,
         })
     }
@@ -258,39 +258,39 @@ impl Sensitivity {
 #[derive(Clone, Debug)]
 pub struct TransmitterPump {
     pub transmitter: Transmitter,
-    pub params: TransmitterPumpParams,
+    pub transmitter_pump_params: TransmitterPumpParams,
 }
 
 impl TransmitterPump {
     pub fn target_concentration(&self, v: &MilliVolts) -> Molar {
         Molar(
-            self.params.target_concentration_min.0
-                + (self.params.target_concentration_max.0 - self.params.target_concentration_min.0)
+            self.transmitter_pump_params.target_concentration_min.0
+                + (self.transmitter_pump_params.target_concentration_max.0 - self.transmitter_pump_params.target_concentration_min.0)
                     / (1.0
-                        + ((self.params.target_concentration_v_at_half_max.0 - v.0)
-                            / self.params.target_concentration_v_slope)
+                        + ((self.transmitter_pump_params.target_concentration_v_at_half_max.0 - v.0)
+                            / self.transmitter_pump_params.target_concentration_v_slope)
                             .exp()),
         )
     }
 
     pub fn time_constant(&self, v: &MilliVolts) -> f32 {
-        let numerator = -1.0 * (self.params.time_constant_v_at_max_tau.0 - v.0).powi(2);
-        let denominator = self.params.time_constant_sigma.powi(2);
-        self.params.time_constant_c_base
-            + self.params.time_constant_c_amp * (numerator / denominator).exp()
+        let numerator = -1.0 * (self.transmitter_pump_params.time_constant_v_at_max_tau.0 - v.0).powi(2);
+        let denominator = self.transmitter_pump_params.time_constant_sigma.powi(2);
+        self.transmitter_pump_params.time_constant_c_base
+            + self.transmitter_pump_params.time_constant_c_amp * (numerator / denominator).exp()
     }
 
     pub fn serialize(&self) -> serialize::TransmitterPump {
         serialize::TransmitterPump {
             transmitter: self.transmitter.to_string(),
-            params: self.params.serialize(),
+            transmitter_pump_params: self.transmitter_pump_params.serialize(),
         }
     }
 
     pub fn deserialize(s: &serialize::TransmitterPump) -> Result<Self, String> {
         Ok(TransmitterPump {
             transmitter: Transmitter::from_str(&s.transmitter)?,
-            params: TransmitterPumpParams::deserialize(&s.params)?,
+            transmitter_pump_params: TransmitterPumpParams::deserialize(&s.transmitter_pump_params)?,
         })
     }
 }
@@ -313,32 +313,36 @@ pub struct TransmitterPumpParams {
 impl TransmitterPumpParams {
     pub fn serialize(&self) -> serialize::TransmitterPumpParams {
         serialize::TransmitterPumpParams {
-            target_concentration_func: serialize::Sigmoid {
-                amplitude: self.target_concentration_max.0 - self.target_concentration_min.0,
-                base: self.target_concentration_min.0,
-                x_at_half_point: self.target_concentration_v_at_half_max.0,
+            target_concentration: serialize::Sigmoid {
+                max_molar: self.target_concentration_max.0,
+                min_molar: self.target_concentration_min.0,
+                v_at_half_max_mv: self.target_concentration_v_at_half_max.0,
                 slope: self.target_concentration_v_slope,
-                log_space: false,
+                // log_space: false,
             },
-            time_constant_func: serialize::BellFunc {
-                base: self.time_constant_c_base,
-                amplitude: self.time_constant_c_amp,
-                x_at_max: self.time_constant_v_at_max_tau.0,
+            time_constant: serialize::TimeConstant::Sigmoid {
+                c_base: self.time_constant_c_base,
+                c_amp: self.time_constant_c_amp,
+                v_at_max_tau_mv: self.time_constant_v_at_max_tau.0,
                 sigma: self.time_constant_sigma,
             },
         }
     }
 
     pub fn deserialize(s: &serialize::TransmitterPumpParams) -> Result<Self, String> {
+        let (v_at_max_tau_mv, c_base, c_amp, sigma) = match s.time_constant {
+            serialize::TimeConstant::Sigmoid{v_at_max_tau_mv, c_base, c_amp, sigma} => (v_at_max_tau_mv, c_base, c_amp, sigma),
+            _ => panic!("TODO: FIXME: Only sigmoid time constants are supported in synapses"),
+        };
         Ok(TransmitterPumpParams {
-            target_concentration_max: Molar(s.target_concentration_func.amplitude + s.target_concentration_func.base),
-            target_concentration_min: Molar(s.target_concentration_func.base),
-            target_concentration_v_at_half_max: MilliVolts(s.target_concentration_func.x_at_half_point),
-            target_concentration_v_slope: s.target_concentration_func.slope,
-            time_constant_c_base: s.time_constant_func.base,
-            time_constant_c_amp: s.time_constant_func.amplitude,
-            time_constant_v_at_max_tau: MilliVolts(s.time_constant_func.x_at_max),
-            time_constant_sigma: s.time_constant_func.sigma,
+            target_concentration_max: Molar(s.target_concentration.max_molar),
+            target_concentration_min: Molar(s.target_concentration.min_molar),
+            target_concentration_v_at_half_max: MilliVolts(s.target_concentration.v_at_half_max_mv),
+            target_concentration_v_slope: s.target_concentration.slope,
+            time_constant_c_base: c_base,
+            time_constant_c_amp: c_amp,
+            time_constant_v_at_max_tau: MilliVolts(v_at_max_tau_mv),
+            time_constant_sigma: sigma,
         })
     }
 }
@@ -353,7 +357,7 @@ pub mod examples {
     pub fn glutamate_release() -> TransmitterPump {
         TransmitterPump {
             transmitter: Transmitter::Glutamate,
-            params: TransmitterPumpParams {
+            transmitter_pump_params: TransmitterPumpParams {
                 target_concentration_max: Molar(1.1e-2),
                 target_concentration_min: Molar(1e-4),
                 target_concentration_v_at_half_max: MilliVolts(0.0),
@@ -370,7 +374,7 @@ pub mod examples {
     pub fn gaba_release() -> TransmitterPump {
         TransmitterPump {
             transmitter: Transmitter::Gaba,
-            params: TransmitterPumpParams {
+            transmitter_pump_params: TransmitterPumpParams {
                 target_concentration_max: Molar(1.1e-2),
                 target_concentration_min: Molar(1e-4),
                 target_concentration_v_at_half_max: MilliVolts(0.0),
