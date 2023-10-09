@@ -2542,6 +2542,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "nb-sim"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "bevy_egui",
+ "bevy_mod_picking",
+ "crossbeam",
+ "csv",
+ "ehttp",
+ "querystring",
+ "serde",
+ "serde_json",
+ "uuid",
+ "vergen",
+ "wasm-bindgen",
+ "web-sys",
+ "wgpu 0.15.1",
+]
+
+[[package]]
 name = "ndk"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3069,26 +3089,6 @@ name = "renderdoc-sys"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "216080ab382b992234dda86873c18d4c48358f5cfcb70fd693d7f6f2131b628b"
-
-[[package]]
-name = "reuron"
-version = "0.1.0"
-dependencies = [
- "bevy",
- "bevy_egui",
- "bevy_mod_picking",
- "crossbeam",
- "csv",
- "ehttp",
- "querystring",
- "serde",
- "serde_json",
- "uuid",
- "vergen",
- "wasm-bindgen",
- "web-sys",
- "wgpu 0.15.1",
-]
 
 [[package]]
 name = "ring"

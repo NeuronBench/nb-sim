@@ -31,7 +31,7 @@ pub fn run_gui(
     mut selected_stimulators: Query<&mut Stimulator, With<Selection>>,
     grace_scene_sender: Res<GraceSceneSender>,
 ) {
-    egui::Window::new("Reuron").show(contexts.ctx_mut(), |ui| {
+    egui::Window::new("NeuronBench").show(contexts.ctx_mut(), |ui| {
         runtime_stats_header(ui, diagnostics, timestamp, simulation_step);
 
         let id = ui.make_persistent_id("grace_source_header");

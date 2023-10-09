@@ -63,7 +63,6 @@ pub fn window_location_scene() -> String {
 
 pub fn setup(app: &mut App) {
   app.insert_resource(IsLoading(false));
-  // app.insert_resource(GraceSceneSource("https://raw.githubusercontent.com/reuron/reuron-lib/main/scene.ffg".to_string()));
   app.init_resource::<GraceSceneSource>();
   let (tx, rx) = unbounded();
   app.insert_resource(GraceSceneSender(tx));
@@ -115,8 +114,8 @@ pub fn load_ffg_scene(
     for (neuron_entity, _) in &mut neurons {
         commands.entity(neuron_entity).despawn();
     }
-    eprintln!("Requesting from reuron.io: {}", source.0);
-    let request = Request::post("https://reuron.io/interpret", source.0.clone().into_bytes());
+    eprintln!("Requesting from lang.neuronbench.com: {}", source.0);
+    let request = Request::post("https://lang.neuronbench.com/interpret", source.0.clone().into_bytes());
     let sender = (*grace_scene_sender).clone();
     fetch(request, move |response| {
         match response {

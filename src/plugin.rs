@@ -20,9 +20,9 @@ use crate::neuron::solution::{Solution, INTERSTICIAL_FLUID};
 use crate::neuron::membrane::{Membrane, MembraneMaterials, MembraneVoltage};
 use crate::neuron::channel::{ca_reversal, cl_reversal, k_reversal, na_reversal};
 
-pub struct ReuronPlugin;
+pub struct NbSimPlugin;
 
-impl Plugin for ReuronPlugin {
+impl Plugin for NbSimPlugin {
     fn build(&self, app: &mut App) {
             app.insert_resource(default_env())
             .insert_resource(Timestamp(0.0))

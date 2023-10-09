@@ -1,4 +1,4 @@
-{ "neurons": [ { "location": { "x_mm": 0.5, "y_mm": 0.1, "z_mm": 0.0 }
+{ "neurons": [ { "location": { "x_mm": 0.5, "y_mm": 0.5, "z_mm": 0.5 }
                , "neuron": { "membranes":
                                [ { "capacitance_farads_per_square_cm": 1.0e-6
                                  , "membrane_channels":
@@ -4025,20 +4025,20 @@
                    [ { "segment": 100
                      , "stimulator": { "current_shape":
                                          { "on_current_uamps_per_square_cm":
-                                             100.0
+                                             10.0
                                          , "off_current_uamps_per_square_cm":
                                              -1.0
                                          , "type": "SquareWave"
                                          }
                                      , "envelope": { "period_sec": 0.1
                                                    , "onset_sec": 0.0
-                                                   , "offset_sec": 9.0e-2
+                                                   , "offset_sec": 5.0e-2
                                                    }
                                      }
                      }
                    ]
                }
-             , { "location": { "x_mm": -0.4, "y_mm": 0.5, "z_mm": 0.0 }
+             , { "location": { "x_mm": 0.0, "y_mm": 0.0, "z_mm": 0.0 }
                , "neuron": { "membranes":
                                [ { "capacitance_farads_per_square_cm": 1.0e-6
                                  , "membrane_channels":
@@ -8113,7 +8113,64 @@
                                                 }
                           , "neurotransmitter_sensitivity":
                               { "transmitter": "Glutamate"
-                              , "concentration_at_half_max_molar": 3.0e-3
+                              , "concentration_at_half_max_molar": 1.0
+                              , "slope": 1000.0
+                              }
+                          }
+                        ]
+                    , "surface_area_square_mm": 1.0e-6
+                    }
+                }
+              , { "pre_neuron": 0
+                , "pre_segment": 37
+                , "post_neuron": 1
+                , "post_segment": 303
+                , "synapse_membranes":
+                    { "cleft_solution": { "k": 5.0e-3
+                                        , "na": 0.145
+                                        , "cl": 4.0e-3
+                                        , "ca": 2.5e-3
+                                        }
+                    , "transmitter_concentrations": { "glutamate_molar": 1.0e-4
+                                                    , "gaba_molar": 1.0e-4
+                                                    }
+                    , "presynaptic_pumps": [ { "transmitter": "Glutamate"
+                                             , "transmitter_pump_params":
+                                                 { "target_concentration":
+                                                     { "min_molar": 1.0e-4
+                                                     , "max_molar": 1.1e-2
+                                                     , "slope": 1.0
+                                                     , "v_at_half_max_mv": 0.0
+                                                     }
+                                                 , "time_constant":
+                                                     { "v_at_max_tau_mv": 0.0
+                                                     , "c_base": 1.0e-3
+                                                     , "c_amp": 1.0e-6
+                                                     , "sigma": 1.0
+                                                     , "type": "Sigmoid"
+                                                     }
+                                                 }
+                                             }
+                                           ]
+                    , "postsynaptic_receptors":
+                        [ { "membrane_channel": { "channel":
+                                                    { "ion_selectivity": { "k":
+                                                                             0.5
+                                                                         , "na":
+                                                                             0.5
+                                                                         , "cl":
+                                                                             0.0
+                                                                         , "ca":
+                                                                             0.0
+                                                                         }
+                                                    , "activation": null
+                                                    , "inactivation": null
+                                                    }
+                                                , "siemens_per_square_cm": 1.0e7
+                                                }
+                          , "neurotransmitter_sensitivity":
+                              { "transmitter": "Glutamate"
+                              , "concentration_at_half_max_molar": 1.0
                               , "slope": 1000.0
                               }
                           }

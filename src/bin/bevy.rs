@@ -11,13 +11,13 @@ use bevy_mod_picking::prelude::*;
 // };
 use std::f32::consts::PI;
 
-use reuron::plugin::ReuronPlugin;
-use reuron::gui::run_gui;
-use reuron::gui::load::{handle_loaded_neuron, GraceSceneSource};
-use reuron::integrations::grace::{self, GraceScene};
-use reuron::neuron::membrane::MembraneMaterials;
-use reuron::pan_orbit_camera::{PanOrbitCamera, pan_orbit_camera};
-use reuron::selection::{Selection, Highlight};
+use nb_sim::plugin::NbSimPlugin;
+use nb_sim::gui::run_gui;
+use nb_sim::gui::load::{handle_loaded_neuron, GraceSceneSource};
+use nb_sim::integrations::grace::{self, GraceScene};
+use nb_sim::neuron::membrane::MembraneMaterials;
+use nb_sim::pan_orbit_camera::{PanOrbitCamera, pan_orbit_camera};
+use nb_sim::selection::{Selection, Highlight};
 
 #[derive(Component)]
 struct MyCamera;
@@ -39,7 +39,7 @@ pub fn main() {
         .add_plugins(DefaultPickingPlugins.build().disable::<DebugPickingPlugin>())
         // .add_plugin(DebugCursorPickingPlugin)
         // .add_plugin(DebugEventsPickingPlugin)
-        .add_plugin(ReuronPlugin)
+        .add_plugin(NbSimPlugin)
         .add_systems(Update, bevy::window::close_on_esc)
         .add_systems(Startup, setup_scene)
         // .add_startup_system(setup_swc_neuron)

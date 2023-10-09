@@ -1,6 +1,6 @@
 [package]
 edition = "2021"
-name = "reuron"
+name = "nb-sim"
 version = "0.1.0"
 resolver = "2"
 
