@@ -112,7 +112,7 @@
 
           cat Trunk.toml
 
-           trunk build --release --dist $out index.html
+           trunk build --release --dist $out --public-url /assets index.html
 
            filename=$(ls $out/*.wasm)
            filesize=$(wc -c $filename)
