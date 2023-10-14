@@ -1,3 +1,4 @@
+pub mod external_trigger;
 pub mod load;
 
 use bevy::prelude::*;

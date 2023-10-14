@@ -19,14 +19,12 @@ use crate::integrations::grace::{self, GraceScene};
 use crate::neuron::membrane::MembraneMaterials;
 use crate::pan_orbit_camera::{PanOrbitCamera, pan_orbit_camera};
 use crate::selection::{Selection, Highlight};
+use crate::gui::external_trigger::ExternalTriggerPlugin;
 
 #[derive(Component)]
 struct MyCamera;
 
-#[wasm_bindgen]
-pub fn external_send_event(str: String) {
-  eprintln!("EXTERNAL_SEND_EVENT: {str}");
-}
+
 
 #[wasm_bindgen]
 pub fn start() {
@@ -48,6 +46,7 @@ pub fn start() {
         // .add_plugin(DebugCursorPickingPlugin)
         // .add_plugin(DebugEventsPickingPlugin)
         .add_plugin(NbSimPlugin)
+        .add_plugin(ExternalTriggerPlugin)
         .add_systems(Update, bevy::window::close_on_esc)
         .add_systems(Startup, setup_scene)
         // .add_startup_system(setup_swc_neuron)
