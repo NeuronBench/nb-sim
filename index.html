@@ -5,6 +5,19 @@
     body { background-color: #0e0e1f }
   </style>
   <body style="margin:0;">
+    <textarea id="editorInput">Testing</textarea>
+    <button id="codeButton" onclick="foo_test()">Load</button>
     <canvas id="bevy"/>
+    <script type="module">
+     import init from '/nb-sim.js';
+     async function run () {
+       await init('/nb-sim_bg.wasm');
+       console.log("RUNNING run()");
+       window.bar = 1;
+       window.foo_test = function() { foo_test() };
+     }
+
+     run();
+    </script>
   </body>
 </html>

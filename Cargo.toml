@@ -4,6 +4,9 @@ name = "nb-sim"
 version = "0.1.0"
 resolver = "2"
 
+[lib]
+crate-type = ["cdylib"]
+
 [dependencies]
 wasm-bindgen = "0.2.86"
 csv = "^1.1.6"
@@ -16,12 +19,9 @@ querystring = "^1.1"
 serde = { version = "1.0.158", features=["serde_derive"]}
 serde_json = "1.0.94"
 uuid = {version = "1.3.0", features =["wasm-bindgen", "v3","v4","serde", "js"]}
-web-sys = { version = "^0.3", features=["Location", "Window"] }
+web-sys = { version = "^0.3", features=["Location", "Window", "Document", "Element", "HtmlTextAreaElement"] }
 wgpu = { version = "^0.15", features=["webgl"]}
 
-[[bin]]
-name = "bevy"
-path = "src/bin/bevy.rs"
 
 [build-dependencies]
 vergen = { version = "^8.1", features = [ "build", "git", "gitcl" ] }

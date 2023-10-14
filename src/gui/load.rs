@@ -15,7 +15,9 @@ use crate::integrations::grace::{
 };
 use crate::serialize;
 use crate::neuron::membrane::{MembraneMaterials};
-use web_sys::window;
+use wasm_bindgen::{JsCast, JsValue};
+use wasm_bindgen::prelude::wasm_bindgen;
+use web_sys::{Document, Element, HtmlTextAreaElement, window};
 
 #[derive(Resource)]
 pub struct IsLoading(pub bool);
@@ -68,6 +70,7 @@ pub fn setup(app: &mut App) {
   app.insert_resource(GraceSceneSender(tx));
   app.insert_resource(GraceSceneReceiver(rx));
   app.add_systems(Startup, startup_load_ffg_scene);
+  // app.add_systems(Startup, set_source_from_editor);
 }
 
 pub fn startup_load_ffg_scene(
@@ -86,6 +89,41 @@ pub fn startup_load_ffg_scene(
     } else {
         eprintln!("Skipping startup scene load");
     }
+}
+
+#[wasm_bindgen]
+pub fn foo_test() {
+    println!("Hello from foo_test");
+}
+
+pub fn set_source_from_editor(
+    commands: Commands,
+    is_loading: ResMut<IsLoading>,
+    mut source: ResMut<GraceSceneSource>,
+    neurons: Query<(Entity, &Neuron)>,
+    segments: Query<(Entity, &Segment)>,
+    junctions: Query<(Entity, &Junction)>,
+    stimulations: Query<(Entity, &Stimulation)>,
+    grace_scene_sender: Res<GraceSceneSender>,
+) {
+    let document = window()
+        .expect("should have window")
+        .document()
+        .expect("should have document");
+    let textarea : Option<Element> = document.get_element_by_id("editorInput");
+    let button : Option<Element> = document.get_element_by_id("codeButton");
+    let mut source = &source.0;
+    match textarea {
+        Some(element) => {
+            let textarea : &HtmlTextAreaElement = element.dyn_ref::<HtmlTextAreaElement>().expect("should be textarea");
+            let code = textarea.value();
+            source = &code;
+        },
+        None => {
+            eprintln!("No editorInput");
+        }
+    }
+
 }
 
 

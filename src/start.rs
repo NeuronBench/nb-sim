@@ -10,19 +10,27 @@ use bevy_mod_picking::prelude::*;
 //     PickingCameraBundle
 // };
 use std::f32::consts::PI;
+use wasm_bindgen::prelude::*;
 
-use nb_sim::plugin::NbSimPlugin;
-use nb_sim::gui::run_gui;
-use nb_sim::gui::load::{handle_loaded_neuron, GraceSceneSource};
-use nb_sim::integrations::grace::{self, GraceScene};
-use nb_sim::neuron::membrane::MembraneMaterials;
-use nb_sim::pan_orbit_camera::{PanOrbitCamera, pan_orbit_camera};
-use nb_sim::selection::{Selection, Highlight};
+use crate::plugin::NbSimPlugin;
+use crate::gui::run_gui;
+use crate::gui::load::{handle_loaded_neuron, GraceSceneSource};
+use crate::integrations::grace::{self, GraceScene};
+use crate::neuron::membrane::MembraneMaterials;
+use crate::pan_orbit_camera::{PanOrbitCamera, pan_orbit_camera};
+use crate::selection::{Selection, Highlight};
 
 #[derive(Component)]
 struct MyCamera;
 
-pub fn main() {
+#[wasm_bindgen]
+pub fn external_send_event(str: String) {
+  eprintln!("EXTERNAL_SEND_EVENT: {str}");
+}
+
+#[wasm_bindgen]
+pub fn start() {
+
  let mut app = App::new();
  app
     .add_plugins(DefaultPlugins.set(WindowPlugin {
