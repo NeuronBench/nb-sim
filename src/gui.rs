@@ -8,6 +8,7 @@ use bevy_egui::egui::Ui;
 
 use crate::neuron::Junction;
 use crate::dimension::{Timestamp, SimulationStepSeconds, Hz, MicroAmpsPerSquareCm, Interval};
+use crate::gui::load::InterpreterUrl;
 use crate::constants::SIMULATION_STEPS_PER_FRAME;
 use crate::stimulator::{Stimulator, Stimulation, Envelope, CurrentShape};
 use crate::integrations::grace::{GraceSceneSender};
@@ -18,6 +19,7 @@ use crate::selection::Selection;
 
 pub fn run_gui(
     commands: Commands,
+    interpreter_url: Res<InterpreterUrl>,
     mut contexts: EguiContexts,
     diagnostics: ResMut<Diagnostics>,
     timestamp: Res<Timestamp>,
@@ -42,7 +44,7 @@ pub fn run_gui(
             ui.label("Source neuron")
         })
         .body(|ui| {
-            load::run_grace_load_widget(commands, ui, is_loading, source, neurons, segments, junctions, stimulations, grace_scene_sender);
+            load::run_grace_load_widget(commands, interpreter_url, ui, is_loading, source, neurons, segments, junctions, stimulations, grace_scene_sender);
         });
 
         let id = ui.make_persistent_id("stimulator_header");

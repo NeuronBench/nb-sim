@@ -25,7 +25,7 @@ use crate::stimulator::Stimulation;
 use crate::neuron::Junction;
 use crate::neuron::ecs::Neuron;
 use crate::neuron::segment::ecs::Segment;
-use crate::gui::load::{load_ffg_scene, GraceSceneSource, IsLoading};
+use crate::gui::load::{load_ffg_scene, GraceSceneSource, InterpreterUrl, IsLoading};
 use crate::integrations::grace::GraceSceneSender;
 
 /// The primary interface interface to this module, from nb-sim's perspective.
@@ -52,6 +52,7 @@ impl Plugin for ExternalTriggerPlugin {
 fn respond_to_triggers(
     trigger_receiver: Res<ExternalTriggerReceiver>,
     mut commands: Commands,
+    interpreter_url: Res<InterpreterUrl>,
     is_loading: ResMut<IsLoading>,
     mut source: ResMut<GraceSceneSource>,
     mut neurons: Query<(Entity, &Neuron)>,
@@ -64,7 +65,7 @@ fn respond_to_triggers(
         Err(_) => {},
         Ok(new_source) => {
             source.0 = new_source;
-            load_ffg_scene(commands, is_loading, source, neurons, segments, junctions, stimulations, grace_scene_sender);
+            load_ffg_scene(commands, interpreter_url, is_loading, source, neurons, segments, junctions, stimulations, grace_scene_sender);
         },
     }
 }

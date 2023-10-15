@@ -14,7 +14,7 @@ use wasm_bindgen::prelude::*;
 
 use crate::plugin::NbSimPlugin;
 use crate::gui::run_gui;
-use crate::gui::load::{handle_loaded_neuron, GraceSceneSource};
+use crate::gui::load::{handle_loaded_neuron, GraceSceneSource, InterpreterUrl};
 use crate::integrations::grace::{self, GraceScene};
 use crate::neuron::membrane::MembraneMaterials;
 use crate::pan_orbit_camera::{PanOrbitCamera, pan_orbit_camera};
@@ -27,7 +27,10 @@ struct MyCamera;
 
 
 #[wasm_bindgen]
-pub fn start() {
+pub fn start(
+  interpreter_url: String,
+  demo: bool,
+) {
 
  let mut app = App::new();
  app
@@ -50,11 +53,15 @@ pub fn start() {
         .add_systems(Update, bevy::window::close_on_esc)
         .add_systems(Startup, setup_scene)
         // .add_startup_system(setup_swc_neuron)
-        .add_systems(Startup, setup_grace_neuron)
+        .insert_resource(InterpreterUrl(interpreter_url))
         .insert_resource(ClearColor(Color::hex("#0e0e1f").expect("valid hex")))
         .add_systems(Update, pan_orbit_camera.run_if(pan_orbit_condition))
         .add_systems(Update, run_gui)
         .add_systems(Update, handle_loaded_neuron);
+
+        if demo {
+          app.add_systems(Startup, setup_grace_neuron);
+        }
 
         app.run();
 }

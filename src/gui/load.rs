@@ -25,6 +25,9 @@ pub struct IsLoading(pub bool);
 #[derive(Resource)]
 pub struct GraceSceneSource(pub String);
 
+#[derive(Resource)]
+pub struct InterpreterUrl(pub String);
+
 impl FromWorld for GraceSceneSource {
 
     #[cfg(target_arch = "wasm32")]
@@ -63,18 +66,20 @@ pub fn window_location_scene() -> String {
 }
 
 
+// TODO: If there is a setup function, then this should be a plugin?
 pub fn setup(app: &mut App) {
   app.insert_resource(IsLoading(false));
   app.init_resource::<GraceSceneSource>();
   let (tx, rx) = unbounded();
   app.insert_resource(GraceSceneSender(tx));
   app.insert_resource(GraceSceneReceiver(rx));
-  app.add_systems(Startup, startup_load_ffg_scene);
+  // app.add_systems(Startup, startup_load_ffg_scene);
   // app.add_systems(Startup, set_source_from_editor);
 }
 
 pub fn startup_load_ffg_scene(
     commands: Commands,
+    interpreter_url: Res<InterpreterUrl>,
     is_loading: ResMut<IsLoading>,
     source: ResMut<GraceSceneSource>,
     neurons: Query<(Entity, &Neuron)>,
@@ -85,15 +90,10 @@ pub fn startup_load_ffg_scene(
 ) {
     if source.0.len() > 0 {
         eprintln!("Doing startup scene load with {}", source.0);
-        load_ffg_scene(commands, is_loading, source, neurons, segments, junctions, stimulations, grace_scene_sender);
+        load_ffg_scene(commands, interpreter_url, is_loading, source, neurons, segments, junctions, stimulations, grace_scene_sender);
     } else {
         eprintln!("Skipping startup scene load");
     }
-}
-
-#[wasm_bindgen]
-pub fn foo_test() {
-    println!("Hello from foo_test");
 }
 
 pub fn set_source_from_editor(
@@ -130,6 +130,7 @@ pub fn set_source_from_editor(
 // TODO: update is_loading for status spinner.
 pub fn load_ffg_scene(
     mut commands: Commands,
+    interpreter_url: Res<InterpreterUrl>,
     _is_loading: ResMut<IsLoading>,
     source: ResMut<GraceSceneSource>,
     mut neurons: Query<(Entity, &Neuron)>,
@@ -152,8 +153,8 @@ pub fn load_ffg_scene(
     for (neuron_entity, _) in &mut neurons {
         commands.entity(neuron_entity).despawn();
     }
-    eprintln!("Requesting from lang.neuronbench.com: {}", source.0);
-    let request = Request::post("https://neuronbench.com/interpret", source.0.clone().into_bytes());
+    eprintln!("Requesting from {}: {}", interpreter_url.0, source.0);
+    let request = Request::post(&interpreter_url.0, source.0.clone().into_bytes());
     let sender = (*grace_scene_sender).clone();
     fetch(request, move |response| {
         match response {
@@ -182,6 +183,7 @@ pub fn load_ffg_scene(
 
 pub fn run_grace_load_widget(
     commands: Commands,
+    interpreter_url: Res<InterpreterUrl>,
     ui: &mut Ui,
     is_loading: ResMut<IsLoading>,
     mut source: ResMut<GraceSceneSource>,
@@ -193,7 +195,7 @@ pub fn run_grace_load_widget(
 ) {
     let _response = ui.add(egui::TextEdit::singleline(&mut source.0));
     if ui.button("Load").clicked() {
-        load_ffg_scene(commands, is_loading, source, neurons, segments, junctions, stimulations, grace_scene_sender);
+        load_ffg_scene(commands, interpreter_url, is_loading, source, neurons, segments, junctions, stimulations, grace_scene_sender);
     }
 }
 
