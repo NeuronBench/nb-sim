@@ -5,7 +5,13 @@ version = "0.1.0"
 resolver = "2"
 
 [lib]
-crate-type = ["cdylib"]
+path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
+
+[[bin]]
+name = "bevy"
+path = "src/bin/bevy.rs"
 
 [dependencies]
 once_cell = "^1.18"

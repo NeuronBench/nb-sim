@@ -153,7 +153,7 @@ pub fn load_ffg_scene(
         commands.entity(neuron_entity).despawn();
     }
     eprintln!("Requesting from lang.neuronbench.com: {}", source.0);
-    let request = Request::post("https://lang.neuronbench.com/interpret", source.0.clone().into_bytes());
+    let request = Request::post("https://neuronbench.com/interpret", source.0.clone().into_bytes());
     let sender = (*grace_scene_sender).clone();
     fetch(request, move |response| {
         match response {

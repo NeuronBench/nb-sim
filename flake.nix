@@ -63,7 +63,7 @@
 
       buildInputs = [
           wasm-bindgen-cli
-          pkgs.trunk
+          pkgs.wasm-pack
           rust
           pkgs.curl
           pkgs.autoconf
@@ -104,23 +104,7 @@
         cargoLock = nbSimLockHashes;
 
         buildPhase = ''
-          echo 'Creating out dir...'
-          mkdir -p $out
-
-          echo 'Checking wasm-bindgen version'
-          wasm-bindgen --version
-
-          cat Trunk.toml
-
-           trunk build --release --dist $out --public-url /assets --filehash=false index.html
-
-           filename=$(ls $out/*.wasm)
-           filesize=$(wc -c $filename)
-           if [ $filesize -le 1000000 ]; then
-             echo "Aborting build because $filename is too small: $filesize"
-             exit 1
-           fi
-           wasm-opt -Oz -o $(ls $out/*.wasm) $(ls $out/*.wasm)
+          wasm-pack build --release --target web --out-dir $out
         '';
         checkPhase = "echo 'Skipping tests'";
         installPhase = "echo 'Skipping install phase'";
@@ -144,7 +128,7 @@
           pkgs.openssl
           pkgs.sass
           pkgs.binaryen
-          pkgs.trunk
+          pkgs.wasm-pack
           ] ++ (if system == "aarch64-darwin" then apple-deps else linux-deps);
 
         PKG_CONFIG_PATH = "${pkgs.openssl.dev}/lib/pkgconfig";
