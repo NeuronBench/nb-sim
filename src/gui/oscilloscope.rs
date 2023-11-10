@@ -2,6 +2,8 @@ use bevy::prelude::*;
 use bevy_egui::egui::Ui;
 use bevy_egui::egui::widgets::plot::{Plot, Line, PlotPoints};
 
+use crate::gui::NextClickAction;
+
 use crate::neuron::segment::{ecs::Segment};
 use crate::neuron::membrane::MembraneVoltage;
 
@@ -34,10 +36,22 @@ impl Oscilloscope {
         }
     }
 
-    pub fn accept_source_if_available_slot(&mut self, new_source: Entity) {
+    pub fn accept_source(
+        &mut self,
+        ind: usize,
+        new_source: Entity) {
+            self.sources[ind] = Some(new_source);
+    }
+
+    pub fn accept_source_if_available_slot(
+        &mut self,
+        mut next_click: ResMut<NextClickAction>,
+        new_source: Entity
+    ) {
         for source in self.sources.iter_mut() {
             if source.is_none() {
                 *source = Some(new_source);
+                break;
             }
         }
     }

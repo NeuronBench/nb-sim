@@ -2,7 +2,6 @@ use bevy::prelude::*;
 use std::fmt::{self, Display};
 use std::time::Duration;
 
-use crate::gui;
 
 use crate::dimension::{
     Interval,
@@ -13,13 +12,14 @@ use crate::dimension::{
 use crate::constants::{BODY_TEMPERATURE, CONDUCTANCE_PER_SQUARE_CM, SIMULATION_STEPS_PER_FRAME};
 use crate::stimulator::{StimulatorMaterials, Stimulator, Stimulation};
 
+use crate::gui::oscilloscope::{Oscilloscope, step_oscilloscope_system, print_oscilloscope_system};
+use crate::gui;
 use crate::neuron::Junction;
 use crate::integrations::grace::Synapse;
 use crate::neuron::segment::{Geometry, ecs::Segment, ecs::InputCurrent};
 use crate::neuron::solution::{Solution, INTERSTICIAL_FLUID};
 use crate::neuron::membrane::{Membrane, MembraneMaterials, MembraneVoltage};
 use crate::neuron::channel::{ca_reversal, cl_reversal, k_reversal, na_reversal};
-use crate::gui::oscilloscope::{Oscilloscope, step_oscilloscope_system, print_oscilloscope_system};
 
 pub struct NbSimPlugin;
 
@@ -27,6 +27,7 @@ impl Plugin for NbSimPlugin {
     fn build(&self, app: &mut App) {
             app.insert_resource(default_env())
             .insert_resource(Timestamp(0.0))
+            .init_resource::<gui::NextClickAction>()
             .init_resource::<Oscilloscope>()
             .insert_resource(Stimulator::default())
             .insert_resource(SimulationStepSeconds(5e-7))

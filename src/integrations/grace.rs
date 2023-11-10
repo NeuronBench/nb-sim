@@ -9,6 +9,7 @@ use crossbeam::channel::{Sender, Receiver};
 use std::collections::{HashMap, HashSet};
 
 use crate::dimension::{MilliVolts, Diameter, MicroAmpsPerSquareCm};
+use crate::gui::NextClickAction;
 use crate::gui::oscilloscope::Oscilloscope;
 use crate::neuron::Junction;
 use crate::neuron::membrane::{Membrane, MembraneVoltage, MembraneMaterials};
@@ -343,6 +344,7 @@ pub fn add_stimulation(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut oscilloscope: ResMut<Oscilloscope>,
+    mut next_click: ResMut<NextClickAction>,
     selections: Query<Entity, With<Selection>>,
     highlights: Query<Entity, With<Highlight>>,
     new_stimulators: Res<stimulator::Stimulator>,
@@ -353,23 +355,30 @@ pub fn add_stimulation(
     match segments_query.get(event.target) {
         Ok((entity, _, segment_transform)) => {
 
-          oscilloscope.accept_source_if_available_slot(entity);
-          commands.spawn(
-              (stimulator::Stimulation { stimulation_segment: event.target },
-               PbrBundle {
-                   mesh: meshes.add(shape::UVSphere{ radius: 7.5, sectors: 20, stacks: 20 }.into()),
-                   material: materials.add(Color::rgb(0.5,0.5,0.5).into()),
-                   transform: Transform::from_translation(segment_transform.translation()),
-                   ..default()
-               },
-               PickableBundle::default(),
-               RaycastPickTarget::default(),
-               OnPointer::<Click>::run_callback(handle_click_stimulator),
-              )
-          );
-          eprintln!("Inserting stimulator into entity {}", event.target.to_bits());
-          commands.entity(event.target).insert(new_stimulators.clone());
-          select_stimulator(event.target, commands, selections, highlights, meshes, materials);
+          match *next_click {
+              NextClickAction::SetVoltageSource(i) => {
+                oscilloscope.accept_source(i, entity);
+                *next_click = NextClickAction::ModifyStimulator;
+              },
+              NextClickAction::ModifyStimulator => {
+                commands.spawn(
+                    (stimulator::Stimulation { stimulation_segment: event.target },
+                    PbrBundle {
+                        mesh: meshes.add(shape::UVSphere{ radius: 7.5, sectors: 20, stacks: 20 }.into()),
+                        material: materials.add(Color::rgb(0.5,0.5,0.5).into()),
+                        transform: Transform::from_translation(segment_transform.translation()),
+                        ..default()
+                    },
+                    PickableBundle::default(),
+                    RaycastPickTarget::default(),
+                    OnPointer::<Click>::run_callback(handle_click_stimulator),
+                    )
+                );
+                eprintln!("Inserting stimulator into entity {}", event.target.to_bits());
+                commands.entity(event.target).insert(new_stimulators.clone());
+                select_stimulator(event.target, commands, selections, highlights, meshes, materials);
+              }
+          }
         },
       Err(_) => {
           eprintln!("No segment found for clicked entity.");

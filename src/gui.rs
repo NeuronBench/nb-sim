@@ -26,9 +26,10 @@ pub fn run_gui(
     diagnostics: ResMut<Diagnostics>,
     timestamp: Res<Timestamp>,
     simulation_step: ResMut<SimulationStepSeconds>,
+    mut next_click: ResMut<NextClickAction>,
     mut new_stimulators: ResMut<Stimulator>,
     is_loading: ResMut<load::IsLoading>,
-    source: ResMut<load::GraceSceneSource>,
+    // source: ResMut<load::GraceSceneSource>,
     oscilloscope: Res<Oscilloscope>,
     neurons: Query<(Entity, &Neuron)>,
     segments: Query<(Entity, &Segment)>,
@@ -40,15 +41,15 @@ pub fn run_gui(
     egui::Window::new("NeuronBench").show(contexts.ctx_mut(), |ui| {
         runtime_stats_header(ui, diagnostics, timestamp, simulation_step);
 
-        let id = ui.make_persistent_id("grace_source_header");
-        egui::collapsing_header::CollapsingState::load_with_default_open(
-            ui.ctx(), id, false
-        ).show_header(ui, |ui| {
-            ui.label("Source neuron")
-        })
-        .body(|ui| {
-            load::run_grace_load_widget(commands, interpreter_url, ui, is_loading, source, neurons, segments, junctions, stimulations, grace_scene_sender);
-        });
+        // let id = ui.make_persistent_id("grace_source_header");
+        // egui::collapsing_header::CollapsingState::load_with_default_open(
+        //     ui.ctx(), id, false
+        // ).show_header(ui, |ui| {
+        //     ui.label("Source neuron")
+        // })
+        // .body(|ui| {
+        //     load::run_grace_load_widget(commands, interpreter_url, ui, is_loading, source, neurons, segments, junctions, stimulations, grace_scene_sender);
+        // });
 
         let id = ui.make_persistent_id("stimulator_header");
         egui::collapsing_header::CollapsingState::load_with_default_open(
@@ -73,7 +74,24 @@ pub fn run_gui(
         ).show_header(ui, |ui| {
             ui.label("Oscilloscope")
         })
-            .body( |ui| { oscilloscope.plot(ui); } );
+            .body( |ui| {
+                ui.horizontal( |h| {
+                   if h.add(egui::Button::new("1")).clicked() {
+                       *next_click = NextClickAction::SetVoltageSource(0);
+                   }
+                   if h.add(egui::Button::new("2")).clicked() {
+                       *next_click = NextClickAction::SetVoltageSource(1);
+                   }
+                   if h.add(egui::Button::new("3")).clicked() {
+                       *next_click = NextClickAction::SetVoltageSource(2);
+                   }
+                   if h.add(egui::Button::new("4")).clicked() {
+                       *next_click = NextClickAction::SetVoltageSource(3);
+                   }
+
+                } );
+                oscilloscope.plot(ui);
+            } );
 
         let id = ui.make_persistent_id("build_header");
         egui::collapsing_header::CollapsingState::load_with_default_open(
@@ -152,6 +170,18 @@ pub fn runtime_stats_header(
         });
 
 
+}
+
+#[derive(Resource)]
+pub enum NextClickAction {
+    ModifyStimulator,
+    SetVoltageSource(usize),
+}
+
+impl Default for NextClickAction {
+    fn default() -> Self {
+        NextClickAction::ModifyStimulator
+    }
 }
 
 pub fn test_stimulator(
