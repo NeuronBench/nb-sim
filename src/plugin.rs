@@ -19,6 +19,7 @@ use crate::neuron::segment::{Geometry, ecs::Segment, ecs::InputCurrent};
 use crate::neuron::solution::{Solution, INTERSTICIAL_FLUID};
 use crate::neuron::membrane::{Membrane, MembraneMaterials, MembraneVoltage};
 use crate::neuron::channel::{ca_reversal, cl_reversal, k_reversal, na_reversal};
+use crate::gui::oscilloscope::{Oscilloscope, step_oscilloscope_system, print_oscilloscope_system};
 
 pub struct NbSimPlugin;
 
@@ -26,6 +27,7 @@ impl Plugin for NbSimPlugin {
     fn build(&self, app: &mut App) {
             app.insert_resource(default_env())
             .insert_resource(Timestamp(0.0))
+            .init_resource::<Oscilloscope>()
             .insert_resource(Stimulator::default())
             .insert_resource(SimulationStepSeconds(5e-7))
             .init_resource::<MembraneMaterials>()
@@ -47,6 +49,9 @@ impl Plugin for NbSimPlugin {
             app
             .add_systems(Update, apply_voltage_to_materials)
             .add_systems(Update, apply_current_to_stimulator_material)
+
+            .add_systems(Update, step_oscilloscope_system)
+            // .add_systems(Update, print_oscilloscope_system)
 
             .add_systems(Update, print_voltages);
             gui::load::setup(app);

@@ -9,6 +9,7 @@ use crossbeam::channel::{Sender, Receiver};
 use std::collections::{HashMap, HashSet};
 
 use crate::dimension::{MilliVolts, Diameter, MicroAmpsPerSquareCm};
+use crate::gui::oscilloscope::Oscilloscope;
 use crate::neuron::Junction;
 use crate::neuron::membrane::{Membrane, MembraneVoltage, MembraneMaterials};
 use crate::neuron::solution::EXAMPLE_CYTOPLASM;
@@ -341,15 +342,18 @@ pub fn add_stimulation(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    mut oscilloscope: ResMut<Oscilloscope>,
     selections: Query<Entity, With<Selection>>,
     highlights: Query<Entity, With<Highlight>>,
     new_stimulators: Res<stimulator::Stimulator>,
     // selected_stimulators: Query<(&mut stimulator::Stimulator)>,
-    segments_query: Query<(&Segment, &GlobalTransform)>
+    // segments_query: Query<(&Segment, &GlobalTransform)>
+    segments_query: Query<(Entity, &Segment, &GlobalTransform)>
 ) -> Bubble {
     match segments_query.get(event.target) {
-        Ok((_, segment_transform)) => {
+        Ok((entity, _, segment_transform)) => {
 
+          oscilloscope.accept_source_if_available_slot(entity);
           commands.spawn(
               (stimulator::Stimulation { stimulation_segment: event.target },
                PbrBundle {

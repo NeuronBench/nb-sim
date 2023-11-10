@@ -1,5 +1,6 @@
 pub mod external_trigger;
 pub mod load;
+pub mod oscilloscope;
 
 use bevy::prelude::*;
 use bevy::diagnostic::{Diagnostics, FrameTimeDiagnosticsPlugin};
@@ -9,6 +10,7 @@ use bevy_egui::egui::Ui;
 use crate::neuron::Junction;
 use crate::dimension::{Timestamp, SimulationStepSeconds, Hz, MicroAmpsPerSquareCm, Interval};
 use crate::gui::load::InterpreterUrl;
+use crate::gui::oscilloscope::{Oscilloscope};
 use crate::constants::SIMULATION_STEPS_PER_FRAME;
 use crate::stimulator::{Stimulator, Stimulation, Envelope, CurrentShape};
 use crate::integrations::grace::{GraceSceneSender};
@@ -27,6 +29,7 @@ pub fn run_gui(
     mut new_stimulators: ResMut<Stimulator>,
     is_loading: ResMut<load::IsLoading>,
     source: ResMut<load::GraceSceneSource>,
+    oscilloscope: Res<Oscilloscope>,
     neurons: Query<(Entity, &Neuron)>,
     segments: Query<(Entity, &Segment)>,
     junctions: Query<(Entity, &Junction)>,
@@ -63,6 +66,14 @@ pub fn run_gui(
                 }
             }
         });
+
+        let id = ui.make_persistent_id("oscilloscope_header");
+        egui::collapsing_header::CollapsingState::load_with_default_open(
+            ui.ctx(), id, false
+        ).show_header(ui, |ui| {
+            ui.label("Oscilloscope")
+        })
+            .body( |ui| { oscilloscope.plot(ui); } );
 
         let id = ui.make_persistent_id("build_header");
         egui::collapsing_header::CollapsingState::load_with_default_open(
