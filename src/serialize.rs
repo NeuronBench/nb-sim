@@ -150,7 +150,7 @@ pub struct Magnitude {
 #[serde(tag="type")]
 pub enum TimeConstant {
     Instantaneous,
-    Sigmoid { v_at_max_tau_mv: f32, c_base: f32, c_amp: f32, sigma: f32 },
+    Gaussian { v_at_max_tau_mv: f32, c_base: f32, c_amp: f32, sigma: f32 },
     LinearExp { coef: f32, v_offset_mv: f32, inner_coef: f32 },
 }
 
@@ -195,7 +195,7 @@ pub struct BellFunc {
 
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Sigmoid {
+pub struct Gaussian {
     pub min_molar: f32,
     pub max_molar: f32,
     pub v_at_half_max_mv: f32,
@@ -205,7 +205,7 @@ pub struct Sigmoid {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TransmitterPumpParams {
-    pub target_concentration: Sigmoid,
+    pub target_concentration: Gaussian,
     pub time_constant: TimeConstant,
 }
 

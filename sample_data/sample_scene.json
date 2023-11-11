@@ -19,7 +19,7 @@
                                                    , "c_base": 5.0e-3
                                                    , "c_amp": 4.7e-2
                                                    , "sigma": 3.0e-2
-                                                   , "type": "Sigmoid"
+                                                   , "type": "Gaussian"
                                                    }
                                                }
                                            , "inactivation":
@@ -33,7 +33,7 @@
                                                    , "c_base": 0.36
                                                    , "c_amp": 0.1
                                                    , "sigma": 50.0
-                                                   , "type": "Sigmoid"
+                                                   , "type": "Gaussian"
                                                    }
                                                }
                                            }
@@ -150,7 +150,7 @@
                                                    , "c_base": 5.0e-3
                                                    , "c_amp": 4.7e-2
                                                    , "sigma": 3.0e-2
-                                                   , "type": "Sigmoid"
+                                                   , "type": "Gaussian"
                                                    }
                                                }
                                            , "inactivation":
@@ -164,7 +164,7 @@
                                                    , "c_base": 0.36
                                                    , "c_amp": 0.1
                                                    , "sigma": 50.0
-                                                   , "type": "Sigmoid"
+                                                   , "type": "Gaussian"
                                                    }
                                                }
                                            }
@@ -206,7 +206,7 @@
                                                    , "c_base": 1.0e-2
                                                    , "c_amp": 4.0e-2
                                                    , "sigma": 20.0
-                                                   , "type": "Sigmoid"
+                                                   , "type": "Gaussian"
                                                    }
                                                }
                                            }
@@ -279,7 +279,7 @@
                                                    , "c_base": 1.0e-2
                                                    , "c_amp": 4.0e-2
                                                    , "sigma": 20.0
-                                                   , "type": "Sigmoid"
+                                                   , "type": "Gaussian"
                                                    }
                                                }
                                            }
@@ -302,7 +302,7 @@
                                                    , "c_base": 5.0e-3
                                                    , "c_amp": 4.7e-2
                                                    , "sigma": 3.0e-2
-                                                   , "type": "Sigmoid"
+                                                   , "type": "Gaussian"
                                                    }
                                                }
                                            , "inactivation":
@@ -316,7 +316,7 @@
                                                    , "c_base": 0.36
                                                    , "c_amp": 0.1
                                                    , "sigma": 50.0
-                                                   , "type": "Sigmoid"
+                                                   , "type": "Gaussian"
                                                    }
                                                }
                                            }
@@ -389,7 +389,7 @@
                                                    , "c_base": 1.0e-2
                                                    , "c_amp": 4.0e-2
                                                    , "sigma": 20.0
-                                                   , "type": "Sigmoid"
+                                                   , "type": "Gaussian"
                                                    }
                                                }
                                            }
@@ -412,7 +412,7 @@
                                                    , "c_base": 5.0e-3
                                                    , "c_amp": 4.7e-2
                                                    , "sigma": 3.0e-2
-                                                   , "type": "Sigmoid"
+                                                   , "type": "Gaussian"
                                                    }
                                                }
                                            , "inactivation":
@@ -426,7 +426,7 @@
                                                    , "c_base": 0.36
                                                    , "c_amp": 0.1
                                                    , "sigma": 50.0
-                                                   , "type": "Sigmoid"
+                                                   , "type": "Gaussian"
                                                    }
                                                }
                                            }
@@ -4059,7 +4059,7 @@
                                                    , "c_base": 5.0e-3
                                                    , "c_amp": 4.7e-2
                                                    , "sigma": 3.0e-2
-                                                   , "type": "Sigmoid"
+                                                   , "type": "Gaussian"
                                                    }
                                                }
                                            , "inactivation":
@@ -4073,7 +4073,7 @@
                                                    , "c_base": 0.36
                                                    , "c_amp": 0.1
                                                    , "sigma": 50.0
-                                                   , "type": "Sigmoid"
+                                                   , "type": "Gaussian"
                                                    }
                                                }
                                            }
@@ -4190,7 +4190,7 @@
                                                    , "c_base": 5.0e-3
                                                    , "c_amp": 4.7e-2
                                                    , "sigma": 3.0e-2
-                                                   , "type": "Sigmoid"
+                                                   , "type": "Gaussian"
                                                    }
                                                }
                                            , "inactivation":
@@ -4204,7 +4204,7 @@
                                                    , "c_base": 0.36
                                                    , "c_amp": 0.1
                                                    , "sigma": 50.0
-                                                   , "type": "Sigmoid"
+                                                   , "type": "Gaussian"
                                                    }
                                                }
                                            }
@@ -4246,7 +4246,7 @@
                                                    , "c_base": 1.0e-2
                                                    , "c_amp": 4.0e-2
                                                    , "sigma": 20.0
-                                                   , "type": "Sigmoid"
+                                                   , "type": "Gaussian"
                                                    }
                                                }
                                            }
@@ -4319,7 +4319,7 @@
                                                    , "c_base": 1.0e-2
                                                    , "c_amp": 4.0e-2
                                                    , "sigma": 20.0
-                                                   , "type": "Sigmoid"
+                                                   , "type": "Gaussian"
                                                    }
                                                }
                                            }
@@ -4342,7 +4342,7 @@
                                                    , "c_base": 5.0e-3
                                                    , "c_amp": 4.7e-2
                                                    , "sigma": 3.0e-2
-                                                   , "type": "Sigmoid"
+                                                   , "type": "Gaussian"
                                                    }
                                                }
                                            , "inactivation":
@@ -4356,7 +4356,7 @@
                                                    , "c_base": 0.36
                                                    , "c_amp": 0.1
                                                    , "sigma": 50.0
-                                                   , "type": "Sigmoid"
+                                                   , "type": "Gaussian"
                                                    }
                                                }
                                            }
@@ -4429,7 +4429,7 @@
                                                    , "c_base": 1.0e-2
                                                    , "c_amp": 4.0e-2
                                                    , "sigma": 20.0
-                                                   , "type": "Sigmoid"
+                                                   , "type": "Gaussian"
                                                    }
                                                }
                                            }
@@ -4452,7 +4452,7 @@
                                                    , "c_base": 5.0e-3
                                                    , "c_amp": 4.7e-2
                                                    , "sigma": 3.0e-2
-                                                   , "type": "Sigmoid"
+                                                   , "type": "Gaussian"
                                                    }
                                                }
                                            , "inactivation":
@@ -4466,7 +4466,7 @@
                                                    , "c_base": 0.36
                                                    , "c_amp": 0.1
                                                    , "sigma": 50.0
-                                                   , "type": "Sigmoid"
+                                                   , "type": "Gaussian"
                                                    }
                                                }
                                            }
@@ -8090,7 +8090,7 @@
                                                      , "c_base": 1.0e-3
                                                      , "c_amp": 1.0e-6
                                                      , "sigma": 1.0
-                                                     , "type": "Sigmoid"
+                                                     , "type": "Gaussian"
                                                      }
                                                  }
                                              }
@@ -8147,7 +8147,7 @@
                                                      , "c_base": 1.0e-3
                                                      , "c_amp": 1.0e-6
                                                      , "sigma": 1.0
-                                                     , "type": "Sigmoid"
+                                                     , "type": "Gaussian"
                                                      }
                                                  }
                                              }
