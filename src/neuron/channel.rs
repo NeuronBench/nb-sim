@@ -272,8 +272,8 @@ impl GateState {
             },
             time_constant: match self.parameters.time_constant.clone() {
                 TimeConstant::Instantaneous => serialize::TimeConstant::Instantaneous,
-                TimeConstant::Sigmoid { v_at_max_tau, c_base, c_amp, sigma } =>
-                    serialize::TimeConstant::Sigmoid {
+                TimeConstant::Gaussian { v_at_max_tau, c_base, c_amp, sigma } =>
+                    serialize::TimeConstant::Gaussian {
                         v_at_max_tau_mv: v_at_max_tau.0,
                         c_base, c_amp, sigma
                     },
@@ -297,8 +297,8 @@ impl GateState {
             },
             time_constant: match ps.time_constant {
                 serialize::TimeConstant::Instantaneous => TimeConstant::Instantaneous,
-                serialize::TimeConstant::Sigmoid { v_at_max_tau_mv, c_base, c_amp, sigma } =>
-                    TimeConstant::Sigmoid {
+                serialize::TimeConstant::Gaussian { v_at_max_tau_mv, c_base, c_amp, sigma } =>
+                    TimeConstant::Gaussian {
                         v_at_max_tau: MilliVolts(v_at_max_tau_mv),
                         c_base,
                         c_amp,
@@ -341,14 +341,14 @@ impl Magnitude {
 #[derive(Clone, Debug)]
 pub enum TimeConstant {
     Instantaneous,
-    Sigmoid { v_at_max_tau: MilliVolts, c_base: f32, c_amp: f32, sigma: f32 },
+    Gaussian { v_at_max_tau: MilliVolts, c_base: f32, c_amp: f32, sigma: f32 },
     LinearExp { coef: f32, v_offset: MilliVolts, inner_coef: f32 },
 }
 
 impl TimeConstant {
     pub fn tau(&self, v: &MilliVolts) -> Option<f32> {
         match self {
-            TimeConstant::Sigmoid { v_at_max_tau, c_base, c_amp, sigma } => {
+            TimeConstant::Gaussian { v_at_max_tau, c_base, c_amp, sigma } => {
                 let numerator = -1.0 * (v_at_max_tau.0 - v.0).powi(2);
                 let denominator = sigma.powi(2);
                 let tau = c_base + c_amp * (numerator / denominator).exp();
@@ -403,7 +403,7 @@ pub mod common_channels {
                     v_at_half_max: MilliVolts(-3.0),
                     slope: 10.0,
                 },
-                time_constant: TimeConstant::Sigmoid {
+                time_constant: TimeConstant::Gaussian {
                     v_at_max_tau: MilliVolts(-50.0),
                     c_base: 0.005,
                     c_amp: 0.047,
@@ -416,7 +416,7 @@ pub mod common_channels {
                     v_at_half_max: MilliVolts(-51.0),
                     slope: -12.0,
                 },
-                time_constant: TimeConstant::Sigmoid {
+                time_constant: TimeConstant::Gaussian {
                     v_at_max_tau: MilliVolts(-50.0),
                     c_base: 0.360,
                     c_amp: 0.1000,
@@ -445,7 +445,7 @@ pub mod common_channels {
                     v_at_half_max: MilliVolts(-90.0),
                     slope: -8.5,
                 },
-                time_constant: TimeConstant::Sigmoid {
+                time_constant: TimeConstant::Gaussian {
                     v_at_max_tau: MilliVolts(-75.0),
                     c_base: 10e-3,
                     c_amp: 40e-3,
@@ -468,7 +468,7 @@ pub mod common_channels {
                     v_at_half_max: MilliVolts(-82.0),
                     slope: -9.0,
                 },
-                time_constant: TimeConstant::Sigmoid {
+                time_constant: TimeConstant::Gaussian {
                     v_at_max_tau: MilliVolts(-75.0),
                     c_base: 10e-3,
                     c_amp: 50e-3,
@@ -492,7 +492,7 @@ pub mod common_channels {
                     v_at_half_max: MilliVolts(-40.0),
                     slope: 15.0,
                 },
-                time_constant: TimeConstant::Sigmoid {
+                time_constant: TimeConstant::Gaussian {
                     v_at_max_tau: MilliVolts(-38.0),
                     c_base: 0.04e-3,
                     c_amp: 0.46e-3,
@@ -505,7 +505,7 @@ pub mod common_channels {
                     v_at_half_max: MilliVolts(-62.0),
                     slope: -7.0,
                 },
-                time_constant: TimeConstant::Sigmoid {
+                time_constant: TimeConstant::Gaussian {
                     v_at_max_tau: MilliVolts(-67.0),
                     c_base: 0.0012, // TODO are these right?
                     c_amp: 0.0074,
@@ -523,7 +523,7 @@ pub mod common_channels {
                     v_at_half_max: MilliVolts(-53.0),
                     slope: 15.0,
                 },
-                time_constant: TimeConstant::Sigmoid {
+                time_constant: TimeConstant::Gaussian {
                     v_at_max_tau: MilliVolts(-79.0),
                     c_base: 1.1e-3,
                     c_amp: 4.7e-3,
@@ -543,7 +543,7 @@ pub mod common_channels {
                     v_at_half_max: MilliVolts(0.0),
                     slope: 15.0
                 },
-                time_constant: TimeConstant::Sigmoid {
+                time_constant: TimeConstant::Gaussian {
                     v_at_max_tau: MilliVolts(0.0),
                     c_base: 0.04e-3,
                     c_amp: 0.5e-3,

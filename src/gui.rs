@@ -30,7 +30,7 @@ pub fn run_gui(
     mut new_stimulators: ResMut<Stimulator>,
     is_loading: ResMut<load::IsLoading>,
     // source: ResMut<load::GraceSceneSource>,
-    oscilloscope: Res<Oscilloscope>,
+    mut oscilloscope: ResMut<Oscilloscope>,
     neurons: Query<(Entity, &Neuron)>,
     segments: Query<(Entity, &Segment)>,
     junctions: Query<(Entity, &Junction)>,

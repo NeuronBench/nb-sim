@@ -313,14 +313,14 @@ pub struct TransmitterPumpParams {
 impl TransmitterPumpParams {
     pub fn serialize(&self) -> serialize::TransmitterPumpParams {
         serialize::TransmitterPumpParams {
-            target_concentration: serialize::Sigmoid {
+            target_concentration: serialize::Gaussian {
                 max_molar: self.target_concentration_max.0,
                 min_molar: self.target_concentration_min.0,
                 v_at_half_max_mv: self.target_concentration_v_at_half_max.0,
                 slope: self.target_concentration_v_slope,
                 // log_space: false,
             },
-            time_constant: serialize::TimeConstant::Sigmoid {
+            time_constant: serialize::TimeConstant::Gaussian {
                 c_base: self.time_constant_c_base,
                 c_amp: self.time_constant_c_amp,
                 v_at_max_tau_mv: self.time_constant_v_at_max_tau.0,
@@ -331,8 +331,8 @@ impl TransmitterPumpParams {
 
     pub fn deserialize(s: &serialize::TransmitterPumpParams) -> Result<Self, String> {
         let (v_at_max_tau_mv, c_base, c_amp, sigma) = match s.time_constant {
-            serialize::TimeConstant::Sigmoid{v_at_max_tau_mv, c_base, c_amp, sigma} => (v_at_max_tau_mv, c_base, c_amp, sigma),
-            _ => panic!("TODO: FIXME: Only sigmoid time constants are supported in synapses"),
+            serialize::TimeConstant::Gaussian{v_at_max_tau_mv, c_base, c_amp, sigma} => (v_at_max_tau_mv, c_base, c_amp, sigma),
+            _ => panic!("TODO: FIXME: Only Gaussian time constants are supported in synapses"),
         };
         Ok(TransmitterPumpParams {
             target_concentration_max: Molar(s.target_concentration.max_molar),
