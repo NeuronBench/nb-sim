@@ -9,7 +9,7 @@ use crate::neuron::segment::{ecs::Segment};
 use crate::neuron::membrane::MembraneVoltage;
 
 const N_SOURCES: usize = 4;
-const N_SAMPLES: usize = 10000;
+const N_SAMPLES: usize = 2000;
 
 #[derive(Debug, Resource)]
 pub struct Oscilloscope {
