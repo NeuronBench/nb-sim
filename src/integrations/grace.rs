@@ -284,7 +284,7 @@ pub fn spawn_neuron(
                      },
                      PickableBundle::default(),
                      RaycastPickTarget::default(),
-                     OnPointer::<Click>::run_callback(delete_stimulations),
+                     OnPointer::<Click>::run_callback(handle_click_stimulator),
                     )
                 );
                 commands.entity(*entity).insert(stim);
@@ -348,8 +348,6 @@ pub fn add_stimulation(
     selections: Query<Entity, With<Selection>>,
     highlights: Query<Entity, With<Highlight>>,
     new_stimulators: Res<stimulator::Stimulator>,
-    // selected_stimulators: Query<(&mut stimulator::Stimulator)>,
-    // segments_query: Query<(&Segment, &GlobalTransform)>
     segments_query: Query<(Entity, &Segment, &GlobalTransform)>
 ) -> Bubble {
     match segments_query.get(event.target) {

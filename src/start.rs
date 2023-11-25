@@ -52,7 +52,6 @@ pub fn start(
         .add_plugin(ExternalTriggerPlugin)
         .add_systems(Update, bevy::window::close_on_esc)
         .add_systems(Startup, setup_scene)
-        // .add_startup_system(setup_swc_neuron)
         .insert_resource(InterpreterUrl(interpreter_url))
         .insert_resource(ClearColor(Color::hex("#0e0e1f").expect("valid hex")))
         .add_systems(Update, pan_orbit_camera.run_if(pan_orbit_condition))
