@@ -236,14 +236,14 @@ impl Stimulator {
         match &mut current_shape {
             CurrentShape::SquareWave {ref mut on_current, ref mut off_current} => {
 
-                ui.add(egui::Slider::from_get_set(-100.0..=100.0, move |v: Option<f64>| {
+                ui.add(egui::Slider::from_get_set(-500.0..=500.0, move |v: Option<f64>| {
                     if let Some(v) = v {
                         on_current.0 = v as f32;
                     }
                     on_current.0 as f64
                 }).logarithmic(false).text("Onset Current (uAmps)"));
 
-                ui.add(egui::Slider::from_get_set(-100.0..=100.0, move |v: Option<f64>| {
+                ui.add(egui::Slider::from_get_set(-500.0..=500.0, move |v: Option<f64>| {
                     if let Some(v) = v {
                         off_current.0 = v as f32;
                     }
@@ -255,21 +255,21 @@ impl Stimulator {
             CurrentShape::LinearRamp { ref mut start_current, ref mut end_current, ref mut off_current
             } => {
 
-                ui.add(egui::Slider::from_get_set(-100.0..=100.0, move |v: Option<f64>| {
+                ui.add(egui::Slider::from_get_set(-500.0..=500.0, move |v: Option<f64>| {
                     if let Some(v) = v {
                         start_current.0 = v as f32;
                     }
                     start_current.0 as f64
                 }).logarithmic(false).text("Start Current (uAmps)"));
 
-                ui.add(egui::Slider::from_get_set(-100.0..=100.0, move |v: Option<f64>| {
+                ui.add(egui::Slider::from_get_set(-500.0..=500.0, move |v: Option<f64>| {
                     if let Some(v) = v {
                         end_current.0 = v as f32;
                     }
                     end_current.0 as f64
                 }).logarithmic(false).text("End Current (uAmps)"));
 
-                ui.add(egui::Slider::from_get_set(-100.0..=100.0, move |v: Option<f64>| {
+                ui.add(egui::Slider::from_get_set(-500.0..=500.0, move |v: Option<f64>| {
                     if let Some(v) = v {
                         off_current.0 = v as f32;
                     }
@@ -289,7 +289,7 @@ impl Stimulator {
                     on_amplitude.0 as f64
                 }).logarithmic(false).text("Amplitude (uAmps)"));
 
-                ui.add(egui::Slider::from_get_set(-100.0..=100.0, move |v: Option<f64>| {
+                ui.add(egui::Slider::from_get_set(-500.0..=500.0, move |v: Option<f64>| {
                     if let Some(v) = v {
                         offset_current.0 = v as f32;
                     }

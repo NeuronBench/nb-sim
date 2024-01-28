@@ -158,7 +158,7 @@ pub fn runtime_stats_header(
 
             // ui.add(egui::Slider::new(&mut simulation_step.0, 0.00001..=0.00010).logarithmic().text("Simulation step"));
             ui.add(egui::Slider::from_get_set(
-                1.0..=10.0, move |v: Option<f64>| {
+                1.0..=100.0, move |v: Option<f64>| {
                     if let Some(v) = v {
                         simulation_step.0 = v as f32 * 0.0000001;
                     }

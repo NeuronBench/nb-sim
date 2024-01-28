@@ -258,7 +258,7 @@ impl GateState {
             None => {self.magnitude = v_inf;},
             Some(tau) => {
                 let df_dt = (v_inf - self.magnitude) / tau;
-                self.magnitude = self.magnitude + df_dt * interval.0;
+                self.magnitude = (self.magnitude + df_dt * interval.0).clamp(-1.0, 1.0);
             }
         }
     }

@@ -82,6 +82,7 @@ fn step_biophysics(
   junctions_query: Query<&Junction>,
   mut synapses_query: Query<&mut Synapse>
 ){
+    for i in 0..1 {
     for (_,
          solution,
          geometry,
@@ -200,6 +201,8 @@ fn step_biophysics(
     // ***************************************
     timestamp.0 += simulation_step.0;
 
+
+    }
 }
 
 #[derive(Bundle)]

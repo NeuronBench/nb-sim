@@ -36,6 +36,7 @@ pub fn start(
  app
     .add_plugins(DefaultPlugins.set(WindowPlugin {
       primary_window: Some(Window {
+        title: "".to_string(),
         fit_canvas_to_parent: true,
         canvas: Some("#bevy".to_string()),
         ..default()
