@@ -3,7 +3,8 @@ use bevy_egui::egui::Ui;
 use bevy_egui::egui::Color32;
 use bevy_egui::egui::widgets::plot::{Plot, Line, PlotPoints};
 
-use crate::gui::{NextClickAction, SimulationStepSeconds, SIMULATION_STEPS_PER_FRAME};
+use crate::gui::{NextClickAction, SimulationStepSeconds};
+use crate::dimension::StepsPerFrame;
 
 use crate::neuron::segment::{ecs::Segment};
 use crate::neuron::membrane::MembraneVoltage;
@@ -88,6 +89,7 @@ impl Default for Oscilloscope {
 pub fn step_oscilloscope_system(
     simulation_step_seconds: Res<SimulationStepSeconds>,
     mut oscilloscope: ResMut<Oscilloscope>,
+    steps_per_frame: Res<StepsPerFrame>,
     membrane_voltages: Query<&MembraneVoltage>
 ) {
     if simulation_step_seconds.0 != oscilloscope.last_known_simulation_step_seconds.0 {
@@ -95,7 +97,7 @@ pub fn step_oscilloscope_system(
         oscilloscope.write_offset = 0;
         oscilloscope.buffers = [ [0.0; N_SAMPLES]; N_SOURCES ];
         for i in 0..N_SAMPLES {
-            oscilloscope.times[i] = (i as f32) * simulation_step_seconds.0 * SIMULATION_STEPS_PER_FRAME as f32;
+            oscilloscope.times[i] = (i as f32) * simulation_step_seconds.0 * steps_per_frame.0 as f32;
         }
     }
     let sources = oscilloscope.sources.clone();

@@ -7,7 +7,8 @@ use crate::dimension::{
     Interval,
     Kelvin,
     Timestamp,
-    SimulationStepSeconds
+    SimulationStepSeconds,
+    StepsPerFrame,
 };
 use crate::constants::{BODY_TEMPERATURE, CONDUCTANCE_PER_SQUARE_CM, SIMULATION_STEPS_PER_FRAME};
 use crate::stimulator::{StimulatorMaterials, Stimulator, Stimulation};
@@ -27,6 +28,7 @@ impl Plugin for NbSimPlugin {
     fn build(&self, app: &mut App) {
             app.insert_resource(default_env())
             .insert_resource(Timestamp(0.0))
+            .insert_resource(StepsPerFrame(100))
             .init_resource::<gui::NextClickAction>()
             .init_resource::<Oscilloscope>()
             .insert_resource(Stimulator::default())
@@ -37,15 +39,7 @@ impl Plugin for NbSimPlugin {
                 timer: Timer::new(Duration::from_millis(2000), TimerMode::Repeating)
             });
 
-            // Because the Bevy frame rate is limited by winit to about 300,
-            // if we want to take more than 300 biophysics steps per second,
-            // (at 10us steps, this would be 1/333 of realtime), we have to
-            // apply the biophysics system multiple times per bevy frame.
-            // These 40 repetitions bring us up to nearly 1/10th realtime.
-            // TODO, find out how to pass a query to a for loop.
-            for _ in 0..SIMULATION_STEPS_PER_FRAME {
-              app.add_systems(Update, step_biophysics);
-            }
+            app.add_systems(Update, step_biophysics);
 
             app
             .add_systems(Update, apply_voltage_to_materials)
@@ -70,6 +64,7 @@ fn step_biophysics(
   env: Res<Env>,
   simulation_step: Res<SimulationStepSeconds>,
   mut timestamp: ResMut<Timestamp>,
+  steps_per_frame: Res<StepsPerFrame>,
   mut segments_query: Query<
           (&Segment,
            &Solution,
@@ -82,7 +77,7 @@ fn step_biophysics(
   junctions_query: Query<&Junction>,
   mut synapses_query: Query<&mut Synapse>
 ){
-    for i in 0..1 {
+    for _ in 0..steps_per_frame.0 {
     for (_,
          solution,
          geometry,

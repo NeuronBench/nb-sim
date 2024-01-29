@@ -8,10 +8,16 @@ use bevy_egui::{egui, EguiContexts};
 use bevy_egui::egui::Ui;
 
 use crate::neuron::Junction;
-use crate::dimension::{Timestamp, SimulationStepSeconds, Hz, MicroAmpsPerSquareCm, Interval};
+use crate::dimension::{
+    Timestamp,
+    StepsPerFrame,
+    SimulationStepSeconds,
+    Hz,
+    MicroAmpsPerSquareCm,
+    Interval
+};
 use crate::gui::load::InterpreterUrl;
 use crate::gui::oscilloscope::{Oscilloscope};
-use crate::constants::SIMULATION_STEPS_PER_FRAME;
 use crate::stimulator::{Stimulator, Stimulation, Envelope, CurrentShape};
 use crate::integrations::grace::{GraceSceneSender};
 use crate::neuron::ecs::Neuron;
@@ -26,30 +32,21 @@ pub fn run_gui(
     diagnostics: ResMut<Diagnostics>,
     timestamp: Res<Timestamp>,
     simulation_step: ResMut<SimulationStepSeconds>,
+    steps_per_frame: ResMut<StepsPerFrame>,
     mut next_click: ResMut<NextClickAction>,
     mut new_stimulators: ResMut<Stimulator>,
     is_loading: ResMut<load::IsLoading>,
     // source: ResMut<load::GraceSceneSource>,
     mut oscilloscope: ResMut<Oscilloscope>,
-    neurons: Query<(Entity, &Neuron)>,
-    segments: Query<(Entity, &Segment)>,
-    junctions: Query<(Entity, &Junction)>,
-    stimulations: Query<(Entity, &Stimulation)>,
+    // neurons: Query<(Entity, &Neuron)>,
+    // segments: Query<(Entity, &Segment)>,
+    // junctions: Query<(Entity, &Junction)>,
+    // stimulations: Query<(Entity, &Stimulation)>,
     mut selected_stimulators: Query<&mut Stimulator, With<Selection>>,
     grace_scene_sender: Res<GraceSceneSender>,
 ) {
     egui::Window::new("NeuronBench").show(contexts.ctx_mut(), |ui| {
-        runtime_stats_header(ui, diagnostics, timestamp, simulation_step);
-
-        // let id = ui.make_persistent_id("grace_source_header");
-        // egui::collapsing_header::CollapsingState::load_with_default_open(
-        //     ui.ctx(), id, false
-        // ).show_header(ui, |ui| {
-        //     ui.label("Source neuron")
-        // })
-        // .body(|ui| {
-        //     load::run_grace_load_widget(commands, interpreter_url, ui, is_loading, source, neurons, segments, junctions, stimulations, grace_scene_sender);
-        // });
+        runtime_stats_header(ui, diagnostics, timestamp, steps_per_frame, simulation_step);
 
         let id = ui.make_persistent_id("stimulator_header");
         egui::collapsing_header::CollapsingState::load_with_default_open(
@@ -115,6 +112,7 @@ pub fn runtime_stats_header(
     ui: &mut Ui,
     diagnostics: ResMut<Diagnostics>,
     timestamp: Res<Timestamp>,
+    mut steps_per_frame: ResMut<StepsPerFrame>,
     mut simulation_step: ResMut<SimulationStepSeconds>,
 ) {
 
@@ -143,12 +141,13 @@ pub fn runtime_stats_header(
               ui.label(fps_str);
             });
 
+            let spf = steps_per_frame.0.clone();
             let realtime_frac_str = fps_avg
                 .map_or(
                     "unknown".to_string(),
                     |v| format!(
                         "{:.4}",
-                        v as f32 * simulation_step.0 * SIMULATION_STEPS_PER_FRAME as f32
+                        v as f32 * simulation_step.0 * spf as f32
                     )
                 );
             ui.horizontal(|ui| {
@@ -156,7 +155,6 @@ pub fn runtime_stats_header(
               ui.label(realtime_frac_str);
             });
 
-            // ui.add(egui::Slider::new(&mut simulation_step.0, 0.00001..=0.00010).logarithmic().text("Simulation step"));
             ui.add(egui::Slider::from_get_set(
                 1.0..=100.0, move |v: Option<f64>| {
                     if let Some(v) = v {
@@ -165,6 +163,13 @@ pub fn runtime_stats_header(
                     (simulation_step.0 * 10000000.0) as f64
                 }).logarithmic(false).text("Simulation step (microseconds)"));
 
+            ui.add(egui::Slider::from_get_set(
+                1.0..=500.0, move |v: Option<f64>| {
+                    if let Some(v) = v {
+                        steps_per_frame.0 = v as usize;
+                    }
+                    (steps_per_frame.0) as f64
+                }).logarithmic(false).text("Steps per frame"));
 
 
         });

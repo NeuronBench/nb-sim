@@ -28,6 +28,9 @@ impl P3 {
 #[derive(Debug, Clone, Resource)]
 pub struct Timestamp(pub f32);
 
+#[derive(Debug, Clone, Resource)]
+pub struct StepsPerFrame(pub usize);
+
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub struct Interval(pub f32);
 
