@@ -67,7 +67,6 @@
           rust
           pkgs.curl
           pkgs.autoconf
-          pkgs.pkgconfig
           pkgs.pkg-config
           pkgs.openssl
           pkgs.binaryen
@@ -124,7 +123,7 @@
           wasm-bindgen-cli
           rust
           pkgs.autoconf
-          pkgs.pkgconfig
+          pkgs.pkg-config
           pkgs.openssl
           pkgs.sass
           pkgs.binaryen

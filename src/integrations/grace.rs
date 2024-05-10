@@ -1,6 +1,7 @@
 use bevy::prelude::*;
+use bevy::math::prelude::{Cylinder, Sphere};
 use bevy_mod_picking::{
-    prelude::{RaycastPickTarget,ListenedEvent,Bubble, OnPointer},
+    prelude::{Listener, On, Pointer},
     PickableBundle,
     events::{Click}
 };
@@ -147,7 +148,8 @@ pub fn spawn_neuron(
             Transform::from_translation(soma_location_cm),
             GlobalTransform::default(),
             Visibility::default(),
-            ComputedVisibility::default(),
+            InheritedVisibility::default(),
+            ViewVisibility::default(),
         )).id();
 
     // Spawn segments.
@@ -173,17 +175,13 @@ pub fn spawn_neuron(
         let length_screen = length_cm * 10000.0 * microns_to_screen;
         let radius_cm = r * 0.0001;
         let radius_screen = radius_cm * 10000.0 * microns_to_screen;
-        let shape = match segment.type_ {
-            1 => shape::UVSphere {
+        let shape : Mesh = match segment.type_ {
+            1 => Sphere {
                 radius: length_screen * 0.5,
-                sectors: 12,
-                stacks: 12,
             }.into(),
-            _ => shape::Cylinder {
+            _ => Cylinder {
                         radius: radius_screen * 5.0,
-                        height: length_screen,
-                        resolution: 12,
-                        segments:4,
+                        half_height: length_screen * 0.5,
                     }.into(),
         };
 
@@ -238,8 +236,7 @@ pub fn spawn_neuron(
                     ..default()
                 },
                 PickableBundle::default(),
-                RaycastPickTarget::default(),
-                OnPointer::<Click>::run_callback(add_stimulation),
+                On::<Pointer<Click>>::run( add_stimulation ),
             )
         ).id();
         commands.entity(neuron_entity).push_children(&[segment_entity]);
@@ -273,18 +270,15 @@ pub fn spawn_neuron(
                 commands.spawn(
                     (stimulator::Stimulation { stimulation_segment: entity.clone() },
                      PbrBundle {
-                        mesh: meshes.add(shape::UVSphere{
+                        mesh: meshes.add(Sphere{
                             radius: 7.5,
-                            sectors: 20,
-                            stacks: 20
-                        }.into()),
-                        material: materials.add(Color::rgb(0.5,0.5,0.5).into()),
+                        }),
+                        material: materials.add(Color::rgb(0.5,0.5,0.5)),
                         transform: Transform::from_translation(transform.translation),
                         ..default()
                      },
                      PickableBundle::default(),
-                     RaycastPickTarget::default(),
-                     OnPointer::<Click>::run_callback(handle_click_stimulator),
+                     On::<Pointer::<Click>>::run(handle_click_stimulator),
                     )
                 );
                 commands.entity(*entity).insert(stim);
@@ -339,7 +333,7 @@ pub fn spawn_synapse(
 }
 
 pub fn add_stimulation(
-    In(event): In<ListenedEvent<Click>>,
+    event: Listener<Pointer<Click>>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
@@ -349,7 +343,7 @@ pub fn add_stimulation(
     highlights: Query<Entity, With<Highlight>>,
     new_stimulators: Res<stimulator::Stimulator>,
     segments_query: Query<(Entity, &Segment, &GlobalTransform)>
-) -> Bubble {
+) {
     match segments_query.get(event.target) {
         Ok((entity, _, segment_transform)) => {
 
@@ -362,14 +356,13 @@ pub fn add_stimulation(
                 commands.spawn(
                     (stimulator::Stimulation { stimulation_segment: event.target },
                     PbrBundle {
-                        mesh: meshes.add(shape::UVSphere{ radius: 7.5, sectors: 20, stacks: 20 }.into()),
-                        material: materials.add(Color::rgb(0.5,0.5,0.5).into()),
+                        mesh: meshes.add(Sphere{ radius: 7.5 }),
+                        material: materials.add(Color::rgb(0.5,0.5,0.5)),
                         transform: Transform::from_translation(segment_transform.translation()),
                         ..default()
                     },
                     PickableBundle::default(),
-                    RaycastPickTarget::default(),
-                    OnPointer::<Click>::run_callback(handle_click_stimulator),
+                    On::<Pointer::<Click>>::run(handle_click_stimulator),
                     )
                 );
                 eprintln!("Inserting stimulator into entity {}", event.target.to_bits());
@@ -382,7 +375,6 @@ pub fn add_stimulation(
           eprintln!("No segment found for clicked entity.");
       },
     }
-    Bubble::Up
 }
 
 pub fn select_stimulator(
@@ -392,17 +384,16 @@ pub fn select_stimulator(
     highlights: Query<Entity, With<Highlight>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-) -> Bubble {
+) {
     deselect_all(&mut commands, &selections, &highlights);
     spawn_highlight(&mut commands, &mut meshes, &mut materials, segment_entity.clone());
     commands.entity(segment_entity).insert(Selection);
     eprintln!("inserting Selection into entity {}", segment_entity.to_bits());
     commands.entity(segment_entity).insert(Selection);
-    Bubble::Up
 }
 
 pub fn handle_click_stimulator(
-    In(event): In<ListenedEvent<Click>>,
+    event: Listener<Pointer<Click>>,
     commands: Commands,
     mut stimulations_query: Query<&stimulator::Stimulation>,
     segments_query: Query<(&Segment, Entity, &stimulator::Stimulator)>,
@@ -410,7 +401,7 @@ pub fn handle_click_stimulator(
     highlights: Query<Entity, With<Highlight>>,
     meshes: ResMut<Assets<Mesh>>,
     materials: ResMut<Assets<StandardMaterial>>,
-) -> Bubble {
+) {
     if let Ok(stimulator::Stimulation { stimulation_segment }) = stimulations_query.get_mut(event.target) {
         let results = segments_query.get(stimulation_segment.clone());
         match results {
@@ -430,15 +421,14 @@ pub fn handle_click_stimulator(
             }
         }
     }
-    Bubble::Up
 }
 
 pub fn delete_stimulations(
-    In(event): In<ListenedEvent<Click>>,
+    In(event): In<Pointer<Click>>,
     mut commands: Commands,
     mut stimulations_query: Query<&stimulator::Stimulation>,
     segments_query: Query<(&Segment, Entity, &stimulator::Stimulator)>,
-) -> Bubble {
+) {
   if let Ok(stimulator::Stimulation { stimulation_segment }) = stimulations_query.get_mut(event.target) {
 
       // Remove stimulation from the segment.
@@ -455,7 +445,6 @@ pub fn delete_stimulations(
       // Despawn the stimulator.
       commands.entity(event.target).despawn();
   }
-  Bubble::Up
 }
 
 

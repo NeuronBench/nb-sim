@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use bevy_mod_picking::{
-    prelude::{RaycastPickTarget},
+    prelude::*,
     PickableBundle,
 };
 
@@ -20,7 +20,7 @@ pub fn spawn_highlight(
     let highlight_entity = commands.spawn((
         Highlight,
         PbrBundle {
-            mesh: meshes.add(shape::UVSphere { radius: 8.5, sectors: 20, stacks: 20 }.into()),
+            mesh: meshes.add(Sphere { radius: 8.5}),
             material: materials.add(StandardMaterial {
                 base_color: Color::rgba(1.0,1.0,1.0,0.5),
                 ..default()
@@ -29,7 +29,6 @@ pub fn spawn_highlight(
             ..default()
         },
         PickableBundle::default(),
-        RaycastPickTarget::default(),
         // OnPointer::<Click>::run_callback(deselect_all),
     )).id();
     commands.entity(selected_entity).push_children(&[highlight_entity]);

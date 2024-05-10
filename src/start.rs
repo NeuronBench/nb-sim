@@ -4,6 +4,7 @@ use bevy::diagnostic::{LogDiagnosticsPlugin, FrameTimeDiagnosticsPlugin};
 use bevy::pbr::CascadeShadowConfigBuilder;
 use bevy_egui::{EguiPlugin, EguiContext};
 use bevy_mod_picking::prelude::*;
+use bevy_panorbit_camera::{PanOrbitCameraPlugin, PanOrbitCamera};
 // use bevy_mod_picking::{
 //     // DebugCursorPickingPlugin, DebugEventsPickingPlugin, DefaultPickingPlugins,
 //     PickableBundle,
@@ -17,7 +18,7 @@ use crate::gui::run_gui;
 use crate::gui::load::{handle_loaded_neuron, GraceSceneSource, InterpreterUrl};
 use crate::integrations::grace::{self, GraceScene};
 use crate::neuron::membrane::MembraneMaterials;
-use crate::pan_orbit_camera::{PanOrbitCamera, pan_orbit_camera};
+// use bevy_panorbit_camera::{PanOrbitCamera, pan_orbit_camera};
 use crate::selection::{Selection, Highlight};
 use crate::gui::external_trigger::ExternalTriggerPlugin;
 
@@ -37,25 +38,24 @@ pub fn start(
     .add_plugins(DefaultPlugins.set(WindowPlugin {
       primary_window: Some(Window {
         title: "".to_string(),
-        fit_canvas_to_parent: true,
         canvas: Some("#bevy".to_string()),
         ..default()
       }),
       ..default()
     }))
-        .add_plugin(EguiPlugin)
-        .add_plugin(LogDiagnosticsPlugin::default())
-        .add_plugin(FrameTimeDiagnosticsPlugin::default())
+        .add_plugins(EguiPlugin)
+        .add_plugins(LogDiagnosticsPlugin::default())
+        .add_plugins(FrameTimeDiagnosticsPlugin::default())
         .add_plugins(DefaultPickingPlugins.build().disable::<DebugPickingPlugin>())
         // .add_plugin(DebugCursorPickingPlugin)
         // .add_plugin(DebugEventsPickingPlugin)
-        .add_plugin(NbSimPlugin)
-        .add_plugin(ExternalTriggerPlugin)
+        .add_plugins(NbSimPlugin)
+        .add_plugins(ExternalTriggerPlugin)
+        .add_plugins(PanOrbitCameraPlugin)
         .add_systems(Update, bevy::window::close_on_esc)
         .add_systems(Startup, setup_scene)
         .insert_resource(InterpreterUrl(interpreter_url))
         .insert_resource(ClearColor(Color::hex("#0e0e1f").expect("valid hex")))
-        .add_systems(Update, pan_orbit_camera.run_if(pan_orbit_condition))
         .add_systems(Update, run_gui)
         .add_systems(Update, handle_loaded_neuron);
 
@@ -135,12 +135,9 @@ fn setup_scene(
          MyCamera,
 
          BloomSettings::default(),
-         RaycastPickCamera::default(),
+         PanOrbitCamera::default(),  // Set radius to camera_radius
+         // RaycastPickCamera::default(),
 
-         PanOrbitCamera {
-             radius: camera_radius,
-             ..default()
-         }
         ));
 
 }

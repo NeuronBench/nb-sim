@@ -17,24 +17,20 @@ path = "src/bin/bevy.rs"
 once_cell = "^1.18"
 wasm-bindgen = "0.2.86"
 csv = "^1.1.6"
-bevy = { git = "https://github.com/bevyengine/bevy" }
-bevy_egui = "^0.20.2"
-bevy_mod_picking = "^0.13"
+bevy = "^0.13.2"
+bevy_egui = "^0.27"
+bevy_mod_picking = "^0.18.2"
 crossbeam = { version = "^0.8", features = ["crossbeam-channel"] }
-ehttp = "^0.2.0"
+ehttp = "^0.5"
 querystring = "^1.1"
 serde = { version = "1.0.158", features=["serde_derive"]}
 serde_json = "1.0.94"
 uuid = {version = "1.3.0", features =["wasm-bindgen", "v3","v4","serde", "js"]}
 web-sys = { version = "^0.3", features=["Location", "Window", "Document", "Element", "HtmlTextAreaElement"] }
 wgpu = { version = "^0.15", features=["webgl"]}
+bevy_panorbit_camera = { version = "0.18.0", features = ["bevy_egui"] }
+egui_plot = "0.27.2"
 
 
 [build-dependencies]
 vergen = { version = "^8.1", features = [ "build", "git", "gitcl" ] }
-
-[patch.crates-io]
-bevy = { git = 'https://github.com/bevyengine/bevy.git' }
-bevy_mod_picking = { git = 'https://github.com/imalsogreg/bevy_mod_picking', branch = 'bevy-0.11-compatibility' }
-bevy_mod_raycast = { git = 'https://github.com/coreh/bevy_mod_raycast', branch = 'bevy-0.11-compatibility' }
-bevy_egui = { git = 'https://github.com/imalsogreg/bevy_egui', branch = 'bevy-main' }

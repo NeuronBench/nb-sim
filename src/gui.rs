@@ -3,7 +3,7 @@ pub mod load;
 pub mod oscilloscope;
 
 use bevy::prelude::*;
-use bevy::diagnostic::{Diagnostics, FrameTimeDiagnosticsPlugin};
+use bevy::diagnostic::{Diagnostics, DiagnosticsStore, FrameTimeDiagnosticsPlugin};
 use bevy_egui::{egui, EguiContexts};
 use bevy_egui::egui::Ui;
 
@@ -29,7 +29,7 @@ pub fn run_gui(
     commands: Commands,
     interpreter_url: Res<InterpreterUrl>,
     mut contexts: EguiContexts,
-    diagnostics: ResMut<Diagnostics>,
+    diagnostics: Res<DiagnosticsStore>,
     timestamp: Res<Timestamp>,
     simulation_step: ResMut<SimulationStepSeconds>,
     steps_per_frame: ResMut<StepsPerFrame>,
@@ -110,7 +110,7 @@ pub fn build_info(ui: &mut Ui) {
 
 pub fn runtime_stats_header(
     ui: &mut Ui,
-    diagnostics: ResMut<Diagnostics>,
+    diagnostics: Res<DiagnosticsStore>,
     timestamp: Res<Timestamp>,
     mut steps_per_frame: ResMut<StepsPerFrame>,
     mut simulation_step: ResMut<SimulationStepSeconds>,
@@ -126,7 +126,7 @@ pub fn runtime_stats_header(
         })
         .body(|ui| {
 
-            let fps_avg = diagnostics.get(FrameTimeDiagnosticsPlugin::FPS).and_then(|d| {
+            let fps_avg = diagnostics.get(&FrameTimeDiagnosticsPlugin::FPS).and_then(|d| {
                 d.average()
             });
 

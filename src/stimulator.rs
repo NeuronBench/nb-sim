@@ -1,5 +1,6 @@
 use bevy::prelude::{Assets, Color, Component, Entity, FromWorld, Handle, Resource, StandardMaterial, World};
-use bevy_egui::egui::widgets::plot::{Plot, Line, PlotPoints};
+// use bevy_egui::egui::widgets::plot::{Plot, Line, PlotPoints};
+use egui_plot::{Plot, Line, PlotPoints};
 use bevy_egui::egui::{self, Ui};
 use std::default::Default;
 

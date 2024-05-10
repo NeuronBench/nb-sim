@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy_egui::egui::Ui;
 use bevy_egui::egui::Color32;
-use bevy_egui::egui::widgets::plot::{Plot, Line, PlotPoints};
+use egui_plot::{Plot, Line, PlotPoints};
 
 use crate::gui::{NextClickAction, SimulationStepSeconds};
 use crate::dimension::StepsPerFrame;
