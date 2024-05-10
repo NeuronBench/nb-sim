@@ -1,7 +1,4 @@
-use nb_sim::constants;
 use nb_sim::start::start;
-
-use nb_sim::gui::load::InterpreterUrl;
 
 fn main() {
     let interpreter_url =

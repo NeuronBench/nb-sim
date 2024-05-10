@@ -51,14 +51,14 @@ impl Plugin for ExternalTriggerPlugin {
 
 fn respond_to_triggers(
     trigger_receiver: Res<ExternalTriggerReceiver>,
-    mut commands: Commands,
+    commands: Commands,
     interpreter_url: Res<InterpreterUrl>,
     is_loading: ResMut<IsLoading>,
     mut source: ResMut<GraceSceneSource>,
-    mut neurons: Query<(Entity, &Neuron)>,
-    mut segments: Query<(Entity, &Segment)>,
-    mut junctions: Query<(Entity, &Junction)>,
-    mut stimulations: Query<(Entity, &Stimulation)>,
+    neurons: Query<(Entity, &Neuron)>,
+    segments: Query<(Entity, &Segment)>,
+    junctions: Query<(Entity, &Junction)>,
+    stimulations: Query<(Entity, &Stimulation)>,
     grace_scene_sender: Res<GraceSceneSender>,
 ) {
     match trigger_receiver.0.try_recv() {

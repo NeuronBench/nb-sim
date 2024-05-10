@@ -10,10 +10,10 @@ use crate::dimension::{
     SimulationStepSeconds,
     StepsPerFrame,
 };
-use crate::constants::{BODY_TEMPERATURE, CONDUCTANCE_PER_SQUARE_CM, SIMULATION_STEPS_PER_FRAME};
+use crate::constants::{BODY_TEMPERATURE, CONDUCTANCE_PER_SQUARE_CM};
 use crate::stimulator::{StimulatorMaterials, Stimulator, Stimulation};
 
-use crate::gui::oscilloscope::{Oscilloscope, step_oscilloscope_system, print_oscilloscope_system};
+use crate::gui::oscilloscope::{Oscilloscope, step_oscilloscope_system};
 use crate::gui;
 use crate::neuron::Junction;
 use crate::integrations::grace::Synapse;

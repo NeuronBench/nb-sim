@@ -1,12 +1,12 @@
 use bevy::prelude::*;
-use bevy_egui::{egui::{self, Ui}};
+use bevy_egui::egui::{self, Ui};
 use ehttp::{Request, fetch};
 use crossbeam::channel::unbounded;
 
 use crate::neuron::ecs::Neuron;
 use crate::neuron::Junction;
 use crate::neuron::segment::ecs::Segment;
-use crate::stimulator::{Stimulation};
+use crate::stimulator::Stimulation;
 use crate::selection::{Highlight, Selection};
 use crate::integrations::grace::{
     GraceScene,
@@ -14,10 +14,8 @@ use crate::integrations::grace::{
     GraceSceneReceiver
 };
 use crate::serialize;
-use crate::neuron::membrane::{MembraneMaterials};
-use wasm_bindgen::{JsCast, JsValue};
-use wasm_bindgen::prelude::wasm_bindgen;
-use web_sys::{Document, Element, HtmlTextAreaElement, window};
+use crate::neuron::membrane::MembraneMaterials;
+use web_sys::window;
 
 #[derive(Resource)]
 pub struct IsLoading(pub bool);
@@ -31,7 +29,7 @@ pub struct InterpreterUrl(pub String);
 impl FromWorld for GraceSceneSource {
 
     #[cfg(target_arch = "wasm32")]
-    fn from_world(world: &mut World) -> Self {
+    fn from_world(_world: &mut World) -> Self {
         GraceSceneSource(window_location_scene())
     }
 
@@ -51,7 +49,7 @@ pub fn window_location_scene() -> String {
             let s = s.clone().to_string();
             if s.len() > 0 {
                 let params = querystring::querify(&s[1..]);
-                match params.iter().find(|(k,v)| k.clone() == "scene") {
+                match params.iter().find(|(k,_)| *k == "scene") {
                     Some((_,v)) => { v.to_string() },
                     None => { "".to_string() },
                 }
@@ -74,7 +72,6 @@ pub fn setup(app: &mut App) {
   app.insert_resource(GraceSceneSender(tx));
   app.insert_resource(GraceSceneReceiver(rx));
   // app.add_systems(Startup, startup_load_ffg_scene);
-  // app.add_systems(Startup, set_source_from_editor);
 }
 
 pub fn startup_load_ffg_scene(
@@ -95,37 +92,6 @@ pub fn startup_load_ffg_scene(
         eprintln!("Skipping startup scene load");
     }
 }
-
-pub fn set_source_from_editor(
-    commands: Commands,
-    is_loading: ResMut<IsLoading>,
-    mut source: ResMut<GraceSceneSource>,
-    neurons: Query<(Entity, &Neuron)>,
-    segments: Query<(Entity, &Segment)>,
-    junctions: Query<(Entity, &Junction)>,
-    stimulations: Query<(Entity, &Stimulation)>,
-    grace_scene_sender: Res<GraceSceneSender>,
-) {
-    let document = window()
-        .expect("should have window")
-        .document()
-        .expect("should have document");
-    let textarea : Option<Element> = document.get_element_by_id("editorInput");
-    let button : Option<Element> = document.get_element_by_id("codeButton");
-    let mut source = &source.0;
-    match textarea {
-        Some(element) => {
-            let textarea : &HtmlTextAreaElement = element.dyn_ref::<HtmlTextAreaElement>().expect("should be textarea");
-            let code = textarea.value();
-            source = &code;
-        },
-        None => {
-            eprintln!("No editorInput");
-        }
-    }
-
-}
-
 
 // TODO: update is_loading for status spinner.
 pub fn load_ffg_scene(

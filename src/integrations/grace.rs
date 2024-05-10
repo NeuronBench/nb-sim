@@ -3,7 +3,7 @@ use bevy::math::prelude::{Cylinder, Sphere};
 use bevy_mod_picking::{
     prelude::{Listener, On, Pointer},
     PickableBundle,
-    events::{Click}
+    events::Click
 };
 use crossbeam::channel::{Sender, Receiver};
 // use std::sync::mpsc::{channel, Sender, Receiver};
@@ -16,7 +16,7 @@ use crate::neuron::Junction;
 use crate::neuron::membrane::{Membrane, MembraneVoltage, MembraneMaterials};
 use crate::neuron::solution::EXAMPLE_CYTOPLASM;
 use crate::neuron::segment::{ecs::Segment, ecs::InputCurrent, Geometry};
-use crate::neuron::synapse::{SynapseMembranes};
+use crate::neuron::synapse::SynapseMembranes;
 use crate::stimulator;
 use crate::serialize;
 use crate::selection::{Selection, Highlight, spawn_highlight};
@@ -101,7 +101,7 @@ pub fn simplify(mut neuron: serialize::Neuron) -> serialize::Neuron {
     // For each entry, check if its parent is tombstoned.
     // If so, set the entry's parent to its current grandparent.
     // Repeat this process until the current parent is not tombstoned.
-    for mut entry in neuron.segments.iter_mut() {
+    for entry in neuron.segments.iter_mut() {
         while !(should_keep.contains(&entry.parent) || entry.parent == -1) {
             entry.parent = entries_map.get(&entry.parent).expect("parent should exist").parent;
         }

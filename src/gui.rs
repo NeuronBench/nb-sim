@@ -3,11 +3,10 @@ pub mod load;
 pub mod oscilloscope;
 
 use bevy::prelude::*;
-use bevy::diagnostic::{Diagnostics, DiagnosticsStore, FrameTimeDiagnosticsPlugin};
+use bevy::diagnostic::{DiagnosticsStore, FrameTimeDiagnosticsPlugin};
 use bevy_egui::{egui, EguiContexts};
 use bevy_egui::egui::Ui;
 
-use crate::neuron::Junction;
 use crate::dimension::{
     Timestamp,
     StepsPerFrame,
@@ -16,18 +15,16 @@ use crate::dimension::{
     MicroAmpsPerSquareCm,
     Interval
 };
-use crate::gui::load::InterpreterUrl;
-use crate::gui::oscilloscope::{Oscilloscope};
-use crate::stimulator::{Stimulator, Stimulation, Envelope, CurrentShape};
-use crate::integrations::grace::{GraceSceneSender};
-use crate::neuron::ecs::Neuron;
-use crate::neuron::segment::ecs::Segment;
+// use crate::gui::load::InterpreterUrl;
+use crate::gui::oscilloscope::Oscilloscope;
+use crate::stimulator::{Stimulator, Envelope, CurrentShape};
+// use crate::integrations::grace::GraceSceneSender;
 use crate::selection::Selection;
 
 
 pub fn run_gui(
-    commands: Commands,
-    interpreter_url: Res<InterpreterUrl>,
+    // commands: Commands,
+    // interpreter_url: Res<InterpreterUrl>,
     mut contexts: EguiContexts,
     diagnostics: Res<DiagnosticsStore>,
     timestamp: Res<Timestamp>,
@@ -35,15 +32,15 @@ pub fn run_gui(
     steps_per_frame: ResMut<StepsPerFrame>,
     mut next_click: ResMut<NextClickAction>,
     mut new_stimulators: ResMut<Stimulator>,
-    is_loading: ResMut<load::IsLoading>,
+    // is_loading: ResMut<load::IsLoading>, // TODO: surface is_loading to user with a spinner.
     // source: ResMut<load::GraceSceneSource>,
-    mut oscilloscope: ResMut<Oscilloscope>,
+    oscilloscope: ResMut<Oscilloscope>,
     // neurons: Query<(Entity, &Neuron)>,
     // segments: Query<(Entity, &Segment)>,
     // junctions: Query<(Entity, &Junction)>,
     // stimulations: Query<(Entity, &Stimulation)>,
     mut selected_stimulators: Query<&mut Stimulator, With<Selection>>,
-    grace_scene_sender: Res<GraceSceneSender>,
+    // grace_scene_sender: Res<GraceSceneSender>,
 ) {
     egui::Window::new("NeuronBench").show(contexts.ctx_mut(), |ui| {
         runtime_stats_header(ui, diagnostics, timestamp, steps_per_frame, simulation_step);

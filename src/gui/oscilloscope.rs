@@ -1,12 +1,11 @@
 use bevy::prelude::*;
 use bevy_egui::egui::Ui;
 use bevy_egui::egui::Color32;
-use egui_plot::{Plot, Line, PlotPoints};
+use egui_plot::{Plot, Line};
 
 use crate::gui::{NextClickAction, SimulationStepSeconds};
 use crate::dimension::StepsPerFrame;
 
-use crate::neuron::segment::{ecs::Segment};
 use crate::neuron::membrane::MembraneVoltage;
 
 const N_SOURCES: usize = 4;
@@ -51,7 +50,7 @@ impl Oscilloscope {
 
     pub fn accept_source_if_available_slot(
         &mut self,
-        mut next_click: ResMut<NextClickAction>,
+        _next_click: ResMut<NextClickAction>,
         new_source: Entity
     ) {
         for source in self.sources.iter_mut() {
@@ -65,11 +64,9 @@ impl Oscilloscope {
     pub fn plot(&self, ui: &mut Ui) {
         Plot::new("oscilloscope")
             .view_aspect(2.0)
-            .auto_bounds_x()
-            .auto_bounds_y()
             .show(ui, |plot_ui| {
                 for i in 0..4 {
-                    let name = (i+1).to_string();
+                    let _name = (i+1).to_string(); // TODO: Use name?
                     let color = [Color32::YELLOW, Color32::LIGHT_GREEN, Color32::LIGHT_RED, Color32::LIGHT_BLUE][i];
                     let line_before_break = self.buffers[i].iter().enumerate().take(self.write_offset - 1).map(|(x,y)| [self.times[x] as f64, *y as f64]).collect::<Vec<_>>();
                     let line_after_break = self.buffers[i].iter().enumerate().skip(self.write_offset).map(|(x,y)| [self.times[x] as f64, *y as f64]).collect::<Vec<_>>();

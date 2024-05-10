@@ -1,8 +1,5 @@
 use bevy::prelude::*;
-use bevy_mod_picking::{
-    prelude::*,
-    PickableBundle,
-};
+use bevy_mod_picking::PickableBundle;
 
 #[derive(Component)]
 pub struct Selection;

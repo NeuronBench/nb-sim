@@ -168,8 +168,6 @@ impl Stimulator {
         let line = Line::new(currents);
         Plot::new("stimulator_plot")
             .view_aspect(2.0)
-            .auto_bounds_x()
-            .auto_bounds_y()
             .show(ui, |plot_ui| plot_ui.line(line));
     }
 

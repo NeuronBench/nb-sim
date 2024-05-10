@@ -2,14 +2,9 @@ use bevy::prelude::*;
 use bevy::core_pipeline::bloom::BloomSettings;
 use bevy::diagnostic::{LogDiagnosticsPlugin, FrameTimeDiagnosticsPlugin};
 use bevy::pbr::CascadeShadowConfigBuilder;
-use bevy_egui::{EguiPlugin, EguiContext};
+use bevy_egui::EguiPlugin;
 use bevy_mod_picking::prelude::*;
 use bevy_panorbit_camera::{PanOrbitCameraPlugin, PanOrbitCamera};
-// use bevy_mod_picking::{
-//     // DebugCursorPickingPlugin, DebugEventsPickingPlugin, DefaultPickingPlugins,
-//     PickableBundle,
-//     PickingCameraBundle
-// };
 use std::f32::consts::PI;
 use wasm_bindgen::prelude::*;
 
@@ -64,18 +59,6 @@ pub fn start(
         }
 
         app.run();
-}
-
-fn pan_orbit_condition(query: Query<&EguiContext>) -> bool {
-  // TODO: Is it safe and fast to clone the egui context?
-  // It seemed to be necessary because we are supposed to
-  // get the context via `get_mut`, however passing a mutable
-  // query to `pan_orbit_condition` fails because
-  // "the trait `ReadOnlyWorldQuery` is not implemented for `&mut EguiContext`"
-  let mut bevy_egui_context =
-    query.get_single().expect("egui should exist").clone();
-  let egui_context = bevy_egui_context.get_mut();
-  !egui_context.wants_pointer_input()
 }
 
 fn setup_grace_neuron(
@@ -135,7 +118,7 @@ fn setup_scene(
          MyCamera,
 
          BloomSettings::default(),
-         PanOrbitCamera::default(),  // Set radius to camera_radius
+         PanOrbitCamera {radius: Some(camera_radius), ..default()},  // Set radius to camera_radius
          // RaycastPickCamera::default(),
 
         ));
