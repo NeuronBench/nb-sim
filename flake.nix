@@ -26,25 +26,25 @@
 
       ];
 
-      wasm-bindgen-cli = pkgs.rustPlatform.buildRustPackage rec {
-        pname = "wasm-bindgen-cli";
-        version = "0.2.86";
+      # wasm-bindgen-cli = pkgs.rustPlatform.buildRustPackage rec {
+      #   pname = "wasm-bindgen-cli";
+      #   version = "0.2.86";
 
-        src = pkgs.fetchCrate {
-          inherit pname version;
-          sha256 = "sha256-56EOiLbdgAcoTrkyvB3t9TjtLaRvGxFUXx4haLwE2QY=";
-        };
+      #   src = pkgs.fetchCrate {
+      #     inherit pname version;
+      #     sha256 = "sha256-56EOiLbdgAcoTrkyvB3t9TjtLaRvGxFUXx4haLwE2QY=";
+      #   };
 
-        cargoSha256 = "sha256-4CPBmz92PuPN6KeGDTdYPAf5+vTFk9EN5Cmx4QJy6yI=";
+      #   cargoSha256 = "sha256-4CPBmz92PuPN6KeGDTdYPAf5+vTFk9EN5Cmx4QJy6yI=";
 
-        nativeBuildInputs = [ pkgs.pkg-config ];
+      #   nativeBuildInputs = [ pkgs.pkg-config ];
 
-        buildInputs = [ pkgs.openssl ] ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [ pkgs.curl apple.Security ];
+      #   buildInputs = [ pkgs.openssl ] ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [ pkgs.curl apple.Security ];
 
-        doCheck = false;
-        # nativeCheckInputs = [ pkgs.nodejs ];
+      #   doCheck = false;
+      #   # nativeCheckInputs = [ pkgs.nodejs ];
 
-      };
+      # };
 
       nbSimLockHashes = {
           lockFile = ./Cargo.lock;
@@ -53,8 +53,10 @@
 
 
       buildInputs = [
-          wasm-bindgen-cli
+          # wasm-bindgen-cli
+          pkgs.wasm-bindgen-cli
           pkgs.wasm-pack
+          pkgs.which
           rust
           pkgs.curl
           pkgs.autoconf
@@ -84,7 +86,7 @@
         COREAUDIO_SDK_PATH= if system == "aarch64-darwin" then "${pkgs.darwin.apple_sdk.MacOSX-SDK}" else "";
       };
 
-      packages.wasm-bindgen-cli = wasm-bindgen-cli;
+      # packages.wasm-bindgen-cli = wasm-bindgen-cli;
 
       packages.wasm-build = pkgs.rustPlatform.buildRustPackage {
 
@@ -94,10 +96,13 @@
         cargoLock = nbSimLockHashes;
 
         buildPhase = ''
-          wasm-pack build --release --target web --out-dir $out
+          HOME=$(mktemp -d fake-homeXXXX) RUSTFLAGS="--cfg=web_sys_unstable_apis" wasm-pack build --mode no-install --release --target web
         '';
         checkPhase = "echo 'Skipping tests'";
-        installPhase = "echo 'Skipping install phase'";
+        installPhase = ''
+          mkdir -p $out
+          cp pkg/* $out/
+        '';
 
         buildInputs = buildInputs;
         nativeBuildInputs = buildInputs;
@@ -111,9 +116,10 @@
       devShell = pkgs.mkShell rec {
         # buildInputs = buildInputs;
         buildInputs = [
-          wasm-bindgen-cli
+          # wasm-bindgen-cli
           rust
           pkgs.autoconf
+          pkgs.wasm-bindgen-cli
           pkgs.pkg-config
           pkgs.openssl
           pkgs.sass
