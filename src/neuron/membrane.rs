@@ -176,9 +176,9 @@ impl FromWorld for MembraneMaterials {
           let color = Color::rgb(intensity * 0.0, intensity * 0.83, intensity * 0.48);
           let mut material : StandardMaterial = color.clone().into();
           material.emissive = Color::rgb_linear(
-              intensity * 100.0 * 0.0,
-              intensity * 100.0 * 0.83,
-              intensity * 100.0 * 0.48
+              intensity * 100000.0 * 0.0,
+              intensity * 100000.0 * 0.83,
+              intensity * 100000.0 * 0.48
           );
           // material.metallic = intensity;
           let handle = material_assets.add(material);

@@ -337,9 +337,9 @@ impl FromWorld for StimulatorMaterials {
           let color = Color::rgba(intensity, 0.0, 1.0 - intensity, 0.9);
           let mut material : StandardMaterial = color.clone().into();
           material.emissive = Color::rgb_linear(
-              1.0 * intensity,
-              1.0 * intensity * intensity,
-              1.0 * intensity * intensity
+              1000.0 * intensity,
+              1000.0 * intensity * intensity,
+              1000.0 * intensity * intensity
           );
           let handle = material_assets.add(material);
           handle
@@ -351,9 +351,9 @@ impl FromWorld for StimulatorMaterials {
           let color = Color::rgba(intensity, 0.0, 1.0 - intensity,0.95);
           let mut material : StandardMaterial = color.clone().into();
           material.emissive = Color::rgb_linear(
-              30.0 * intensity,
-              30.0 * intensity * intensity,
-              30.0 * intensity * intensity
+              30000.0 * intensity,
+              30000.0 * intensity * intensity,
+              30000.0 * intensity * intensity
           );
           let handle = material_assets.add(material);
           handle
