@@ -30,6 +30,7 @@ web-sys = { version = "^0.3", features=["Location", "Window", "Document", "Eleme
 wgpu = { version = "^0.15", features=["webgl"]}
 bevy_panorbit_camera = { version = "0.18.0", features = ["bevy_egui"] }
 egui_plot = "0.27.2"
+neuroml = { path = "../neuroml-rs" }
 
 
 [build-dependencies]
