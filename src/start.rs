@@ -76,6 +76,19 @@ fn setup_grace_neuron(
   }
 }
 
+fn setup_neuroml_neuron(
+  commands: Commands,
+  mut meshes: ResMut<Assets<Mesh>>,
+  membrane_materials: Res<MembraneMaterials>,
+  mut materials: ResMut<Assets<StandardMaterial>>,
+  // neuroml_scene_source: Res<NeuromlSceneSource>,
+  selections: Query<Entity, With<Selection>>,
+  highlights: Query<Entity, With<Highlight>>,
+) {
+  let neuroml_scene = neuroml::sample::scene1();
+  neuroml_scene.spawn(commands, &mut meshes, membrane_materials, &mut materials, selections, highlights);
+}
+
 
 fn setup_scene(
     mut commands: Commands,
