@@ -2,6 +2,7 @@ pub mod constants;
 pub mod dimension;
 pub mod gui;
 pub mod neuron;
+pub mod onnx;
 pub mod plugin;
 pub mod integrations;
 pub mod serialize;

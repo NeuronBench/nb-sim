@@ -16,6 +16,7 @@ use crate::neuron::membrane::MembraneMaterials;
 // use bevy_panorbit_camera::{PanOrbitCamera, pan_orbit_camera};
 use crate::selection::{Selection, Highlight};
 use crate::gui::external_trigger::ExternalTriggerPlugin;
+use crate::onnx::OnnxPlugin;
 
 #[derive(Component)]
 struct MyCamera;
@@ -45,6 +46,7 @@ pub fn start(
         // .add_plugin(DebugCursorPickingPlugin)
         // .add_plugin(DebugEventsPickingPlugin)
         .add_plugins(NbSimPlugin)
+        .add_plugins(OnnxPlugin)
         .add_plugins(ExternalTriggerPlugin)
         .add_plugins(PanOrbitCameraPlugin)
         .add_systems(Update, bevy::window::close_on_esc)

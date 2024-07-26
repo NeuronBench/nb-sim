@@ -30,6 +30,8 @@ web-sys = { version = "^0.3", features=["Location", "Window", "Document", "Eleme
 wgpu = { version = "^0.15", features=["webgl"]}
 bevy_panorbit_camera = { version = "0.18.0", features = ["bevy_egui"] }
 egui_plot = "0.27.2"
+tract-onnx = "0.21.6"
+tract-hir = "0.21.6"
 
 
 [build-dependencies]
