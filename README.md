@@ -1,5 +1,7 @@
 # nb-sim
 
+https://neuronbench.com
+
 NeuronBench is a web-first neural network simulator. To read more about that that
 means, please see the [organization readme](https://github.com/neuronbench).
 
