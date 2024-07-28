@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy::core_pipeline::bloom::{BloomPlugin, BloomSettings};
+use bevy::core_pipeline::bloom::BloomSettings;
 use bevy::diagnostic::{LogDiagnosticsPlugin, FrameTimeDiagnosticsPlugin};
 use bevy::pbr::CascadeShadowConfigBuilder;
 use bevy_egui::EguiPlugin;
