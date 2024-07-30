@@ -1,13 +1,13 @@
 use bevy::prelude::*;
 
-use crate::onnx::{Onnx, example};
+use crate::onnx::{Onnx, example, spawn_onnx_model};
 
 pub struct OnnxPlugin;
 
 impl Plugin for OnnxPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(example());
-        // app.add_systems(Update, print_onnx);
+        app.add_systems(Startup, spawn_onnx_model);
     }
 }
 

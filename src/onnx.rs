@@ -28,8 +28,8 @@ impl Onnx {
     pub fn set_default_positions(&mut self) {
         let positions = self.model.nodes.iter().enumerate().map(|(i, node)| {
             let x = 0.0;
-            let y = i as f32 * 2.0;
-            let z = 0.0;
+            let y = 0.0;
+            let z = i as f32 * 20.0;
             (node.name.clone(), vec![x, y, z])
         }).collect();
         self.node_positions = positions;
@@ -37,7 +37,7 @@ impl Onnx {
 }
 
 pub fn spawn_onnx_model(
-    commands: &mut Commands,
+    mut commands: Commands,
     asset_server: Res<AssetServer>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
@@ -56,9 +56,9 @@ pub fn spawn_onnx_model(
             let position = onnx.node_positions.get(&node.name).expect("Node position not found");
             match tensor_to_2d_image(tensor_ref) {
                 None => {},
-                Some(image) => {
+                Some(((h,w), image)) => {
                     let image_handle = asset_server.add(image);
-                    let mesh_handle = meshes.add(Rectangle::new(10.0,10.0));
+                    let mesh_handle = meshes.add(Rectangle::new(w as f32 * 10.0,h as f32 * 10.0));
                     let transform = Transform::from_translation(Vec3::new(position[0], position[1], position[2]));
                     let material_handle = materials.add(StandardMaterial {
                         base_color_texture: Some(image_handle),
@@ -73,13 +73,6 @@ pub fn spawn_onnx_model(
                         transform,
                         ..default()
                     });
-                }
-            }
-            match create_subdivided_rectangle(tensor_ref) {
-                None => {},
-                Some(mesh) => {
-                    let transform = Transform::from_translation(Vec3::new(position[0], position[1], position[2]));
-                    unimplemented!()
                 }
             }
         }
@@ -101,59 +94,11 @@ fn node_position(node: &NodeProto) -> Option<(String, Vec<f32>)> {
     }
 }
 
-fn create_subdivided_rectangle(tensor: &Tensor) -> Option<Mesh> {
-    let data = tensor.to_array_view::<f32>().expect("Should be f32 tensor");
-    let extent = match tensor.shape() {
-        [1, h, w] => Some((h,w)),
-        [h, w] => Some((h,w)),
-        _ => {
-            eprintln!("Tensor has unexpected shape {:?}", tensor.shape());
-            None
-        },
-    };
-    extent.map(|(height, width)| {
-        let height = *height as u64;
-        let width = *width as u64;
-        let mut mesh = Mesh::new(
-            PrimitiveTopology::TriangleList,
-            RenderAssetUsages::RENDER_WORLD
-        );
-        let mut positions = Vec::new();
-        let mut normals = Vec::new();
-        let mut uvs = Vec::new();
-        let mut indices = Vec::new();
-        let mut heatmap_data = Vec::new();
 
-        for y in 0..=height {
-            for x in 0..=width {
-                let x_pos = x as f32 / width as f32;
-                let y_pos = y as f32 / width as f32;
-                positions.push([x_pos, y_pos, 0.0]);
-                normals.push([0.0, 0.0, 1.0]);
-                uvs.push([x_pos, y_pos]);
-
-                let heat_value = (x_pos * y_pos).sin() * 0.5 + 0.5;
-                heatmap_data.push(heat_value);
-
-            }
-        }
-
-        for y in 0..height {
-            for x in 0..width {
-                let tl = y * (width + 1) + x;
-                let tr = tl + 1;
-                let bl = (y + 1) * (width + 1) + x;
-                let br = bl + 1;
-                indices.extend_from_slice(&[tl, tr, bl, br, tr, br]);
-            }
-        }
-
-        mesh
-    })
-}
-
-fn tensor_to_2d_image(tensor: &Tensor) -> Option<Image> {
-    let data = tensor.to_array_view::<f32>().expect("Should be f32 tensor");
+/// Get the (h,w) and Image from a tensor.
+fn tensor_to_2d_image(tensor: &Tensor) -> Option<((u32, u32), Image)> {
+    let data_f32 = tensor.cast_to::<f32>().expect("should be able to cast to f32");
+    let data = data_f32.to_array_view::<f32>().expect("should be f32 tensor");
     let extent = match tensor.shape() {
         [1, h, w] => Some((h,w)),
         [h, w] => Some((h,w)),
@@ -163,26 +108,29 @@ fn tensor_to_2d_image(tensor: &Tensor) -> Option<Image> {
         },
     };
     extent.map(|(height,width)| {
-        let mut image_data = vec![0; height * width * 4];
+        eprintln!("CONSTRUCTING IMAGEDATE FOR TENSOR WITH SHAPE {:?}", tensor.shape());
+        let mut image_data : Vec<f32> = vec![0.0; height * width * 4];
+        eprintln!("ABOUT TO CONSTRUCT IMAGEDATA");
         for y in 0..(*height as u64) {
             for x in 0..(*width as u64) {
-                let value = data[[y as usize, x as usize]];
-                let value = (value * 255.0) as u8;
+                let value = data[[y as usize, x as usize]] / 25.0;
                 let i = ((y * *width as u64 + x) * 4) as usize;
-                image_data[i] = value;
-                image_data[i + 1] = value;
-                image_data[i + 2] = value;
-                image_data[i + 3] = 255;
+                dbg!(&value);
+                image_data[i] = value.clamp(0.0, 1.0);
+                image_data[i + 1] = 0.0;
+                image_data[i + 2] = (value * -1.0).clamp(0.0, 1.0);
+                image_data[i + 3] = value.abs();
             }
         }
+        eprintln!("SUCCESS CONSTRUCTED IMAGE DATA");
         let image = Image::new(
             Extent3d { width: *width as u32, height: *height as u32, depth_or_array_layers: 1 },
             TextureDimension::D2,
-            image_data,
-            TextureFormat::Rgba8Uint,
-            RenderAssetUsages::MAIN_WORLD | RenderAssetUsages::RENDER_WORLD,
+            image_data.iter().flat_map(|&f| f.to_le_bytes()).collect(),
+            TextureFormat::Rgba32Float,
+            RenderAssetUsages::RENDER_WORLD,
         );
-        image
+        ((*height as u32, *width as u32), image)
     })
 }
 
