@@ -2,6 +2,7 @@ pub mod plugin;
 
 use bevy::prelude::*;
 use bevy::render::mesh::PrimitiveTopology;
+use bevy::render::texture::{ImageSampler, ImageSamplerDescriptor};
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 
 use bevy::render::render_asset::RenderAssetUsages;
@@ -56,7 +57,8 @@ pub fn spawn_onnx_model(
             let position = onnx.node_positions.get(&node.name).expect("Node position not found");
             match tensor_to_2d_image(tensor_ref) {
                 None => {},
-                Some(((h,w), image)) => {
+                Some(((h,w), mut image)) => {
+                    image.sampler = ImageSampler::nearest();
                     let image_handle = asset_server.add(image);
                     let mesh_handle = meshes.add(Rectangle::new(w as f32 * 10.0,h as f32 * 10.0));
                     let transform = Transform::from_translation(Vec3::new(position[0], position[1], position[2]));
@@ -115,7 +117,6 @@ fn tensor_to_2d_image(tensor: &Tensor) -> Option<((u32, u32), Image)> {
             for x in 0..(*width as u64) {
                 let value = data[[y as usize, x as usize]] / 25.0;
                 let i = ((y * *width as u64 + x) * 4) as usize;
-                dbg!(&value);
                 image_data[i] = value.clamp(0.0, 1.0);
                 image_data[i + 1] = 0.0;
                 image_data[i + 2] = (value * -1.0).clamp(0.0, 1.0);
