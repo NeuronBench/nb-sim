@@ -12,6 +12,7 @@ use crate::plugin::NbSimPlugin;
 use crate::gui::run_gui;
 use crate::gui::load::{handle_loaded_neuron, GraceSceneSource, InterpreterUrl};
 use crate::integrations::grace::{self, GraceScene};
+use crate::integrations::neuroml::sample as neuroml_sample;
 use crate::neuron::membrane::MembraneMaterials;
 // use bevy_panorbit_camera::{PanOrbitCamera, pan_orbit_camera};
 use crate::selection::{Selection, Highlight};
@@ -55,7 +56,7 @@ pub fn start(
         .add_systems(Update, handle_loaded_neuron);
 
         if demo {
-          app.add_systems(Startup, setup_grace_neuron);
+          app.add_systems(Startup, setup_neuroml_neuron);
         }
 
         app.run();
@@ -85,8 +86,9 @@ fn setup_neuroml_neuron(
   selections: Query<Entity, With<Selection>>,
   highlights: Query<Entity, With<Highlight>>,
 ) {
-  let neuroml_scene = neuroml::sample::scene1();
-  neuroml_scene.spawn(commands, &mut meshes, membrane_materials, &mut materials, selections, highlights);
+  let neuroml_scene = neuroml_sample::scene1();
+  // let neuroml_scene = neuroml::sample::scene2();
+  neuroml_scene.spawn(Vec3::ZERO, commands, &mut meshes, membrane_materials, &mut materials, selections, highlights);
 }
 
 

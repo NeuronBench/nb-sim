@@ -3205,6 +3205,7 @@ dependencies = [
  "querystring",
  "serde",
  "serde_json",
+ "uom 0.36.0",
  "uuid",
  "vergen",
  "wasm-bindgen",
@@ -3277,7 +3278,7 @@ dependencies = [
  "serde",
  "syn 2.0.68",
  "thiserror",
- "uom",
+ "uom 0.36.0 (git+https://github.com/neuronbench/uom)",
 ]
 
 [[package]]
@@ -4508,6 +4509,14 @@ name = "untrusted"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a156c684c91ea7d62626509bce3cb4e1d9ed5c4d978f7b4352658f96a4c26b4a"
+
+[[package]]
+name = "uom"
+version = "0.36.0"
+dependencies = [
+ "num-traits",
+ "typenum",
+]
 
 [[package]]
 name = "uom"
