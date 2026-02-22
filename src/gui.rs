@@ -42,7 +42,10 @@ pub fn run_gui(
     mut selected_stimulators: Query<&mut Stimulator, With<Selection>>,
     // grace_scene_sender: Res<GraceSceneSender>,
 ) {
-    egui::Window::new("NeuronBench").show(contexts.ctx_mut(), |ui| {
+    let Ok(ctx) = contexts.ctx_mut() else { return };
+    egui::Window::new("NeuronBench")
+        .default_pos([10.0, 10.0])
+        .show(ctx, |ui| {
         runtime_stats_header(ui, diagnostics, timestamp, steps_per_frame, simulation_step);
 
         let id = ui.make_persistent_id("stimulator_header");
@@ -52,13 +55,10 @@ pub fn run_gui(
             ui.label("Stimulation")
         })
         .body(|ui| {
-            match selected_stimulators.get_single_mut() {
-                Ok(mut s) => {
-                    s.widget(ui);
-                },
-                Err(_) => {
-                    new_stimulators.widget(ui);
-                }
+            if let Some(mut s) = selected_stimulators.iter_mut().next() {
+                s.widget(ui);
+            } else {
+                new_stimulators.widget(ui);
             }
         });
 

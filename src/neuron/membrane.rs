@@ -173,13 +173,13 @@ impl FromWorld for MembraneMaterials {
       let handles = (0..len).map(|i| {
           let intensity_range = 1.0;
           let intensity = i as f32 / len as f32 * intensity_range;
-          let color = Color::rgb(intensity * 0.0, intensity * 0.83, intensity * 0.48);
-          let mut material : StandardMaterial = color.clone().into();
-          material.emissive = Color::rgb_linear(
+          let color = Color::srgb(intensity * 0.0, intensity * 0.83, intensity * 0.48);
+          let mut material : StandardMaterial = color.into();
+          material.emissive = Color::linear_rgb(
               intensity * 100000.0 * 0.0,
               intensity * 100000.0 * 0.83,
               intensity * 100000.0 * 0.48
-          );
+          ).into();
           // material.metallic = intensity;
           let handle = material_assets.add(material);
           handle

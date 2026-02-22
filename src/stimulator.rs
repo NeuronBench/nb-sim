@@ -1,6 +1,5 @@
 use bevy::prelude::{Assets, Color, Component, Entity, FromWorld, Handle, Resource, StandardMaterial, World};
-// use bevy_egui::egui::widgets::plot::{Plot, Line, PlotPoints};
-use egui_plot::{Plot, Line, PlotPoints};
+use egui_plot::{Plot, Line};
 use bevy_egui::egui::{self, Ui};
 use std::default::Default;
 
@@ -159,13 +158,12 @@ impl Stimulator {
     }
 
     pub fn plot(&self, ui: &mut Ui) {
-        let currents : PlotPoints = (0..2000).map(|t| {
+        let currents : Vec<[f64; 2]> = (0..2000).map(|t| {
             let timestamp = Timestamp(t.clone() as f32 * 0.0005);
             let current = self.current(timestamp.clone());
-            // let current = timestamp.clone();
             [timestamp.0 as f64, current.0 as f64]
         }).collect();
-        let line = Line::new(currents);
+        let line = Line::new("stimulator", currents);
         Plot::new("stimulator_plot")
             .view_aspect(2.0)
             .show(ui, |plot_ui| plot_ui.line(line));
@@ -334,13 +332,13 @@ impl FromWorld for StimulatorMaterials {
         let unselected_handles: Vec<_> = (0..100).map(|i| {
           let intensity_range = 1.0;
           let intensity = (i as f32) / len as f32 * intensity_range;
-          let color = Color::rgba(intensity, 0.0, 1.0 - intensity, 0.9);
-          let mut material : StandardMaterial = color.clone().into();
-          material.emissive = Color::rgb_linear(
+          let color = Color::srgba(intensity, 0.0, 1.0 - intensity, 0.9);
+          let mut material : StandardMaterial = color.into();
+          material.emissive = Color::linear_rgb(
               1000.0 * intensity,
               1000.0 * intensity * intensity,
               1000.0 * intensity * intensity
-          );
+          ).into();
           let handle = material_assets.add(material);
           handle
         }).collect();
@@ -348,13 +346,13 @@ impl FromWorld for StimulatorMaterials {
         let selected_handles: Vec<_> = (0..100).map(|i| {
           let intensity_range = 1.0;
           let intensity = (i as f32 - 50.0) / len as f32 * intensity_range;
-          let color = Color::rgba(intensity, 0.0, 1.0 - intensity,0.95);
-          let mut material : StandardMaterial = color.clone().into();
-          material.emissive = Color::rgb_linear(
+          let color = Color::srgba(intensity, 0.0, 1.0 - intensity, 0.95);
+          let mut material : StandardMaterial = color.into();
+          material.emissive = Color::linear_rgb(
               30000.0 * intensity,
               30000.0 * intensity * intensity,
               30000.0 * intensity * intensity
-          );
+          ).into();
           let handle = material_assets.add(material);
           handle
         }).collect();

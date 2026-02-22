@@ -1,10 +1,5 @@
 use bevy::math::prelude::Sphere;
 use bevy::prelude::*;
-use bevy_mod_picking::{
-    events::Click,
-    prelude::{Listener, Pointer},
-    PickableBundle,
-};
 use crossbeam::channel::{Receiver, Sender};
 
 use crate::dimension::{MicroAmpsPerSquareCm, MilliVolts};
@@ -161,10 +156,7 @@ pub fn spawn_neuroml_neuron(
         .spawn((
             Neuron,
             Transform::from_translation(soma_location_cm),
-            GlobalTransform::default(),
             Visibility::default(),
-            InheritedVisibility::default(),
-            ViewVisibility::default(),
         ))
         .id();
 
@@ -181,20 +173,17 @@ pub fn spawn_neuroml_neuron(
             MembraneVoltage(MilliVolts(-70.0)),
             membrane,
             Transform::from_translation(Vec3::ZERO),
-            GlobalTransform::default(),
             Visibility::default(),
-            InheritedVisibility::default(),
-            ViewVisibility::default(),
-            PickableBundle::default(),
-            materials.add(StandardMaterial {
-                base_color: Color::rgb(0.8, 0.8, 1.0),
+            Pickable::default(),
+            MeshMaterial3d(materials.add(StandardMaterial {
+                base_color: Color::srgb(0.8, 0.8, 1.0),
                 ..default()
-            }),
-            meshes.add(soma_mesh),
+            })),
+            Mesh3d(meshes.add(soma_mesh)),
         ))
         .id();
 
-    commands.entity(neuron_entity).push_children(&[soma_entity]);
+    commands.entity(neuron_entity).add_children(&[soma_entity]);
 
     (neuron_entity, vec![soma_entity])
 }
@@ -235,7 +224,7 @@ pub fn spawn_neuroml_synapse(
 }
 
 pub fn add_stimulation(
-    _event: Listener<Pointer<Click>>,
+    _trigger: On<Pointer<Click>>,
     _commands: Commands,
     _meshes: ResMut<Assets<Mesh>>,
     _materials: ResMut<Assets<StandardMaterial>>,
@@ -262,7 +251,7 @@ pub fn select_stimulator(
 }
 
 pub fn handle_click_stimulator(
-    _event: Listener<Pointer<Click>>,
+    _trigger: On<Pointer<Click>>,
     _commands: Commands,
     _stimulations_query: Query<&stimulator::Stimulation>,
     _segments_query: Query<(&Segment, Entity, &stimulator::Stimulator)>,
@@ -275,7 +264,7 @@ pub fn handle_click_stimulator(
 }
 
 pub fn delete_stimulations(
-    In(_event): In<Pointer<Click>>,
+    _trigger: On<Pointer<Click>>,
     _commands: Commands,
     _stimulations_query: Query<&stimulator::Stimulation>,
     _segments_query: Query<(&Segment, Entity, &stimulator::Stimulator)>,
@@ -286,15 +275,15 @@ pub fn delete_stimulations(
 /// Convert NeuroML PulseGenerator to nb-sim Stimulator
 pub fn convert_pulse_to_stimulator(pulse_gen: &PulseGenerator) -> stimulator::Stimulator {
     use crate::dimension::{Interval, MicroAmpsPerSquareCm};
-    
+
     // Convert UOM values to nb-sim units
     let delay_ms = pulse_gen.delay.get::<millisecond>();
     let duration_ms = pulse_gen.duration.get::<millisecond>();
     let amplitude_na = pulse_gen.amplitude.get::<nanoampere>();
-    
+
     // Convert nanoamps to microamps per square cm (simplified conversion)
     let amplitude_ua_per_cm2 = amplitude_na / 1000.0; // Rough conversion
-    
+
     stimulator::Stimulator {
         envelope: stimulator::Envelope {
             period: Interval((duration_ms + delay_ms + 100.0) as f32 / 1000.0), // Convert to seconds
@@ -341,7 +330,7 @@ pub mod sample {
             input_types: vec![
                 InputTypes::PulseGenerator(PulseGenerator {
                     delay: UomTime::new::<millisecond>(100.0),
-                    duration: UomTime::new::<millisecond>(200.0), 
+                    duration: UomTime::new::<millisecond>(200.0),
                     amplitude: ElectricCurrent::new::<nanoampere>(500.0), // 0.5nA
                     common: Common {
                         id: "pulseGen1".to_string(),
@@ -509,10 +498,10 @@ pub mod tests {
 
         // Check timing conversion (100ms delay = 0.1s onset)
         assert!((stimulator.envelope.onset.0 - 0.1).abs() < 0.001);
-        
+
         // Check duration (100ms delay + 200ms duration = 0.3s offset)
         assert!((stimulator.envelope.offset.0 - 0.3).abs() < 0.001);
-        
+
         // Check current conversion (500nA = 0.5µA/cm²)
         if let stimulator::CurrentShape::SquareWave { on_current, off_current } = stimulator.current_shape {
             assert!((on_current.0 - 0.5).abs() < 0.001);
@@ -534,11 +523,11 @@ pub mod tests {
     fn test_neuroml_current_injection_integration() {
         // Simplified test - just verify the scene structure
         let scene = sample::create_sample_scene();
-        
+
         // Verify the scene has the expected structure
         assert_eq!(scene.0.input_types.len(), 2);
         assert_eq!(scene.0.network[0].explicit_input.len(), 2);
-        
+
         // Verify input types are PulseGenerators
         for input_type in &scene.0.input_types {
             match input_type {
@@ -546,7 +535,7 @@ pub mod tests {
                 _ => panic!("Expected PulseGenerator input type"),
             }
         }
-        
+
         // Verify explicit inputs target correct neurons
         let inputs = &scene.0.network[0].explicit_input;
         assert_eq!(inputs[0].target, "../neuron_population/0/simple_neuron");
@@ -569,7 +558,7 @@ pub mod tests {
             let stimulator = Stimulator {
                 envelope: Envelope {
                     period: Interval(1.0),     // 1 second period
-                    onset: Interval(0.0),      // Start immediately  
+                    onset: Interval(0.0),      // Start immediately
                     offset: Interval(0.5),     // Stop at 0.5 seconds
                 },
                 current_shape: CurrentShape::SquareWave {
@@ -577,12 +566,12 @@ pub mod tests {
                     off_current: MicroAmpsPerSquareCm(0.0),
                 }
             };
-            
+
             // At t=0.1s, should be ON (positive current)
             let current_at_0_1s = stimulator.current(Timestamp(0.1));
             assert!(current_at_0_1s.0 > 0.0, "Expected positive current at t=0.1s");
-            
-            // At t=0.6s, should be OFF (zero current) 
+
+            // At t=0.6s, should be OFF (zero current)
             let current_at_0_6s = stimulator.current(Timestamp(0.6));
             assert_eq!(current_at_0_6s.0, 0.0, "Expected zero current at t=0.6s");
 
@@ -591,29 +580,29 @@ pub mod tests {
             println!("  - Current at t=0.6s: {:.2} µA/cm²", current_at_0_6s.0);
         }
 
-        #[test] 
+        #[test]
         fn test_neuroml_pulse_generator_produces_expected_current() {
             // Test the specific PulseGenerators created in the NeuroML scene
             let scene = sample::create_sample_scene();
-            
+
             // Get the first pulse generator (pulseGen1)
             if let Some(InputTypes::PulseGenerator(pulse_gen)) = scene.0.input_types.first() {
                 let stimulator = convert_pulse_to_stimulator(pulse_gen);
-                
+
                 // pulseGen1: 100ms delay, 200ms duration, 500nA amplitude
                 // Should be ON from 0.1s to 0.3s
-                
+
                 let current_before = stimulator.current(Timestamp(0.05)); // Before onset
                 let current_during = stimulator.current(Timestamp(0.2));  // During pulse
                 let current_after = stimulator.current(Timestamp(0.4));   // After offset
-                
+
                 assert_eq!(current_before.0, 0.0, "Should be OFF before onset");
                 assert!(current_during.0 > 0.0, "Should be ON during pulse");
                 assert_eq!(current_after.0, 0.0, "Should be OFF after offset");
-                
+
                 println!("✓ NeuroML PulseGenerator timing test passed");
                 println!("  - Current before (t=0.05s): {:.2} µA/cm²", current_before.0);
-                println!("  - Current during (t=0.2s): {:.2} µA/cm²", current_during.0);  
+                println!("  - Current during (t=0.2s): {:.2} µA/cm²", current_during.0);
                 println!("  - Current after (t=0.4s): {:.2} µA/cm²", current_after.0);
             } else {
                 panic!("Expected PulseGenerator in scene");

@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use bevy_mod_picking::PickableBundle;
 
 #[derive(Component)]
 pub struct Selection;
@@ -16,17 +15,13 @@ pub fn spawn_highlight(
     eprintln!("Spawn highlight");
     let highlight_entity = commands.spawn((
         Highlight,
-        PbrBundle {
-            mesh: meshes.add(Sphere { radius: 8.5}),
-            material: materials.add(StandardMaterial {
-                base_color: Color::rgba(1.0,1.0,1.0,0.5),
-                ..default()
-            }),
-            transform: Transform::from_xyz(0.0,0.0,0.0),
+        Mesh3d(meshes.add(Sphere { radius: 8.5})),
+        MeshMaterial3d(materials.add(StandardMaterial {
+            base_color: Color::srgba(1.0,1.0,1.0,0.5),
             ..default()
-        },
-        PickableBundle::default(),
-        // OnPointer::<Click>::run_callback(deselect_all),
+        })),
+        Transform::from_xyz(0.0,0.0,0.0),
+        Pickable::default(),
     )).id();
-    commands.entity(selected_entity).push_children(&[highlight_entity]);
+    commands.entity(selected_entity).add_children(&[highlight_entity]);
 }

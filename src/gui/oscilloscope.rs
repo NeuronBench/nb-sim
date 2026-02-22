@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy_egui::egui::Ui;
-use bevy_egui::egui::Color32;
 use egui_plot::{Plot, Line};
+use bevy_egui::egui::Color32;
 
 use crate::gui::{NextClickAction, SimulationStepSeconds};
 use crate::dimension::StepsPerFrame;
@@ -70,8 +70,8 @@ impl Oscilloscope {
                     let color = [Color32::YELLOW, Color32::LIGHT_GREEN, Color32::LIGHT_RED, Color32::LIGHT_BLUE][i];
                     let line_before_break = self.buffers[i].iter().enumerate().take(self.write_offset - 1).map(|(x,y)| [self.times[x] as f64, *y as f64]).collect::<Vec<_>>();
                     let line_after_break = self.buffers[i].iter().enumerate().skip(self.write_offset).map(|(x,y)| [self.times[x] as f64, *y as f64]).collect::<Vec<_>>();
-                    plot_ui.line( Line::new(line_before_break).name(i.to_string()).color(color) );
-                    plot_ui.line( Line::new(line_after_break).name(i.to_string()).color(color) );
+                    plot_ui.line( Line::new(i.to_string(), line_before_break).color(color) );
+                    plot_ui.line( Line::new(i.to_string(), line_after_break).color(color) );
                 }
             });
     }

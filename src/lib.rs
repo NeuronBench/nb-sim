@@ -1,5 +1,7 @@
 pub mod constants;
+pub mod cpu_sim;
 pub mod dimension;
+pub mod gpu;
 pub mod gui;
 pub mod neuron;
 pub mod plugin;

@@ -1,10 +1,5 @@
 use bevy::prelude::*;
 use bevy::math::prelude::{Cylinder, Sphere};
-use bevy_mod_picking::{
-    prelude::{Listener, On, Pointer},
-    PickableBundle,
-    events::Click
-};
 use crossbeam::channel::{Sender, Receiver};
 // use std::sync::mpsc::{channel, Sender, Receiver};
 use std::collections::{HashMap, HashSet};
@@ -146,10 +141,7 @@ pub fn spawn_neuron(
     let neuron_entity = commands.spawn(
         (Neuron,
             Transform::from_translation(soma_location_cm),
-            GlobalTransform::default(),
             Visibility::default(),
-            InheritedVisibility::default(),
-            ViewVisibility::default(),
         )).id();
 
     // Spawn segments.
@@ -229,17 +221,13 @@ pub fn spawn_neuron(
                 // which has caused the model to become unstable
 
                 InputCurrent(input_current),
-                PbrBundle {
-                    mesh: meshes.add(shape),
-                    material: membrane_materials.from_voltage(&v0),
-                    transform: transform,
-                    ..default()
-                },
-                PickableBundle::default(),
-                On::<Pointer<Click>>::run( add_stimulation ),
+                Mesh3d(meshes.add(shape)),
+                MeshMaterial3d(membrane_materials.from_voltage(&v0)),
+                transform,
+                Pickable::default(),
             )
-        ).id();
-        commands.entity(neuron_entity).push_children(&[segment_entity]);
+        ).observe(add_stimulation).id();
+        commands.entity(neuron_entity).add_children(&[segment_entity]);
         entities_and_parents.insert(id.clone(), (segment_entity, segment.parent, Diameter(1.0), transform));
         segment_entity
     }).into_iter().collect();
@@ -255,7 +243,7 @@ pub fn spawn_neuron(
                     second_segment: entity.clone(),
                     pore_diameter: d
                 }).id();
-                commands.entity(neuron_entity).push_children(&[junction]);
+                commands.entity(neuron_entity).add_children(&[junction]);
             }
         }
     }
@@ -269,18 +257,14 @@ pub fn spawn_neuron(
                 println!("INSERTING A STIMULATOR");
                 commands.spawn(
                     (stimulator::Stimulation { stimulation_segment: entity.clone() },
-                     PbrBundle {
-                        mesh: meshes.add(Sphere{
-                            radius: 7.5,
-                        }),
-                        material: materials.add(Color::rgb(0.5,0.5,0.5)),
-                        transform: Transform::from_translation(transform.translation),
-                        ..default()
-                     },
-                     PickableBundle::default(),
-                     On::<Pointer::<Click>>::run(handle_click_stimulator),
+                     Mesh3d(meshes.add(Sphere{
+                        radius: 7.5,
+                     })),
+                     MeshMaterial3d(materials.add(Color::srgb(0.5,0.5,0.5))),
+                     Transform::from_translation(transform.translation),
+                     Pickable::default(),
                     )
-                );
+                ).observe(handle_click_stimulator);
                 commands.entity(*entity).insert(stim);
                 deselect_all(commands, &selections, highlights);
                 // commands.entity(*entity).insert(Selection);
@@ -288,7 +272,7 @@ pub fn spawn_neuron(
 
             }
         }
-    } 
+    }
 
     (neuron_entity, segment_entities)
 }
@@ -333,7 +317,7 @@ pub fn spawn_synapse(
 }
 
 pub fn add_stimulation(
-    event: Listener<Pointer<Click>>,
+    trigger: On<Pointer<Click>>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
@@ -344,7 +328,8 @@ pub fn add_stimulation(
     new_stimulators: Res<stimulator::Stimulator>,
     segments_query: Query<(Entity, &Segment, &GlobalTransform)>
 ) {
-    match segments_query.get(event.target) {
+    let target = trigger.entity;
+    match segments_query.get(target) {
         Ok((entity, _, segment_transform)) => {
 
           match *next_click {
@@ -354,20 +339,16 @@ pub fn add_stimulation(
               },
               NextClickAction::ModifyStimulator => {
                 commands.spawn(
-                    (stimulator::Stimulation { stimulation_segment: event.target },
-                    PbrBundle {
-                        mesh: meshes.add(Sphere{ radius: 7.5 }),
-                        material: materials.add(Color::rgb(0.5,0.5,0.5)),
-                        transform: Transform::from_translation(segment_transform.translation()),
-                        ..default()
-                    },
-                    PickableBundle::default(),
-                    On::<Pointer::<Click>>::run(handle_click_stimulator),
+                    (stimulator::Stimulation { stimulation_segment: target },
+                    Mesh3d(meshes.add(Sphere{ radius: 7.5 })),
+                    MeshMaterial3d(materials.add(Color::srgb(0.5,0.5,0.5))),
+                    Transform::from_translation(segment_transform.translation()),
+                    Pickable::default(),
                     )
-                );
-                eprintln!("Inserting stimulator into entity {}", event.target.to_bits());
-                commands.entity(event.target).insert(new_stimulators.clone());
-                select_stimulator(event.target, commands, selections, highlights, meshes, materials);
+                ).observe(handle_click_stimulator);
+                eprintln!("Inserting stimulator into entity {}", target.to_bits());
+                commands.entity(target).insert(new_stimulators.clone());
+                select_stimulator(target, commands, selections, highlights, meshes, materials);
               }
           }
         },
@@ -393,7 +374,7 @@ pub fn select_stimulator(
 }
 
 pub fn handle_click_stimulator(
-    event: Listener<Pointer<Click>>,
+    trigger: On<Pointer<Click>>,
     commands: Commands,
     mut stimulations_query: Query<&stimulator::Stimulation>,
     segments_query: Query<(&Segment, Entity, &stimulator::Stimulator)>,
@@ -402,7 +383,8 @@ pub fn handle_click_stimulator(
     meshes: ResMut<Assets<Mesh>>,
     materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    if let Ok(stimulator::Stimulation { stimulation_segment }) = stimulations_query.get_mut(event.target) {
+    let target = trigger.entity;
+    if let Ok(stimulator::Stimulation { stimulation_segment }) = stimulations_query.get_mut(target) {
         let results = segments_query.get(stimulation_segment.clone());
         match results {
             Ok((_, segment_entity, _)) => {
@@ -424,12 +406,13 @@ pub fn handle_click_stimulator(
 }
 
 pub fn delete_stimulations(
-    In(event): In<Pointer<Click>>,
+    trigger: On<Pointer<Click>>,
     mut commands: Commands,
     mut stimulations_query: Query<&stimulator::Stimulation>,
     segments_query: Query<(&Segment, Entity, &stimulator::Stimulator)>,
 ) {
-  if let Ok(stimulator::Stimulation { stimulation_segment }) = stimulations_query.get_mut(event.target) {
+    let target = trigger.entity;
+    if let Ok(stimulator::Stimulation { stimulation_segment }) = stimulations_query.get_mut(target) {
 
       // Remove stimulation from the segment.
       let results = segments_query.get(stimulation_segment.clone());
@@ -443,7 +426,7 @@ pub fn delete_stimulations(
       }
 
       // Despawn the stimulator.
-      commands.entity(event.target).despawn();
+      commands.entity(target).despawn();
   }
 }
 
