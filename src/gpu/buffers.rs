@@ -84,6 +84,14 @@ pub struct GpuJunctionData {
     pub _pad: f32,
 }
 
+/// Adjacency list entry: a junction neighbor of a segment.
+#[derive(Clone, Copy, Debug, Pod, Zeroable)]
+#[repr(C)]
+pub struct GpuJunctionNeighbor {
+    pub neighbor_segment_idx: u32,
+    pub conductance: f32,
+}
+
 /// Per-transmitter-pump data.
 #[derive(Clone, Copy, Debug, Pod, Zeroable)]
 #[repr(C)]

@@ -9,7 +9,9 @@ use bevy::render::storage::{GpuShaderStorageBuffer, ShaderStorageBuffer};
 use bevy::render::render_asset::RenderAssets;
 use bevy::render::Extract;
 
-use crate::gpu::buffers::{GpuJunctionData, GpuSegmentData, GpuSynapseData, SimParams};
+use crate::gpu::buffers::{
+    GpuJunctionData, GpuJunctionNeighbor, GpuSegmentData, GpuSynapseData, SimParams,
+};
 use crate::gpu::pipeline::{BiophysicsLayoutDescriptor, BiophysicsPipelines};
 
 const WORKGROUP_SIZE: u32 = 64;
@@ -41,6 +43,10 @@ pub struct MainWorldSimInput {
     pub segments: Option<Vec<GpuSegmentData>>,
     pub junctions: Option<Vec<GpuJunctionData>>,
     pub synapses: Option<Vec<GpuSynapseData>>,
+    pub junction_adj: Option<Vec<GpuJunctionNeighbor>>,
+    pub junction_adj_offsets: Option<Vec<u32>>,
+    pub synapse_adj: Option<Vec<u32>>,
+    pub synapse_adj_offsets: Option<Vec<u32>>,
     pub num_segments: u32,
     pub num_junctions: u32,
     pub num_synapses: u32,
@@ -62,6 +68,10 @@ pub struct ExtractedSimInput {
     pub segments: Option<Vec<GpuSegmentData>>,
     pub junctions: Option<Vec<GpuJunctionData>>,
     pub synapses: Option<Vec<GpuSynapseData>>,
+    pub junction_adj: Option<Vec<GpuJunctionNeighbor>>,
+    pub junction_adj_offsets: Option<Vec<u32>>,
+    pub synapse_adj: Option<Vec<u32>>,
+    pub synapse_adj_offsets: Option<Vec<u32>>,
     pub num_segments: u32,
     pub num_junctions: u32,
     pub num_synapses: u32,
@@ -81,6 +91,10 @@ pub fn extract_sim_input(
     extracted.segments = main_input.segments.clone();
     extracted.junctions = main_input.junctions.clone();
     extracted.synapses = main_input.synapses.clone();
+    extracted.junction_adj = main_input.junction_adj.clone();
+    extracted.junction_adj_offsets = main_input.junction_adj_offsets.clone();
+    extracted.synapse_adj = main_input.synapse_adj.clone();
+    extracted.synapse_adj_offsets = main_input.synapse_adj_offsets.clone();
     extracted.num_segments = main_input.num_segments;
     extracted.num_junctions = main_input.num_junctions;
     extracted.num_synapses = main_input.num_synapses;
@@ -100,6 +114,10 @@ pub struct GpuComputeState {
     pub junction_deltas_buf: Buffer,
     pub synapse_deltas_buf: Buffer,
     pub input_currents_buf: Buffer,
+    pub junction_adj_buf: Buffer,
+    pub junction_adj_offsets_buf: Buffer,
+    pub synapse_adj_buf: Buffer,
+    pub synapse_adj_offsets_buf: Buffer,
     pub num_segments: u32,
     pub num_junctions: u32,
     pub num_synapses: u32,
@@ -146,11 +164,8 @@ impl render_graph::Node for BiophysicsComputeNode {
         let step_channels_pl = pipeline_cache
             .get_compute_pipeline(pipelines.step_channels)
             .unwrap();
-        let compute_junction_deltas_pl = pipeline_cache
-            .get_compute_pipeline(pipelines.compute_junction_deltas)
-            .unwrap();
-        let apply_junction_deltas_pl = pipeline_cache
-            .get_compute_pipeline(pipelines.apply_junction_deltas)
+        let apply_junctions_pl = pipeline_cache
+            .get_compute_pipeline(pipelines.apply_junctions)
             .unwrap();
         let step_synapses_pl = pipeline_cache
             .get_compute_pipeline(pipelines.step_synapses)
@@ -172,7 +187,6 @@ impl render_graph::Node for BiophysicsComputeNode {
         }
 
         let seg_wg = div_ceil(n_seg, WORKGROUP_SIZE);
-        let junc_wg = div_ceil(n_junc.max(1), WORKGROUP_SIZE);
         let syn_wg = div_ceil(n_syn.max(1), WORKGROUP_SIZE);
 
         let encoder = render_context.command_encoder();
@@ -180,7 +194,6 @@ impl render_graph::Node for BiophysicsComputeNode {
         // Single compute pass for all steps + write_voltages.
         // On Metal, dispatches within one pass execute in order with full
         // memory coherence, so no barriers are needed between them.
-        // This avoids ~1ms of overhead per begin/end_compute_pass pair.
         let mut pass = encoder.begin_compute_pass(&ComputePassDescriptor {
             label: Some("biophysics_compute"),
             ..default()
@@ -192,10 +205,7 @@ impl render_graph::Node for BiophysicsComputeNode {
             pass.dispatch_workgroups(seg_wg, 1, 1);
 
             if n_junc > 0 {
-                pass.set_pipeline(compute_junction_deltas_pl);
-                pass.dispatch_workgroups(junc_wg, 1, 1);
-
-                pass.set_pipeline(apply_junction_deltas_pl);
+                pass.set_pipeline(apply_junctions_pl);
                 pass.dispatch_workgroups(seg_wg, 1, 1);
             }
 
@@ -331,6 +341,64 @@ pub fn prepare_gpu_buffers(
             })
         };
 
+        // Junction adjacency (CSR format)
+        let junction_adj_buf = match input.junction_adj.as_ref().filter(|d| !d.is_empty()) {
+            Some(data) => render_device.create_buffer_with_data(&BufferInitDescriptor {
+                label: Some("biophysics_junction_adj"),
+                contents: bytemuck::cast_slice(data),
+                usage: BufferUsages::STORAGE,
+            }),
+            None => render_device.create_buffer(&BufferDescriptor {
+                label: Some("biophysics_junction_adj_empty"),
+                size: 8,
+                usage: BufferUsages::STORAGE,
+                mapped_at_creation: false,
+            }),
+        };
+        let junction_adj_offsets_buf =
+            match input.junction_adj_offsets.as_ref().filter(|d| !d.is_empty()) {
+                Some(data) => render_device.create_buffer_with_data(&BufferInitDescriptor {
+                    label: Some("biophysics_junction_adj_offsets"),
+                    contents: bytemuck::cast_slice(data),
+                    usage: BufferUsages::STORAGE,
+                }),
+                None => render_device.create_buffer(&BufferDescriptor {
+                    label: Some("biophysics_junction_adj_offsets_empty"),
+                    size: 4,
+                    usage: BufferUsages::STORAGE,
+                    mapped_at_creation: false,
+                }),
+            };
+
+        // Synapse adjacency (CSR format)
+        let synapse_adj_buf = match input.synapse_adj.as_ref().filter(|d| !d.is_empty()) {
+            Some(data) => render_device.create_buffer_with_data(&BufferInitDescriptor {
+                label: Some("biophysics_synapse_adj"),
+                contents: bytemuck::cast_slice(data),
+                usage: BufferUsages::STORAGE,
+            }),
+            None => render_device.create_buffer(&BufferDescriptor {
+                label: Some("biophysics_synapse_adj_empty"),
+                size: 4,
+                usage: BufferUsages::STORAGE,
+                mapped_at_creation: false,
+            }),
+        };
+        let synapse_adj_offsets_buf =
+            match input.synapse_adj_offsets.as_ref().filter(|d| !d.is_empty()) {
+                Some(data) => render_device.create_buffer_with_data(&BufferInitDescriptor {
+                    label: Some("biophysics_synapse_adj_offsets"),
+                    contents: bytemuck::cast_slice(data),
+                    usage: BufferUsages::STORAGE,
+                }),
+                None => render_device.create_buffer(&BufferDescriptor {
+                    label: Some("biophysics_synapse_adj_offsets_empty"),
+                    size: 4,
+                    usage: BufferUsages::STORAGE,
+                    mapped_at_creation: false,
+                }),
+            };
+
         commands.insert_resource(GpuComputeState {
             segments_buf,
             junctions_buf,
@@ -339,10 +407,14 @@ pub fn prepare_gpu_buffers(
             junction_deltas_buf,
             synapse_deltas_buf,
             input_currents_buf,
+            junction_adj_buf,
+            junction_adj_offsets_buf,
+            synapse_adj_buf,
+            synapse_adj_offsets_buf,
             num_segments: n_seg as u32,
             num_junctions: n_junc as u32,
             num_synapses: n_syn as u32,
-            bind_group: None, // Will be created in prepare_bind_group
+            bind_group: None,
         });
     } else if let Some(mut state) = existing_state {
         // Just update per-frame data: params + input_currents
@@ -433,6 +505,22 @@ pub fn prepare_bind_group(
             BindGroupEntry {
                 binding: 7,
                 resource: voltages_gpu.buffer.as_entire_binding(),
+            },
+            BindGroupEntry {
+                binding: 8,
+                resource: state.junction_adj_buf.as_entire_binding(),
+            },
+            BindGroupEntry {
+                binding: 9,
+                resource: state.junction_adj_offsets_buf.as_entire_binding(),
+            },
+            BindGroupEntry {
+                binding: 10,
+                resource: state.synapse_adj_buf.as_entire_binding(),
+            },
+            BindGroupEntry {
+                binding: 11,
+                resource: state.synapse_adj_offsets_buf.as_entire_binding(),
             },
         ],
     ));

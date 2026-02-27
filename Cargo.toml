@@ -28,7 +28,7 @@ web-sys = { version = "^0.3", features=["Location", "Window", "Document", "Eleme
 bytemuck = { version = "1", features = ["derive"] }
 bevy_panorbit_camera = { version = "0.34", features = ["bevy_egui"] }
 egui_plot = "0.34"
-neuroml = { path = "/Users/greghale/code/neuroml-rs" }
+neuroml = { git = "https://github.com/neuronbench/neuroml-rs", version = "0.1" }
 uom = { git = "https://github.com/neuronbench/uom", version = "0.36.0" }
 
 

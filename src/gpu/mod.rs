@@ -9,7 +9,7 @@ use bevy::render::render_graph::RenderGraph;
 use bevy::render::{ExtractSchedule, Render, RenderApp, RenderStartup, RenderSystems};
 use std::collections::HashMap;
 
-use crate::gpu::buffers::{GpuJunctionData, GpuSegmentData, GpuSynapseData};
+use crate::gpu::buffers::{GpuJunctionData, GpuJunctionNeighbor, GpuSegmentData, GpuSynapseData};
 use crate::gpu::compute::{
     extract_sim_input, prepare_bind_group, prepare_gpu_buffers, BiophysicsComputeLabel,
     BiophysicsComputeNode, ExtractedSimInput, MainWorldSimInput, VoltagesOutHandle,
@@ -35,6 +35,10 @@ pub struct GpuSimState {
     pub segments: Vec<GpuSegmentData>,
     pub junctions: Vec<GpuJunctionData>,
     pub synapses: Vec<GpuSynapseData>,
+    pub junction_adj: Vec<GpuJunctionNeighbor>,
+    pub junction_adj_offsets: Vec<u32>,
+    pub synapse_adj: Vec<u32>,
+    pub synapse_adj_offsets: Vec<u32>,
     pub segment_entities: Vec<Entity>,
     pub entity_to_index: HashMap<Entity, u32>,
     pub topology_dirty: bool,
@@ -47,6 +51,10 @@ impl Default for GpuSimState {
             segments: Vec::new(),
             junctions: Vec::new(),
             synapses: Vec::new(),
+            junction_adj: Vec::new(),
+            junction_adj_offsets: Vec::new(),
+            synapse_adj: Vec::new(),
+            synapse_adj_offsets: Vec::new(),
             segment_entities: Vec::new(),
             entity_to_index: HashMap::new(),
             topology_dirty: true,

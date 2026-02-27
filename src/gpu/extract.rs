@@ -252,6 +252,38 @@ pub fn extract_to_gpu_state(
         }
     }
 
+    // Build junction adjacency lists (CSR format)
+    let n_segments = state.segments.len();
+    let mut junction_neighbors: Vec<Vec<GpuJunctionNeighbor>> = vec![vec![]; n_segments];
+    for junc in &state.junctions {
+        junction_neighbors[junc.first_segment_idx as usize].push(GpuJunctionNeighbor {
+            neighbor_segment_idx: junc.second_segment_idx,
+            conductance: junc.conductance,
+        });
+        junction_neighbors[junc.second_segment_idx as usize].push(GpuJunctionNeighbor {
+            neighbor_segment_idx: junc.first_segment_idx,
+            conductance: junc.conductance,
+        });
+    }
+    state.junction_adj_offsets = vec![0u32; n_segments + 1];
+    for i in 0..n_segments {
+        state.junction_adj_offsets[i + 1] =
+            state.junction_adj_offsets[i] + junction_neighbors[i].len() as u32;
+    }
+    state.junction_adj = junction_neighbors.into_iter().flatten().collect();
+
+    // Build synapse adjacency lists (post-segment → synapse indices, CSR format)
+    let mut synapse_targets: Vec<Vec<u32>> = vec![vec![]; n_segments];
+    for (syn_idx, syn) in state.synapses.iter().enumerate() {
+        synapse_targets[syn.post_segment_idx as usize].push(syn_idx as u32);
+    }
+    state.synapse_adj_offsets = vec![0u32; n_segments + 1];
+    for i in 0..n_segments {
+        state.synapse_adj_offsets[i + 1] =
+            state.synapse_adj_offsets[i] + synapse_targets[i].len() as u32;
+    }
+    state.synapse_adj = synapse_targets.into_iter().flatten().collect();
+
     state.initialized = true;
     state.topology_dirty = false;
 }

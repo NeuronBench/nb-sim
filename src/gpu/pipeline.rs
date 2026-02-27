@@ -21,24 +21,22 @@ const SIM_PARAMS_SIZE: u64 = std::mem::size_of::<SimParams>() as u64;
 #[derive(Resource)]
 pub struct BiophysicsLayoutDescriptor(pub BindGroupLayoutDescriptor);
 
-/// Holds the 6 cached compute pipeline IDs (one per shader entry point).
+/// Holds the 5 cached compute pipeline IDs (one per shader entry point).
 #[derive(Resource)]
 pub struct BiophysicsPipelines {
     pub step_channels: CachedComputePipelineId,
-    pub compute_junction_deltas: CachedComputePipelineId,
-    pub apply_junction_deltas: CachedComputePipelineId,
+    pub apply_junctions: CachedComputePipelineId,
     pub step_synapses: CachedComputePipelineId,
     pub apply_synapse_deltas: CachedComputePipelineId,
     pub write_voltages: CachedComputePipelineId,
 }
 
 impl BiophysicsPipelines {
-    /// Returns true if all 6 pipelines are ready.
+    /// Returns true if all 5 pipelines are ready.
     pub fn all_ready(&self, cache: &PipelineCache) -> bool {
         [
             self.step_channels,
-            self.compute_junction_deltas,
-            self.apply_junction_deltas,
+            self.apply_junctions,
             self.step_synapses,
             self.apply_synapse_deltas,
             self.write_voltages,
@@ -65,7 +63,7 @@ fn make_layout_desc() -> BindGroupLayoutDescriptor {
                     false,
                     Some(NonZero::new(SIM_PARAMS_SIZE).unwrap()),
                 ),
-                // binding 4: junction_deltas (read-write storage, runtime-sized)
+                // binding 4: junction_deltas (dummy, kept for binding stability)
                 storage_buffer_sized(false, None),
                 // binding 5: synapse_deltas (read-write storage, runtime-sized)
                 storage_buffer_sized(false, None),
@@ -73,6 +71,14 @@ fn make_layout_desc() -> BindGroupLayoutDescriptor {
                 storage_buffer_read_only_sized(false, None),
                 // binding 7: voltages_out (read-write storage, runtime-sized)
                 storage_buffer_sized(false, None),
+                // binding 8: junction_adj (read-only, CSR data)
+                storage_buffer_read_only_sized(false, None),
+                // binding 9: junction_adj_offsets (read-only, CSR offsets)
+                storage_buffer_read_only_sized(false, None),
+                // binding 10: synapse_adj (read-only, CSR data)
+                storage_buffer_read_only_sized(false, None),
+                // binding 11: synapse_adj_offsets (read-only, CSR offsets)
+                storage_buffer_read_only_sized(false, None),
             ),
         ),
     )
@@ -98,8 +104,7 @@ pub fn init_biophysics_pipelines(
 
     let pipelines = BiophysicsPipelines {
         step_channels: make_pipeline("step_channels"),
-        compute_junction_deltas: make_pipeline("compute_junction_deltas"),
-        apply_junction_deltas: make_pipeline("apply_junction_deltas"),
+        apply_junctions: make_pipeline("apply_junctions"),
         step_synapses: make_pipeline("step_synapses"),
         apply_synapse_deltas: make_pipeline("apply_synapse_deltas"),
         write_voltages: make_pipeline("write_voltages"),

@@ -395,11 +395,19 @@ fn extract_sim_input_to_render_world(
         main_input.segments = Some(gpu_state.segments.clone());
         main_input.junctions = Some(gpu_state.junctions.clone());
         main_input.synapses = Some(gpu_state.synapses.clone());
+        main_input.junction_adj = Some(gpu_state.junction_adj.clone());
+        main_input.junction_adj_offsets = Some(gpu_state.junction_adj_offsets.clone());
+        main_input.synapse_adj = Some(gpu_state.synapse_adj.clone());
+        main_input.synapse_adj_offsets = Some(gpu_state.synapse_adj_offsets.clone());
         main_input.topology_sent = true;
     } else {
         main_input.segments = None;
         main_input.junctions = None;
         main_input.synapses = None;
+        main_input.junction_adj = None;
+        main_input.junction_adj_offsets = None;
+        main_input.synapse_adj = None;
+        main_input.synapse_adj_offsets = None;
     }
 
     main_input.num_segments = gpu_state.segments.len() as u32;

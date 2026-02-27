@@ -1,12 +1,11 @@
 // biophysics.wgsl — Neuron biophysics compute shader.
 //
 // Mirrors the CPU implementation in src/cpu_sim/mod.rs.
-// Dispatched as 5 passes per simulation step:
+// Dispatched as 4 passes per simulation step:
 //   1. step_channels        (per-segment): channel currents, voltage update, gate stepping
-//   2. compute_junction_deltas (per-junction): gap junction voltage deltas
-//   3. apply_junction_deltas   (per-segment): accumulate junction deltas into voltage
-//   4. step_synapses           (per-synapse): transmitter pumps, receptor currents
-//   5. apply_synapse_deltas    (per-segment): accumulate synapse deltas into voltage
+//   2. apply_junctions      (per-segment): gap junction voltage deltas via adjacency list
+//   3. step_synapses        (per-synapse): transmitter pumps, receptor currents
+//   4. apply_synapse_deltas (per-segment): accumulate synapse deltas via adjacency list
 
 // --- Struct definitions (must match Rust #[repr(C)] layout in gpu/buffers.rs) ---
 
@@ -65,6 +64,11 @@ struct GpuJunctionData {
     second_segment_idx: u32,
     conductance: f32,
     _pad: f32,
+}
+
+struct JunctionNeighbor {
+    neighbor_idx: u32,
+    conductance: f32,
 }
 
 struct GpuTransmitterPump {
@@ -140,6 +144,12 @@ struct SimParams {
 @group(0) @binding(6) var<storage, read> input_currents: array<f32>;
 // Per-segment voltage output for readback to CPU (written once per frame after all steps)
 @group(0) @binding(7) var<storage, read_write> voltages_out: array<f32>;
+// Junction adjacency list (CSR format): per-segment neighbor data
+@group(0) @binding(8)  var<storage, read> junction_adj: array<JunctionNeighbor>;
+@group(0) @binding(9)  var<storage, read> junction_adj_offsets: array<u32>;
+// Synapse adjacency list (CSR format): per-segment post-synapse indices
+@group(0) @binding(10) var<storage, read> synapse_adj: array<u32>;
+@group(0) @binding(11) var<storage, read> synapse_adj_offsets: array<u32>;
 
 // --- Helper functions ---
 
@@ -252,57 +262,35 @@ fn step_channels(@builtin(global_invocation_id) global_id: vec3<u32>) {
 }
 
 // ===========================================================================
-// Entry point 2: Compute junction deltas (one thread per junction)
+// Entry point 2: Apply junctions via adjacency list (one thread per segment)
 // ===========================================================================
 
 @compute @workgroup_size(64)
-fn compute_junction_deltas(@builtin(global_invocation_id) global_id: vec3<u32>) {
-    let idx = global_id.x;
-    if idx >= params.num_junctions {
-        return;
-    }
-
-    let junc = junctions[idx];
-    let v1 = segments[junc.first_segment_idx].voltage;
-    let v2 = segments[junc.second_segment_idx].voltage;
-    let cap1 = segments[junc.first_segment_idx].capacitance
-             * segments[junc.first_segment_idx].surface_area;
-    let cap2 = segments[junc.second_segment_idx].capacitance
-             * segments[junc.second_segment_idx].surface_area;
-
-    let first_to_second = junc.conductance * (v1 - v2) * 1e-3;
-
-    // Store per-junction deltas: [j*2] for first segment, [j*2+1] for second
-    junction_deltas[idx * 2u]      = -first_to_second / cap1 * params.dt;
-    junction_deltas[idx * 2u + 1u] =  first_to_second / cap2 * params.dt;
-}
-
-// ===========================================================================
-// Entry point 3: Apply junction deltas (one thread per segment, gathers)
-// ===========================================================================
-
-@compute @workgroup_size(64)
-fn apply_junction_deltas(@builtin(global_invocation_id) global_id: vec3<u32>) {
+fn apply_junctions(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let seg_idx = global_id.x;
     if seg_idx >= params.num_segments {
         return;
     }
 
+    let v_me = segments[seg_idx].voltage;
+    let cap_me = segments[seg_idx].capacitance * segments[seg_idx].surface_area;
+    let dt = params.dt;
+
+    let start = junction_adj_offsets[seg_idx];
+    let end = junction_adj_offsets[seg_idx + 1u];
+
     var delta: f32 = 0.0;
-    for (var j: u32 = 0u; j < params.num_junctions; j++) {
-        if junctions[j].first_segment_idx == seg_idx {
-            delta += junction_deltas[j * 2u];
-        }
-        if junctions[j].second_segment_idx == seg_idx {
-            delta += junction_deltas[j * 2u + 1u];
-        }
+    for (var i: u32 = start; i < end; i++) {
+        let neighbor = junction_adj[i];
+        let v_neighbor = segments[neighbor.neighbor_idx].voltage;
+        delta -= neighbor.conductance * (v_me - v_neighbor) * 1e-3 / cap_me * dt;
     }
 
     segments[seg_idx].voltage += delta;
 }
 
 // ===========================================================================
-// Entry point 4: Synapse step (one thread per synapse)
+// Entry point 3: Synapse step (one thread per synapse)
 // ===========================================================================
 
 @compute @workgroup_size(64)
@@ -401,7 +389,7 @@ fn step_synapses(@builtin(global_invocation_id) global_id: vec3<u32>) {
 }
 
 // ===========================================================================
-// Entry point 5: Apply synapse deltas (one thread per segment, gathers)
+// Entry point 4: Apply synapse deltas via adjacency list (one thread per segment)
 // ===========================================================================
 
 @compute @workgroup_size(64)
@@ -411,18 +399,19 @@ fn apply_synapse_deltas(@builtin(global_invocation_id) global_id: vec3<u32>) {
         return;
     }
 
+    let start = synapse_adj_offsets[seg_idx];
+    let end = synapse_adj_offsets[seg_idx + 1u];
+
     var delta: f32 = 0.0;
-    for (var s: u32 = 0u; s < params.num_synapses; s++) {
-        if synapses[s].post_segment_idx == seg_idx {
-            delta += synapse_deltas[s];
-        }
+    for (var i: u32 = start; i < end; i++) {
+        delta += synapse_deltas[synapse_adj[i]];
     }
 
     segments[seg_idx].voltage += delta;
 }
 
 // ===========================================================================
-// Entry point 6: Copy voltages to output buffer for CPU readback (per-segment)
+// Entry point 5: Copy voltages to output buffer for CPU readback (per-segment)
 // ===========================================================================
 
 @compute @workgroup_size(64)
