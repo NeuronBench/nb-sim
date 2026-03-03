@@ -26,6 +26,19 @@
 
       ];
 
+      wasm-bindgen-cli = pkgs.buildWasmBindgenCli rec {
+        src = pkgs.fetchCrate {
+          pname = "wasm-bindgen-cli";
+          version = "0.2.111";
+          hash = "sha256-vCa7VIGmMB3baGQqhkd6r4XmUktt61ibcjDQtRW4PzA=";
+        };
+        cargoDeps = pkgs.rustPlatform.fetchCargoVendor {
+          inherit src;
+          inherit (src) pname version;
+          hash = "sha256-Sl/AJXq4NSryKIXXo2Fjy6ybVxB8ezka8VQBBxbWPCw=";
+        };
+      };
+
       nbSimLockHashes = {
           lockFile = ./Cargo.lock;
           outputHashes = { 
@@ -36,7 +49,7 @@
 
 
       buildInputs = [
-          pkgs.wasm-bindgen-cli
+          wasm-bindgen-cli
           pkgs.wasm-pack
           pkgs.which
           rust
@@ -75,7 +88,7 @@
         cargoLock = nbSimLockHashes;
 
         buildPhase = ''
-          HOME=$(mktemp -d fake-homeXXXX) RUSTFLAGS="--cfg=web_sys_unstable_apis" wasm-pack build --mode no-install --release --target web
+          HOME=$(mktemp -d fake-homeXXXX) wasm-pack build --mode no-install --release --target web
         '';
         checkPhase = "echo 'Skipping tests'";
         installPhase = ''
@@ -96,7 +109,7 @@
           rust
           pkgs.git
           pkgs.autoconf
-          pkgs.wasm-bindgen-cli
+          wasm-bindgen-cli
           pkgs.pkg-config
           pkgs.openssl
           pkgs.sass
