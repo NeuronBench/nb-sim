@@ -111,7 +111,6 @@ pub struct GpuComputeState {
     pub junctions_buf: Buffer,
     pub synapses_buf: Buffer,
     pub params_buf: Buffer,
-    pub junction_deltas_buf: Buffer,
     pub synapse_deltas_buf: Buffer,
     pub input_currents_buf: Buffer,
     pub junction_adj_buf: Buffer,
@@ -306,15 +305,6 @@ pub fn prepare_gpu_buffers(
             },
         );
 
-        // Junction deltas: 2 floats per junction
-        let jd_size = ((n_junc.max(1) * 2) * std::mem::size_of::<f32>()) as u64;
-        let junction_deltas_buf = render_device.create_buffer(&BufferDescriptor {
-            label: Some("biophysics_junction_deltas"),
-            size: jd_size,
-            usage: BufferUsages::STORAGE,
-            mapped_at_creation: false,
-        });
-
         // Synapse deltas: 1 float per synapse
         let sd_size = (n_syn.max(1) * std::mem::size_of::<f32>()) as u64;
         let synapse_deltas_buf = render_device.create_buffer(&BufferDescriptor {
@@ -404,7 +394,6 @@ pub fn prepare_gpu_buffers(
             junctions_buf,
             synapses_buf,
             params_buf,
-            junction_deltas_buf,
             synapse_deltas_buf,
             input_currents_buf,
             junction_adj_buf,
@@ -492,34 +481,30 @@ pub fn prepare_bind_group(
             },
             BindGroupEntry {
                 binding: 4,
-                resource: state.junction_deltas_buf.as_entire_binding(),
-            },
-            BindGroupEntry {
-                binding: 5,
                 resource: state.synapse_deltas_buf.as_entire_binding(),
             },
             BindGroupEntry {
-                binding: 6,
+                binding: 5,
                 resource: state.input_currents_buf.as_entire_binding(),
             },
             BindGroupEntry {
-                binding: 7,
+                binding: 6,
                 resource: voltages_gpu.buffer.as_entire_binding(),
             },
             BindGroupEntry {
-                binding: 8,
+                binding: 7,
                 resource: state.junction_adj_buf.as_entire_binding(),
             },
             BindGroupEntry {
-                binding: 9,
+                binding: 8,
                 resource: state.junction_adj_offsets_buf.as_entire_binding(),
             },
             BindGroupEntry {
-                binding: 10,
+                binding: 9,
                 resource: state.synapse_adj_buf.as_entire_binding(),
             },
             BindGroupEntry {
-                binding: 11,
+                binding: 10,
                 resource: state.synapse_adj_offsets_buf.as_entire_binding(),
             },
         ],

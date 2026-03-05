@@ -67,21 +67,19 @@ fn make_layout_desc() -> BindGroupLayoutDescriptor {
                     false,
                     Some(NonZero::new(SIM_PARAMS_SIZE).unwrap()),
                 ),
-                // binding 4: junction_deltas (dummy, kept for binding stability)
+                // binding 4: synapse_deltas (read-write storage, runtime-sized)
                 storage_buffer_sized(false, None),
-                // binding 5: synapse_deltas (read-write storage, runtime-sized)
+                // binding 5: input_currents (read-only storage, runtime-sized)
+                storage_buffer_read_only_sized(false, None),
+                // binding 6: voltages_out (read-write storage, runtime-sized)
                 storage_buffer_sized(false, None),
-                // binding 6: input_currents (read-only storage, runtime-sized)
+                // binding 7: junction_adj (read-only, CSR data)
                 storage_buffer_read_only_sized(false, None),
-                // binding 7: voltages_out (read-write storage, runtime-sized)
-                storage_buffer_sized(false, None),
-                // binding 8: junction_adj (read-only, CSR data)
+                // binding 8: junction_adj_offsets (read-only, CSR offsets)
                 storage_buffer_read_only_sized(false, None),
-                // binding 9: junction_adj_offsets (read-only, CSR offsets)
+                // binding 9: synapse_adj (read-only, CSR data)
                 storage_buffer_read_only_sized(false, None),
-                // binding 10: synapse_adj (read-only, CSR data)
-                storage_buffer_read_only_sized(false, None),
-                // binding 11: synapse_adj_offsets (read-only, CSR offsets)
+                // binding 10: synapse_adj_offsets (read-only, CSR offsets)
                 storage_buffer_read_only_sized(false, None),
             ),
         ),

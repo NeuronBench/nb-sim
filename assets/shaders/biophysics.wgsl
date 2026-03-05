@@ -136,20 +136,18 @@ struct SimParams {
 @group(0) @binding(1) var<storage, read>       junctions: array<GpuJunctionData>;
 @group(0) @binding(2) var<storage, read_write> synapses: array<GpuSynapseData>;
 @group(0) @binding(3) var<uniform>             params: SimParams;
-// Per-junction scratch: [j*2] = delta for first_segment, [j*2+1] = delta for second_segment
-@group(0) @binding(4) var<storage, read_write> junction_deltas: array<f32>;
 // Per-synapse scratch: voltage delta for post_segment
-@group(0) @binding(5) var<storage, read_write> synapse_deltas: array<f32>;
+@group(0) @binding(4) var<storage, read_write> synapse_deltas: array<f32>;
 // Per-segment input currents (stimulators + InputCurrent), uploaded from CPU each frame
-@group(0) @binding(6) var<storage, read> input_currents: array<f32>;
+@group(0) @binding(5) var<storage, read> input_currents: array<f32>;
 // Per-segment voltage output for readback to CPU (written once per frame after all steps)
-@group(0) @binding(7) var<storage, read_write> voltages_out: array<f32>;
+@group(0) @binding(6) var<storage, read_write> voltages_out: array<f32>;
 // Junction adjacency list (CSR format): per-segment neighbor data
-@group(0) @binding(8)  var<storage, read> junction_adj: array<JunctionNeighbor>;
-@group(0) @binding(9)  var<storage, read> junction_adj_offsets: array<u32>;
+@group(0) @binding(7)  var<storage, read> junction_adj: array<JunctionNeighbor>;
+@group(0) @binding(8)  var<storage, read> junction_adj_offsets: array<u32>;
 // Synapse adjacency list (CSR format): per-segment post-synapse indices
-@group(0) @binding(10) var<storage, read> synapse_adj: array<u32>;
-@group(0) @binding(11) var<storage, read> synapse_adj_offsets: array<u32>;
+@group(0) @binding(9)  var<storage, read> synapse_adj: array<u32>;
+@group(0) @binding(10) var<storage, read> synapse_adj_offsets: array<u32>;
 
 // --- Helper functions ---
 
