@@ -14,7 +14,7 @@ use crate::gpu::compute::{
     extract_sim_input, prepare_bind_group, prepare_gpu_buffers, BiophysicsComputeLabel,
     BiophysicsComputeNode, ExtractedSimInput, MainWorldSimInput, VoltagesOutHandle,
 };
-use crate::gpu::pipeline::init_biophysics_pipelines;
+use crate::gpu::pipeline::{init_biophysics_pipelines, BiophysicsShaderHandle};
 
 /// Which simulation backend is active.
 #[derive(Resource, Debug, Clone, Copy, PartialEq, Eq)]
@@ -74,12 +74,23 @@ impl Plugin for GpuComputePlugin {
         // Extract VoltagesOutHandle to render world
         app.add_plugins(ExtractResourcePlugin::<VoltagesOutHandle>::default());
 
+        // Embed the biophysics shader at compile time (avoids HTTP fetch in wasm).
+        let shader = Shader::from_wgsl(
+            include_str!("../../assets/shaders/biophysics.wgsl"),
+            "shaders/biophysics.wgsl",
+        );
+        let shader_handle = app
+            .world_mut()
+            .resource_mut::<Assets<Shader>>()
+            .add(shader);
+
         let Some(render_app) = app.get_sub_app_mut(RenderApp) else {
             warn!("No RenderApp found, GPU compute disabled");
             return;
         };
 
         // Render-world resources
+        render_app.insert_resource(BiophysicsShaderHandle(shader_handle));
         render_app.init_resource::<ExtractedSimInput>();
 
         // ExtractSchedule: copy main world data to render world

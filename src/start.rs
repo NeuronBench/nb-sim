@@ -3,6 +3,8 @@ use bevy::picking::mesh_picking::MeshPickingPlugin;
 use bevy::post_process::bloom::Bloom;
 use bevy::diagnostic::{LogDiagnosticsPlugin, FrameTimeDiagnosticsPlugin};
 use bevy::color::Srgba;
+use bevy::render::settings::{Backends, RenderCreation, WgpuSettings};
+use bevy::render::RenderPlugin;
 use bevy_egui::{EguiPlugin, EguiPrimaryContextPass};
 use bevy_panorbit_camera::{PanOrbitCameraPlugin, PanOrbitCamera};
 use std::f32::consts::PI;
@@ -30,14 +32,23 @@ pub fn start(
 
  let mut app = App::new();
  app
-    .add_plugins((DefaultPlugins.set(WindowPlugin {
-      primary_window: Some(Window {
-        title: "".to_string(),
-        canvas: Some("#bevy".to_string()),
+    .add_plugins((DefaultPlugins
+      .set(WindowPlugin {
+        primary_window: Some(Window {
+          title: "".to_string(),
+          canvas: Some("#bevy".to_string()),
+          ..default()
+        }),
+        ..default()
+      })
+      .set(RenderPlugin {
+        render_creation: RenderCreation::Automatic(WgpuSettings {
+          backends: Some(Backends::BROWSER_WEBGPU | Backends::GL),
+          ..default()
+        }),
         ..default()
       }),
-      ..default()
-    }), MeshPickingPlugin))
+    MeshPickingPlugin))
         .add_plugins(EguiPlugin::default())
         .add_plugins(LogDiagnosticsPlugin::default())
         .add_plugins(FrameTimeDiagnosticsPlugin::default())

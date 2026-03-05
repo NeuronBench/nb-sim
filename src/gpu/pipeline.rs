@@ -16,6 +16,10 @@ use crate::gpu::buffers::SimParams;
 /// Size of SimParams in bytes (16 f32 = 64 bytes).
 const SIM_PARAMS_SIZE: u64 = std::mem::size_of::<SimParams>() as u64;
 
+/// Holds the compile-time-embedded shader handle (avoids HTTP fetch in wasm).
+#[derive(Resource, Clone)]
+pub struct BiophysicsShaderHandle(pub Handle<Shader>);
+
 /// Holds the bind group layout descriptor (used to get the actual BindGroupLayout
 /// from PipelineCache when creating bind groups).
 #[derive(Resource)]
@@ -86,11 +90,11 @@ fn make_layout_desc() -> BindGroupLayoutDescriptor {
 
 pub fn init_biophysics_pipelines(
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
+    shader_handle: Res<BiophysicsShaderHandle>,
     pipeline_cache: Res<PipelineCache>,
 ) {
     let layout_desc = make_layout_desc();
-    let shader: Handle<Shader> = asset_server.load("shaders/biophysics.wgsl");
+    let shader: Handle<Shader> = shader_handle.0.clone();
 
     let make_pipeline = |entry_point: &'static str| -> CachedComputePipelineId {
         pipeline_cache.queue_compute_pipeline(ComputePipelineDescriptor {
