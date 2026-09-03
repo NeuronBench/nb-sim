@@ -43,6 +43,9 @@ pub struct GpuSimState {
     pub entity_to_index: HashMap<Entity, u32>,
     pub topology_dirty: bool,
     pub initialized: bool,
+    /// Incremented on every full extraction. The render world recreates its
+    /// buffers whenever the generation it holds differs from this one.
+    pub topology_generation: u64,
 }
 
 impl Default for GpuSimState {
@@ -59,6 +62,7 @@ impl Default for GpuSimState {
             entity_to_index: HashMap::new(),
             topology_dirty: true,
             initialized: false,
+            topology_generation: 0,
         }
     }
 }

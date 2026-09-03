@@ -12,7 +12,8 @@ use wasm_bindgen::prelude::*;
 
 use crate::plugin::NbSimPlugin;
 use crate::gui::run_gui;
-use crate::gui::load::{handle_loaded_neuron, GraceSceneSource, InterpreterUrl};
+use crate::gui::load::{handle_loaded_neuron, SceneSource};
+use crate::gui::scene_panel::run_scene_panel;
 use crate::integrations::grace::{self, GraceScene};
 use crate::integrations::neuroml::sample as neuroml_sample;
 use crate::neuron::membrane::MembraneMaterials;
@@ -24,11 +25,17 @@ struct MyCamera;
 
 
 
+/// Start the simulator.
+///
+/// `interpreter_url` is accepted for compatibility with older embedders and
+/// ignored: scenes are now evaluated in-process. `demo` spawns the built-in
+/// sample scene when no scene source is configured.
 #[wasm_bindgen]
 pub fn start(
   interpreter_url: String,
   demo: bool,
 ) {
+ let _ = interpreter_url;
 
  let mut app = App::new();
  app
@@ -56,9 +63,8 @@ pub fn start(
         .add_plugins(ExternalTriggerPlugin)
         .add_plugins(PanOrbitCameraPlugin)
         .add_systems(Startup, setup_scene)
-        .insert_resource(InterpreterUrl(interpreter_url))
         .insert_resource(ClearColor(Srgba::hex("#0e0e1f").unwrap().into()))
-        .add_systems(EguiPrimaryContextPass, run_gui)
+        .add_systems(EguiPrimaryContextPass, (run_gui, run_scene_panel))
         .add_systems(Update, handle_loaded_neuron);
 
         if demo {
@@ -73,7 +79,7 @@ fn setup_grace_neuron(
   mut meshes: ResMut<Assets<Mesh>>,
   membrane_materials: Res<MembraneMaterials>,
   mut materials: ResMut<Assets<StandardMaterial>>,
-  grace_scene_source: Res<GraceSceneSource>,
+  grace_scene_source: Res<SceneSource>,
   selections: Query<Entity, With<Selection>>,
   highlights: Query<Entity, With<Highlight>>,
 ) {

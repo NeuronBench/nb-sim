@@ -1,6 +1,7 @@
 //! GPU compute systems: extraction, buffer management, dispatch, and readback.
 
 use bevy::prelude::*;
+use std::sync::Arc;
 use bevy::render::extract_resource::ExtractResource;
 use bevy::render::render_graph::{self, RenderLabel};
 use bevy::render::render_resource::*;
@@ -24,6 +25,11 @@ fn div_ceil(n: u32, d: u32) -> u32 {
 // Main-world resources
 // ---------------------------------------------------------------------------
 
+/// Diagnostics: how many frames the compute pass was dispatched, and how many
+/// were skipped because pipelines were still compiling.
+pub static DISPATCH_COUNT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+pub static NOT_READY_COUNT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
 /// Handle to the voltages_out ShaderStorageBuffer asset (lives in main world).
 /// Extracted to render world via ExtractResource.
 #[derive(Resource, Clone, ExtractResource)]
@@ -35,25 +41,30 @@ pub struct VoltagesReadbackEntity(pub Entity);
 
 /// Main-world resource holding simulation data to send to the render world.
 /// Populated each frame in Update, read by ExtractSchedule system.
+///
+/// The topology snapshot is kept (behind `Arc`, so extraction is cheap)
+/// rather than sent once: the render world compares `topology_generation`
+/// with the generation its buffers were built from and recreates them on a
+/// mismatch. That makes scene reloads and missed frames self-healing.
 #[derive(Resource, Clone, Default)]
 pub struct MainWorldSimInput {
     pub input_currents: Vec<f32>,
     pub params: Option<SimParams>,
-    /// Full topology data, sent only when dirty.
-    pub segments: Option<Vec<GpuSegmentData>>,
-    pub junctions: Option<Vec<GpuJunctionData>>,
-    pub synapses: Option<Vec<GpuSynapseData>>,
-    pub junction_adj: Option<Vec<GpuJunctionNeighbor>>,
-    pub junction_adj_offsets: Option<Vec<u32>>,
-    pub synapse_adj: Option<Vec<u32>>,
-    pub synapse_adj_offsets: Option<Vec<u32>>,
+    /// Snapshot of the topology for `topology_generation`.
+    pub segments: Option<Arc<Vec<GpuSegmentData>>>,
+    pub junctions: Option<Arc<Vec<GpuJunctionData>>>,
+    pub synapses: Option<Arc<Vec<GpuSynapseData>>>,
+    pub junction_adj: Option<Arc<Vec<GpuJunctionNeighbor>>>,
+    pub junction_adj_offsets: Option<Arc<Vec<u32>>>,
+    pub synapse_adj: Option<Arc<Vec<u32>>>,
+    pub synapse_adj_offsets: Option<Arc<Vec<u32>>>,
     pub num_segments: u32,
     pub num_junctions: u32,
     pub num_synapses: u32,
     /// Whether this frame has valid data to extract.
     pub active: bool,
-    /// Whether topology has been sent to the render world at least once.
-    pub topology_sent: bool,
+    /// Generation of `GpuSimState` the snapshot was taken from.
+    pub topology_generation: u64,
 }
 
 // ---------------------------------------------------------------------------
@@ -65,16 +76,17 @@ pub struct MainWorldSimInput {
 pub struct ExtractedSimInput {
     pub input_currents: Vec<f32>,
     pub params: Option<SimParams>,
-    pub segments: Option<Vec<GpuSegmentData>>,
-    pub junctions: Option<Vec<GpuJunctionData>>,
-    pub synapses: Option<Vec<GpuSynapseData>>,
-    pub junction_adj: Option<Vec<GpuJunctionNeighbor>>,
-    pub junction_adj_offsets: Option<Vec<u32>>,
-    pub synapse_adj: Option<Vec<u32>>,
-    pub synapse_adj_offsets: Option<Vec<u32>>,
+    pub segments: Option<Arc<Vec<GpuSegmentData>>>,
+    pub junctions: Option<Arc<Vec<GpuJunctionData>>>,
+    pub synapses: Option<Arc<Vec<GpuSynapseData>>>,
+    pub junction_adj: Option<Arc<Vec<GpuJunctionNeighbor>>>,
+    pub junction_adj_offsets: Option<Arc<Vec<u32>>>,
+    pub synapse_adj: Option<Arc<Vec<u32>>>,
+    pub synapse_adj_offsets: Option<Arc<Vec<u32>>>,
     pub num_segments: u32,
     pub num_junctions: u32,
     pub num_synapses: u32,
+    pub topology_generation: u64,
 }
 
 /// ExtractSchedule system: copies MainWorldSimInput → ExtractedSimInput.
@@ -98,6 +110,7 @@ pub fn extract_sim_input(
     extracted.num_segments = main_input.num_segments;
     extracted.num_junctions = main_input.num_junctions;
     extracted.num_synapses = main_input.num_synapses;
+    extracted.topology_generation = main_input.topology_generation;
 }
 
 // ---------------------------------------------------------------------------
@@ -121,6 +134,8 @@ pub struct GpuComputeState {
     pub num_junctions: u32,
     pub num_synapses: u32,
     pub bind_group: Option<BindGroup>,
+    /// Topology generation these buffers were built from.
+    pub generation: u64,
 }
 
 // ---------------------------------------------------------------------------
@@ -157,6 +172,7 @@ impl render_graph::Node for BiophysicsComputeNode {
 
         // Check all pipelines are ready
         if !pipelines.all_ready(pipeline_cache) {
+            NOT_READY_COUNT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             return Ok(());
         }
 
@@ -184,6 +200,7 @@ impl render_graph::Node for BiophysicsComputeNode {
         if n_seg == 0 {
             return Ok(());
         }
+        DISPATCH_COUNT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 
         let seg_wg = div_ceil(n_seg, WORKGROUP_SIZE);
         let syn_wg = div_ceil(n_syn.max(1), WORKGROUP_SIZE);
@@ -241,20 +258,26 @@ pub fn prepare_gpu_buffers(
         None => return,
     };
 
-    let need_recreate = input.segments.is_some()
-        || existing_state.is_none();
+    let need_recreate = match existing_state.as_ref() {
+        None => true,
+        Some(state) => state.generation != input.topology_generation,
+    };
 
     if need_recreate {
         let segments_data = match input.segments.as_ref() {
-            Some(s) if !s.is_empty() => s,
+            Some(s) if !s.is_empty() => s.as_slice(),
             _ => return, // No topology yet; wait for next frame
         };
-        let junctions_data = input.junctions.as_ref().unwrap();
-        let synapses_data = input.synapses.as_ref().unwrap();
+        let junctions_data = input.junctions.as_ref().map(|j| j.as_slice()).unwrap_or(&[]);
+        let synapses_data = input.synapses.as_ref().map(|s| s.as_slice()).unwrap_or(&[]);
 
         let n_seg = segments_data.len();
         let n_junc = junctions_data.len();
         let n_syn = synapses_data.len();
+        info!(
+            "biophysics: (re)creating GPU buffers for {n_seg} segments, {n_junc} junctions, {n_syn} synapses (topology generation {})",
+            input.topology_generation
+        );
 
         // Create GPU buffers with initial data
         let segments_buf = render_device.create_buffer_with_data(
@@ -335,7 +358,7 @@ pub fn prepare_gpu_buffers(
         let junction_adj_buf = match input.junction_adj.as_ref().filter(|d| !d.is_empty()) {
             Some(data) => render_device.create_buffer_with_data(&BufferInitDescriptor {
                 label: Some("biophysics_junction_adj"),
-                contents: bytemuck::cast_slice(data),
+                contents: bytemuck::cast_slice(data.as_slice()),
                 usage: BufferUsages::STORAGE,
             }),
             None => render_device.create_buffer(&BufferDescriptor {
@@ -349,7 +372,7 @@ pub fn prepare_gpu_buffers(
             match input.junction_adj_offsets.as_ref().filter(|d| !d.is_empty()) {
                 Some(data) => render_device.create_buffer_with_data(&BufferInitDescriptor {
                     label: Some("biophysics_junction_adj_offsets"),
-                    contents: bytemuck::cast_slice(data),
+                    contents: bytemuck::cast_slice(data.as_slice()),
                     usage: BufferUsages::STORAGE,
                 }),
                 None => render_device.create_buffer(&BufferDescriptor {
@@ -364,7 +387,7 @@ pub fn prepare_gpu_buffers(
         let synapse_adj_buf = match input.synapse_adj.as_ref().filter(|d| !d.is_empty()) {
             Some(data) => render_device.create_buffer_with_data(&BufferInitDescriptor {
                 label: Some("biophysics_synapse_adj"),
-                contents: bytemuck::cast_slice(data),
+                contents: bytemuck::cast_slice(data.as_slice()),
                 usage: BufferUsages::STORAGE,
             }),
             None => render_device.create_buffer(&BufferDescriptor {
@@ -378,7 +401,7 @@ pub fn prepare_gpu_buffers(
             match input.synapse_adj_offsets.as_ref().filter(|d| !d.is_empty()) {
                 Some(data) => render_device.create_buffer_with_data(&BufferInitDescriptor {
                     label: Some("biophysics_synapse_adj_offsets"),
-                    contents: bytemuck::cast_slice(data),
+                    contents: bytemuck::cast_slice(data.as_slice()),
                     usage: BufferUsages::STORAGE,
                 }),
                 None => render_device.create_buffer(&BufferDescriptor {
@@ -404,6 +427,7 @@ pub fn prepare_gpu_buffers(
             num_junctions: n_junc as u32,
             num_synapses: n_syn as u32,
             bind_group: None,
+            generation: input.topology_generation,
         });
     } else if let Some(mut state) = existing_state {
         // Just update per-frame data: params + input_currents
@@ -454,8 +478,10 @@ pub fn prepare_bind_group(
     }
 
     let Some(voltages_gpu) = ssbos.get(&voltages_handle.0) else {
+        warn!("biophysics: voltages_out storage buffer not prepared yet; bind group deferred");
         return;
     };
+    info!("biophysics: creating bind group for topology generation {}", state.generation);
 
     let layout = pipeline_cache.get_bind_group_layout(&layout_desc.0);
 

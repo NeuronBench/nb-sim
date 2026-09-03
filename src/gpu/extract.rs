@@ -286,6 +286,7 @@ pub fn extract_to_gpu_state(
 
     state.initialized = true;
     state.topology_dirty = false;
+    state.topology_generation += 1;
 }
 
 /// Update only the per-frame mutable data (stimulator currents) without

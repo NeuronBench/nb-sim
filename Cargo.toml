@@ -14,6 +14,9 @@ name = "bevy"
 path = "src/bin/bevy.rs"
 
 [dependencies]
+# Sibling checkout during development; switch to a git dependency once pushed.
+nb-nickel = { path = "../nb-nickel" }
+schemars = "1"
 once_cell = "^1.18"
 wasm-bindgen = "0.2.86"
 csv = "^1.1.6"

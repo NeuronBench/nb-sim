@@ -4,6 +4,7 @@ pub mod dimension;
 pub mod gpu;
 pub mod gui;
 pub mod neuron;
+pub mod nickel_schema;
 pub mod plugin;
 pub mod integrations;
 pub mod serialize;

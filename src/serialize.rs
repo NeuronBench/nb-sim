@@ -1,46 +1,46 @@
 use serde::{Serialize, Deserialize};
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Scene {
     // pub extracellular_solution: Solution,
     pub neurons: Vec<SceneNeuron>,
     pub synapses: Vec<Synapse>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct SceneNeuron {
     pub neuron: Neuron,
     pub location: Location,
     pub stimulator_segments: Vec<StimulatorSegment>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Location {
     pub x_mm: f32,
     pub y_mm: f32,
     pub z_mm: f32,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct StimulatorSegment {
     pub stimulator: Stimulator,
     pub segment: u32,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Stimulator {
     pub envelope: Envelope,
     pub current_shape: CurrentShape,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Envelope {
     pub period_sec: f32,
     pub onset_sec: f32,
     pub offset_sec: f32
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(tag="type")]
 pub enum CurrentShape {
     SquareWave {
@@ -61,21 +61,21 @@ pub enum CurrentShape {
 }
 
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Neuron {
     pub segments: Vec<Segment>,
     pub membranes: Vec<Membrane>,
     // pub junctions: Vec<(Uuid, Uuid)>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Position {
     pub x: f32,
     pub y: f32,
     pub z: f32,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Segment {
 
     pub id: i32,
@@ -92,20 +92,20 @@ pub struct Segment {
 
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Membrane {
     pub membrane_channels: Vec<MembraneChannel>,
     pub capacitance_farads_per_square_cm: f32,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct MembraneChannel {
     pub channel: Channel,
     pub siemens_per_square_cm: f32
 }
 
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Channel {
   // Parameters for channel activation, and the current magnitude of this parameter.
   pub activation: Option<GatingParameters>,
@@ -115,7 +115,7 @@ pub struct Channel {
   pub ion_selectivity: IonSelectivity,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct IonSelectivity {
     // Permiability to Na+ ions.
     pub na: f32,
@@ -127,26 +127,26 @@ pub struct IonSelectivity {
     pub cl: f32,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct GatingParameters {
   pub gates: u8,
   pub magnitude: Magnitude,
   pub time_constant: TimeConstant,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Geometry {
     pub diameter_cm: f32,
     pub length_cm: f32,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Magnitude {
     pub v_at_half_max_mv: f32,
     pub slope: f32,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(tag="type")]
 pub enum TimeConstant {
     Instantaneous,
@@ -155,7 +155,7 @@ pub enum TimeConstant {
 }
 
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Synapse {
     pub pre_neuron: usize,
     pub pre_segment: usize,
@@ -164,7 +164,7 @@ pub struct Synapse {
     pub synapse_membranes: SynapseMembranes,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct SynapseMembranes {
     pub cleft_solution: Solution,
     pub transmitter_concentrations: TransmitterConcentrations,
@@ -173,19 +173,19 @@ pub struct SynapseMembranes {
     pub surface_area_square_mm: f32
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct TransmitterConcentrations {
     pub glutamate_molar: f32,
     pub gaba_molar: f32,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct TransmitterPump {
     pub transmitter: String,
     pub transmitter_pump_params: TransmitterPumpParams,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct BellFunc {
     pub amplitude: f32,
     pub base: f32,
@@ -194,7 +194,7 @@ pub struct BellFunc {
 }
 
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Gaussian {
     pub min_molar: f32,
     pub max_molar: f32,
@@ -203,26 +203,26 @@ pub struct Gaussian {
     // pub log_space: bool,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct TransmitterPumpParams {
     pub target_concentration: Gaussian,
     pub time_constant: TimeConstant,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Receptor {
     pub membrane_channel: MembraneChannel,
     pub neurotransmitter_sensitivity: Sensitivity,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Sensitivity {
     pub transmitter: String,
     pub concentration_at_half_max_molar: f32,
     pub slope: f32,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Solution {
     // Na+ concentration (Molars).
     pub na: f32,

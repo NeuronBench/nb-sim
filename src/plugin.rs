@@ -4,6 +4,7 @@ use bevy::render::gpu_readback::{Readback, ReadbackComplete};
 use bevy::render::render_resource::BufferUsages;
 use bevy::render::storage::ShaderStorageBuffer;
 use std::fmt::{self, Display};
+use std::sync::Arc;
 use std::time::Duration;
 
 use crate::constants::{
@@ -234,6 +235,17 @@ fn step_biophysics_flat(
     // When GPU is active, we still need to extract ECS→flat arrays for the
     // render world (topology + input currents), but skip CPU simulation.
     if *backend == SimBackend::Gpu {
+        // A scene reload despawns and respawns every segment. Detect that by
+        // comparing the live entities with the ones the flat arrays were built
+        // from, so the topology is re-extracted and resent automatically.
+        let live_count = segments_query.iter().count();
+        let topology_changed = live_count != gpu_state.segment_entities.len()
+            || segments_query
+                .iter()
+                .any(|(entity, ..)| !gpu_state.entity_to_index.contains_key(&entity));
+        if topology_changed {
+            gpu_state.topology_dirty = true;
+        }
         // Keep GpuSimState in sync so extract_sim_input_to_render_world has data
         if gpu_state.topology_dirty || !gpu_state.initialized {
             extract::extract_to_gpu_state(
@@ -289,21 +301,39 @@ fn step_biophysics_flat(
     timestamp.0 += simulation_step.0 * steps_per_frame.0 as f32;
 }
 
-/// One-shot system: when segments first appear, create the ShaderStorageBuffer
-/// for voltages_out and spawn a Readback entity for async GPU→CPU transfer.
+/// When segments appear, or their number changes after a scene reload,
+/// (re)create the ShaderStorageBuffer for voltages_out and its Readback
+/// entity, and switch to the GPU backend.
 fn setup_gpu_readback(
     mut commands: Commands,
     mut ssbos: ResMut<Assets<ShaderStorageBuffer>>,
     mut backend: ResMut<SimBackend>,
     segments_query: Query<Entity, With<Segment>>,
     existing_handle: Option<Res<VoltagesOutHandle>>,
+    existing_readback: Option<Res<VoltagesReadbackEntity>>,
+    mut buffer_segments: Local<usize>,
 ) {
-    // Only set up once, and only when we have segments
-    if existing_handle.is_some() || segments_query.is_empty() {
+    if segments_query.is_empty() {
+        return;
+    }
+    // Diagnostic knob: NB_SIM_BACKEND=cpu keeps the CPU kernel.
+    if std::env::var("NB_SIM_BACKEND").map(|v| v.eq_ignore_ascii_case("cpu")).unwrap_or(false) {
+        if existing_handle.is_none() {
+            info!("NB_SIM_BACKEND=cpu: staying on the CPU backend");
+            commands.insert_resource(VoltagesOutHandle(Handle::default()));
+        }
         return;
     }
 
     let n_segments = segments_query.iter().count();
+    if existing_handle.is_some() && *buffer_segments == n_segments {
+        return;
+    }
+    // A stale Readback entity would keep delivering the old buffer's contents.
+    if let Some(old) = existing_readback {
+        commands.entity(old.0).despawn();
+    }
+    *buffer_segments = n_segments;
     let buf_size = n_segments * std::mem::size_of::<f32>();
 
     let mut buffer = ShaderStorageBuffer::with_size(buf_size, RenderAssetUsages::RENDER_WORLD);
@@ -319,11 +349,10 @@ fn setup_gpu_readback(
 
     // Switch to GPU backend. The render graph node gracefully handles
     // the case where pipelines aren't compiled yet (just returns Ok).
-    *backend = SimBackend::Gpu;
-    info!(
-        "GPU readback set up for {} segments, switching to GPU backend",
-        n_segments
-    );
+    if *backend != SimBackend::Gpu {
+        *backend = SimBackend::Gpu;
+    }
+    info!("GPU readback set up for {} segments, GPU backend active", n_segments);
 }
 
 /// Populate MainWorldSimInput each frame so the render world can read it.
@@ -390,24 +419,18 @@ fn extract_sim_input_to_render_world(
         _pad1: 0.0,
     });
 
-    // Send topology if not yet sent to render world (and data is available)
-    if !main_input.topology_sent && !gpu_state.segments.is_empty() {
-        main_input.segments = Some(gpu_state.segments.clone());
-        main_input.junctions = Some(gpu_state.junctions.clone());
-        main_input.synapses = Some(gpu_state.synapses.clone());
-        main_input.junction_adj = Some(gpu_state.junction_adj.clone());
-        main_input.junction_adj_offsets = Some(gpu_state.junction_adj_offsets.clone());
-        main_input.synapse_adj = Some(gpu_state.synapse_adj.clone());
-        main_input.synapse_adj_offsets = Some(gpu_state.synapse_adj_offsets.clone());
-        main_input.topology_sent = true;
-    } else {
-        main_input.segments = None;
-        main_input.junctions = None;
-        main_input.synapses = None;
-        main_input.junction_adj = None;
-        main_input.junction_adj_offsets = None;
-        main_input.synapse_adj = None;
-        main_input.synapse_adj_offsets = None;
+    // Refresh the topology snapshot whenever the flat arrays were rebuilt. The
+    // snapshot stays available every frame so the render world can (re)build
+    // its buffers whenever its generation falls behind.
+    if main_input.topology_generation != gpu_state.topology_generation && !gpu_state.segments.is_empty() {
+        main_input.segments = Some(Arc::new(gpu_state.segments.clone()));
+        main_input.junctions = Some(Arc::new(gpu_state.junctions.clone()));
+        main_input.synapses = Some(Arc::new(gpu_state.synapses.clone()));
+        main_input.junction_adj = Some(Arc::new(gpu_state.junction_adj.clone()));
+        main_input.junction_adj_offsets = Some(Arc::new(gpu_state.junction_adj_offsets.clone()));
+        main_input.synapse_adj = Some(Arc::new(gpu_state.synapse_adj.clone()));
+        main_input.synapse_adj_offsets = Some(Arc::new(gpu_state.synapse_adj_offsets.clone()));
+        main_input.topology_generation = gpu_state.topology_generation;
     }
 
     main_input.num_segments = gpu_state.segments.len() as u32;
@@ -424,7 +447,9 @@ fn apply_voltage_readback(
 ) {
     let data: &[u8] = &event.data;
     let expected_size = gpu_state.segment_entities.len() * std::mem::size_of::<f32>();
-    if data.len() < expected_size {
+    // A mismatch means this readback belongs to a buffer from a previous
+    // topology; applying it would scramble voltages.
+    if data.len() != expected_size || expected_size == 0 {
         return;
     }
     let voltages: &[f32] = bytemuck::cast_slice(&data[..expected_size]);
@@ -494,31 +519,42 @@ fn apply_current_to_stimulator_material(
 fn print_voltages(
     timestamp: Res<Timestamp>,
     mut stdout_render_timer: ResMut<StdoutRenderTimer>,
-    query: Query<&MembraneVoltage>,
+    query: Query<(&MembraneVoltage, Option<&Stimulator>)>,
     time: Res<Time>,
 ) {
     stdout_render_timer.timer.tick(time.delta());
 
     if stdout_render_timer.timer.just_finished() {
-        if let Some(membrane_voltage) = &query.iter().next() {
+        let mut n = 0usize;
+        let mut non_finite = 0usize;
+        let mut min = f32::INFINITY;
+        let mut max = f32::NEG_INFINITY;
+        let mut sum = 0.0f64;
+        let mut stimulated: Vec<(f32, f32)> = Vec::new();
+        for (voltage, stim) in query.iter() {
+            let v = voltage.0 .0;
+            n += 1;
+            if !v.is_finite() {
+                non_finite += 1;
+                continue;
+            }
+            min = min.min(v);
+            max = max.max(v);
+            sum += v as f64;
+            if let Some(s) = stim {
+                stimulated.push((v, s.current(timestamp.clone()).0));
+            }
+        }
+        if n > 0 {
             println!(
-                "SimulationTime: {} ms. First Voltage: {membrane_voltage}",
-                timestamp.0 * 1000.0
+                "SimulationTime: {:.3} ms. segments={n} non_finite={non_finite} min={min:.2} mV max={max:.2} mV mean={:.2} mV stimulated(v, uA/cm2)={:?} gpu_dispatches={} gpu_not_ready={}",
+                timestamp.0 * 1000.0,
+                sum / (n - non_finite).max(1) as f64,
+                stimulated,
+                crate::gpu::compute::DISPATCH_COUNT.load(std::sync::atomic::Ordering::Relaxed),
+                crate::gpu::compute::NOT_READY_COUNT.load(std::sync::atomic::Ordering::Relaxed),
             );
         }
-        if let Some(membrane_voltage) = &query.iter().next() {
-            println!(
-                "SimulationTime: {} ms. Second Voltage: {membrane_voltage}",
-                timestamp.0
-            );
-        }
-        if let Some(membrane_voltage) = &query.iter().next() {
-            println!(
-                "SimulationTime: {} ms. Third Voltage: {membrane_voltage}",
-                timestamp.0
-            );
-        }
-        println!("");
     }
 }
 

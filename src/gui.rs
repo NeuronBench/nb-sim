@@ -1,6 +1,7 @@
 pub mod external_trigger;
 pub mod load;
 pub mod oscilloscope;
+pub mod scene_panel;
 
 use bevy::prelude::*;
 use bevy::diagnostic::{DiagnosticsStore, FrameTimeDiagnosticsPlugin};

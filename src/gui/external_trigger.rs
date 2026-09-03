@@ -21,12 +21,7 @@ use crossbeam::channel::{Receiver, Sender};
 use bevy::prelude::*;
 use wasm_bindgen::prelude::wasm_bindgen;
 
-use crate::stimulator::Stimulation;
-use crate::neuron::Junction;
-use crate::neuron::ecs::Neuron;
-use crate::neuron::segment::ecs::Segment;
-use crate::gui::load::{load_ffg_scene, GraceSceneSource, InterpreterUrl, IsLoading};
-use crate::integrations::grace::GraceSceneSender;
+use crate::gui::load::{SceneLoader, SceneSource};
 
 /// The primary interface interface to this module, from nb-sim's perspective.
 /// nb-sim only needs to install this plugin, after the Neuron and Gui plugins
@@ -51,22 +46,12 @@ impl Plugin for ExternalTriggerPlugin {
 
 fn respond_to_triggers(
     trigger_receiver: Res<ExternalTriggerReceiver>,
-    commands: Commands,
-    interpreter_url: Res<InterpreterUrl>,
-    is_loading: ResMut<IsLoading>,
-    mut source: ResMut<GraceSceneSource>,
-    neurons: Query<(Entity, &Neuron)>,
-    segments: Query<(Entity, &Segment)>,
-    junctions: Query<(Entity, &Junction)>,
-    stimulations: Query<(Entity, &Stimulation)>,
-    grace_scene_sender: Res<GraceSceneSender>,
+    mut source: ResMut<SceneSource>,
+    mut loader: ResMut<SceneLoader>,
 ) {
-    match trigger_receiver.0.try_recv() {
-        Err(_) => {},
-        Ok(new_source) => {
-            source.0 = new_source;
-            load_ffg_scene(commands, interpreter_url, is_loading, source, neurons, segments, junctions, stimulations, grace_scene_sender);
-        },
+    if let Ok(new_source) = trigger_receiver.0.try_recv() {
+        source.0 = new_source;
+        loader.request(true);
     }
 }
 
