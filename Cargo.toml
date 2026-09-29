@@ -14,8 +14,10 @@ name = "bevy"
 path = "src/bin/bevy.rs"
 
 [dependencies]
-# Sibling checkout during development; switch to a git dependency once pushed.
-nb-nickel = { path = "../nb-nickel" }
+# To develop against a local checkout, add to .cargo/config.toml (not committed):
+#   [patch."https://github.com/NeuronBench/nb-nickel"]
+#   nb-nickel = { path = "../nb-nickel" }
+nb-nickel = { git = "https://github.com/NeuronBench/nb-nickel", branch = "main" }
 schemars = "1"
 once_cell = "^1.18"
 wasm-bindgen = "0.2.86"

@@ -73,7 +73,7 @@ wasm-pack build --mode no-install --release --target web
 - `neuroml.rs` - NeuroML format integration (uses local neuroml-rs dependency)
 
 **Nickel scene language** (two sibling repositories, expected at `../nb-nickel` and `../nb-lib`)
-- `../nb-nickel` - Crate: import linker (no filesystem needed, works in WASM), evaluator, structured diagnostics, `params` slider discovery. Prepends the `nb` prelude to every program. Path dependency during development; switch to a git dependency once pushed.
+- `../nb-nickel` - Crate: import linker (no filesystem needed, works in WASM), evaluator, structured diagnostics, `params` slider discovery. Prepends the `nb` prelude to every program. Git dependency (github.com/NeuronBench/nb-nickel, pinned in Cargo.lock); to develop against the sibling checkout, add a `[patch."https://github.com/NeuronBench/nb-nickel"]` path override in `.cargo/config.toml`. After bumping it (`cargo update -p nb-nickel`), update the `nb-nickel-0.1.0` hash in `flake.nix`.
 - `../nb-nickel/prelude/schema.ncl` - GENERATED contracts from `src/serialize.rs`; regenerate with `cargo run --bin gen_nickel_schema` and commit in nb-nickel (a test in `tests/nickel_lib.rs` fails when the embedded copy is stale)
 - `../nb-nickel/prelude/helpers.ncl` - `nb.Slider`, `nb.Nullable`, `nb.Tagged`
 - `../nb-lib` - The model library (channels, membranes, neurons, scenes) in Nickel; `../nb-lib/scene.ncl` is the native default scene; `tests/nickel_lib.rs` needs it (or `NB_LIB_DIR`)

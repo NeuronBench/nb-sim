@@ -3886,6 +3886,7 @@ dependencies = [
 [[package]]
 name = "nb-nickel"
 version = "0.1.0"
+source = "git+https://github.com/NeuronBench/nb-nickel?branch=main#005c23b41ff99e06e5e5634f3f711a743e437732"
 dependencies = [
  "nickel-lang-core",
  "serde",

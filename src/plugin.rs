@@ -316,10 +316,11 @@ fn setup_gpu_readback(
     if segments_query.is_empty() {
         return;
     }
-    // Diagnostic knob: NB_SIM_BACKEND=cpu keeps the CPU kernel.
-    if std::env::var("NB_SIM_BACKEND").map(|v| v.eq_ignore_ascii_case("cpu")).unwrap_or(false) {
+    // Diagnostic knob: NB_SIM_BACKEND=cpu (native) or ?sim=cpu (web) keeps
+    // the CPU kernel.
+    if cpu_backend_requested() {
         if existing_handle.is_none() {
-            info!("NB_SIM_BACKEND=cpu: staying on the CPU backend");
+            info!("CPU backend requested: staying on the CPU backend");
             commands.insert_resource(VoltagesOutHandle(Handle::default()));
         }
         return;
@@ -353,6 +354,22 @@ fn setup_gpu_readback(
         *backend = SimBackend::Gpu;
     }
     info!("GPU readback set up for {} segments, GPU backend active", n_segments);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn cpu_backend_requested() -> bool {
+    std::env::var("NB_SIM_BACKEND").map(|v| v.eq_ignore_ascii_case("cpu")).unwrap_or(false)
+}
+
+#[cfg(target_arch = "wasm32")]
+fn cpu_backend_requested() -> bool {
+    let Some(search) = web_sys::window().and_then(|w| w.location().search().ok()) else {
+        return false;
+    };
+    search.len() > 1
+        && querystring::querify(&search[1..])
+            .iter()
+            .any(|(k, v)| *k == "sim" && v.eq_ignore_ascii_case("cpu"))
 }
 
 /// Populate MainWorldSimInput each frame so the render world can read it.

@@ -44,6 +44,7 @@
           outputHashes = { 
 	    "uom-0.36.0" = "sha256-dCYFmwklzeQx/Kr3K9lsWGB6lxKBrRFlpLhfjm9HqFE=";
 	    "neuroml-0.1.0" = "sha256-mU6KgN/O6H32ApPRMpCIWY8sojp0vHh1LjeMQtTM7zQ=";
+	    "nb-nickel-0.1.0" = "sha256-QiLApYBn9w+rkqepEYgztGaetLy22+llpnPI3RdKSCc=";
 	  };
         };
 
