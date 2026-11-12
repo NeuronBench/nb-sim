@@ -55,9 +55,10 @@ pub struct MainWorldSimInput {
     pub junctions: Option<Arc<Vec<GpuJunctionData>>>,
     pub synapses: Option<Arc<Vec<GpuSynapseData>>>,
     pub junction_adj: Option<Arc<Vec<GpuJunctionNeighbor>>>,
-    pub junction_adj_offsets: Option<Arc<Vec<u32>>>,
-    pub synapse_adj: Option<Arc<Vec<u32>>>,
-    pub synapse_adj_offsets: Option<Arc<Vec<u32>>>,
+    /// Junction offsets, synapse offsets and synapse indices packed into one
+    /// buffer (see `pack_adj_index`) to stay within WebGPU's 8 storage
+    /// buffers per shader stage.
+    pub adj_index: Option<Arc<Vec<u32>>>,
     pub num_segments: u32,
     pub num_junctions: u32,
     pub num_synapses: u32,
@@ -80,9 +81,10 @@ pub struct ExtractedSimInput {
     pub junctions: Option<Arc<Vec<GpuJunctionData>>>,
     pub synapses: Option<Arc<Vec<GpuSynapseData>>>,
     pub junction_adj: Option<Arc<Vec<GpuJunctionNeighbor>>>,
-    pub junction_adj_offsets: Option<Arc<Vec<u32>>>,
-    pub synapse_adj: Option<Arc<Vec<u32>>>,
-    pub synapse_adj_offsets: Option<Arc<Vec<u32>>>,
+    /// Junction offsets, synapse offsets and synapse indices packed into one
+    /// buffer (see `pack_adj_index`) to stay within WebGPU's 8 storage
+    /// buffers per shader stage.
+    pub adj_index: Option<Arc<Vec<u32>>>,
     pub num_segments: u32,
     pub num_junctions: u32,
     pub num_synapses: u32,
@@ -104,9 +106,7 @@ pub fn extract_sim_input(
     extracted.junctions = main_input.junctions.clone();
     extracted.synapses = main_input.synapses.clone();
     extracted.junction_adj = main_input.junction_adj.clone();
-    extracted.junction_adj_offsets = main_input.junction_adj_offsets.clone();
-    extracted.synapse_adj = main_input.synapse_adj.clone();
-    extracted.synapse_adj_offsets = main_input.synapse_adj_offsets.clone();
+    extracted.adj_index = main_input.adj_index.clone();
     extracted.num_segments = main_input.num_segments;
     extracted.num_junctions = main_input.num_junctions;
     extracted.num_synapses = main_input.num_synapses;
@@ -127,9 +127,7 @@ pub struct GpuComputeState {
     pub synapse_deltas_buf: Buffer,
     pub input_currents_buf: Buffer,
     pub junction_adj_buf: Buffer,
-    pub junction_adj_offsets_buf: Buffer,
-    pub synapse_adj_buf: Buffer,
-    pub synapse_adj_offsets_buf: Buffer,
+    pub adj_index_buf: Buffer,
     pub num_segments: u32,
     pub num_junctions: u32,
     pub num_synapses: u32,
@@ -368,49 +366,20 @@ pub fn prepare_gpu_buffers(
                 mapped_at_creation: false,
             }),
         };
-        let junction_adj_offsets_buf =
-            match input.junction_adj_offsets.as_ref().filter(|d| !d.is_empty()) {
-                Some(data) => render_device.create_buffer_with_data(&BufferInitDescriptor {
-                    label: Some("biophysics_junction_adj_offsets"),
-                    contents: bytemuck::cast_slice(data.as_slice()),
-                    usage: BufferUsages::STORAGE,
-                }),
-                None => render_device.create_buffer(&BufferDescriptor {
-                    label: Some("biophysics_junction_adj_offsets_empty"),
-                    size: 4,
-                    usage: BufferUsages::STORAGE,
-                    mapped_at_creation: false,
-                }),
-            };
-
-        // Synapse adjacency (CSR format)
-        let synapse_adj_buf = match input.synapse_adj.as_ref().filter(|d| !d.is_empty()) {
+        // Packed CSR index data: junction offsets, synapse offsets, synapse indices.
+        let adj_index_buf = match input.adj_index.as_ref().filter(|d| !d.is_empty()) {
             Some(data) => render_device.create_buffer_with_data(&BufferInitDescriptor {
-                label: Some("biophysics_synapse_adj"),
+                label: Some("biophysics_adj_index"),
                 contents: bytemuck::cast_slice(data.as_slice()),
                 usage: BufferUsages::STORAGE,
             }),
             None => render_device.create_buffer(&BufferDescriptor {
-                label: Some("biophysics_synapse_adj_empty"),
+                label: Some("biophysics_adj_index_empty"),
                 size: 4,
                 usage: BufferUsages::STORAGE,
                 mapped_at_creation: false,
             }),
         };
-        let synapse_adj_offsets_buf =
-            match input.synapse_adj_offsets.as_ref().filter(|d| !d.is_empty()) {
-                Some(data) => render_device.create_buffer_with_data(&BufferInitDescriptor {
-                    label: Some("biophysics_synapse_adj_offsets"),
-                    contents: bytemuck::cast_slice(data.as_slice()),
-                    usage: BufferUsages::STORAGE,
-                }),
-                None => render_device.create_buffer(&BufferDescriptor {
-                    label: Some("biophysics_synapse_adj_offsets_empty"),
-                    size: 4,
-                    usage: BufferUsages::STORAGE,
-                    mapped_at_creation: false,
-                }),
-            };
 
         commands.insert_resource(GpuComputeState {
             segments_buf,
@@ -420,9 +389,7 @@ pub fn prepare_gpu_buffers(
             synapse_deltas_buf,
             input_currents_buf,
             junction_adj_buf,
-            junction_adj_offsets_buf,
-            synapse_adj_buf,
-            synapse_adj_offsets_buf,
+            adj_index_buf,
             num_segments: n_seg as u32,
             num_junctions: n_junc as u32,
             num_synapses: n_syn as u32,
@@ -523,15 +490,7 @@ pub fn prepare_bind_group(
             },
             BindGroupEntry {
                 binding: 8,
-                resource: state.junction_adj_offsets_buf.as_entire_binding(),
-            },
-            BindGroupEntry {
-                binding: 9,
-                resource: state.synapse_adj_buf.as_entire_binding(),
-            },
-            BindGroupEntry {
-                binding: 10,
-                resource: state.synapse_adj_offsets_buf.as_entire_binding(),
+                resource: state.adj_index_buf.as_entire_binding(),
             },
         ],
     ));

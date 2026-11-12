@@ -15,7 +15,9 @@ use crate::dimension::{Interval, Kelvin, SimulationStepSeconds, StepsPerFrame, T
 use crate::gpu::buffers::SimParams;
 use crate::gpu::compute::{MainWorldSimInput, VoltagesOutHandle, VoltagesReadbackEntity};
 use crate::gpu::extract;
-use crate::gpu::{GpuComputePlugin, GpuSimState, SimBackend};
+use crate::gpu::pipeline::REQUIRED_STORAGE_BUFFERS;
+use crate::gpu::{GpuComputeHealth, GpuComputePlugin, GpuSimState, SimBackend};
+use bevy::render::renderer::RenderDevice;
 use crate::stimulator::{Stimulation, Stimulator, StimulatorMaterials};
 
 use crate::gui;
@@ -311,9 +313,36 @@ fn setup_gpu_readback(
     segments_query: Query<Entity, With<Segment>>,
     existing_handle: Option<Res<VoltagesOutHandle>>,
     existing_readback: Option<Res<VoltagesReadbackEntity>>,
+    render_device: Option<Res<RenderDevice>>,
+    health: Res<GpuComputeHealth>,
     mut buffer_segments: Local<usize>,
+    mut fallback_logged: Local<bool>,
 ) {
     if segments_query.is_empty() {
+        return;
+    }
+    // Fall back to the CPU when this device can't run the compute shader:
+    // too few storage buffers per stage (e.g. Firefox allows 9 where some
+    // adapters allow more), or a pipeline failed to build.
+    let storage_limit = render_device
+        .as_ref()
+        .map(|d| d.limits().max_storage_buffers_per_shader_stage);
+    let unusable = match storage_limit {
+        Some(limit) if limit < REQUIRED_STORAGE_BUFFERS => Some(format!(
+            "device allows {limit} storage buffers per shader stage, need {REQUIRED_STORAGE_BUFFERS}"
+        )),
+        _ if health.failed() => Some("a compute pipeline failed to build".to_string()),
+        _ => None,
+    };
+    if let Some(reason) = unusable {
+        if !*fallback_logged {
+            warn!("GPU compute unavailable ({reason}); using the CPU backend");
+            *fallback_logged = true;
+        }
+        *backend = SimBackend::Cpu;
+        if existing_handle.is_none() {
+            commands.insert_resource(VoltagesOutHandle(Handle::default()));
+        }
         return;
     }
     // Diagnostic knob: NB_SIM_BACKEND=cpu (native) or ?sim=cpu (web) keeps
@@ -335,9 +364,14 @@ fn setup_gpu_readback(
         commands.entity(old.0).despawn();
     }
     *buffer_segments = n_segments;
-    let buf_size = n_segments * std::mem::size_of::<f32>();
-
-    let mut buffer = ShaderStorageBuffer::with_size(buf_size, RenderAssetUsages::RENDER_WORLD);
+    // Start as NaN ("not computed yet") rather than zeros: until the compute
+    // pipelines are ready (seconds in a browser) readbacks return the initial
+    // contents, and zeros would show every segment at 0 mV (bright green).
+    let initial = vec![f32::NAN; n_segments];
+    let mut buffer = ShaderStorageBuffer::new(
+        bytemuck::cast_slice(&initial),
+        RenderAssetUsages::RENDER_WORLD,
+    );
     buffer.buffer_description.usage =
         BufferUsages::STORAGE | BufferUsages::COPY_SRC | BufferUsages::COPY_DST;
     let handle = ssbos.add(buffer);
@@ -444,9 +478,11 @@ fn extract_sim_input_to_render_world(
         main_input.junctions = Some(Arc::new(gpu_state.junctions.clone()));
         main_input.synapses = Some(Arc::new(gpu_state.synapses.clone()));
         main_input.junction_adj = Some(Arc::new(gpu_state.junction_adj.clone()));
-        main_input.junction_adj_offsets = Some(Arc::new(gpu_state.junction_adj_offsets.clone()));
-        main_input.synapse_adj = Some(Arc::new(gpu_state.synapse_adj.clone()));
-        main_input.synapse_adj_offsets = Some(Arc::new(gpu_state.synapse_adj_offsets.clone()));
+        main_input.adj_index = Some(Arc::new(crate::gpu::pack_adj_index(
+            &gpu_state.junction_adj_offsets,
+            &gpu_state.synapse_adj_offsets,
+            &gpu_state.synapse_adj,
+        )));
         main_input.topology_generation = gpu_state.topology_generation;
     }
 
@@ -459,9 +495,15 @@ fn extract_sim_input_to_render_world(
 /// Handle voltage readback from GPU: update MembraneVoltage components.
 fn apply_voltage_readback(
     event: On<ReadbackComplete>,
+    backend: Res<SimBackend>,
     gpu_state: Res<GpuSimState>,
     mut segments_query: Query<&mut MembraneVoltage>,
 ) {
+    // After a fallback to the CPU backend the Readback entity may still exist;
+    // its data must not overwrite the CPU's voltages.
+    if *backend != SimBackend::Gpu {
+        return;
+    }
     let data: &[u8] = &event.data;
     let expected_size = gpu_state.segment_entities.len() * std::mem::size_of::<f32>();
     // A mismatch means this readback belongs to a buffer from a previous
@@ -470,6 +512,10 @@ fn apply_voltage_readback(
         return;
     }
     let voltages: &[f32] = bytemuck::cast_slice(&data[..expected_size]);
+    // All-NaN is the buffer's initial contents: the GPU hasn't written it yet.
+    if voltages.iter().all(|v| v.is_nan()) {
+        return;
+    }
 
     for (i, entity) in gpu_state.segment_entities.iter().enumerate() {
         if let Ok(mut mv) = segments_query.get_mut(*entity) {
@@ -563,7 +609,7 @@ fn print_voltages(
             }
         }
         if n > 0 {
-            println!(
+            info!(
                 "SimulationTime: {:.3} ms. segments={n} non_finite={non_finite} min={min:.2} mV max={max:.2} mV mean={:.2} mV stimulated(v, uA/cm2)={:?} gpu_dispatches={} gpu_not_ready={}",
                 timestamp.0 * 1000.0,
                 sum / (n - non_finite).max(1) as f64,

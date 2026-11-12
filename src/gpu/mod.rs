@@ -8,13 +8,32 @@ use bevy::render::extract_resource::ExtractResourcePlugin;
 use bevy::render::render_graph::RenderGraph;
 use bevy::render::{ExtractSchedule, Render, RenderApp, RenderStartup, RenderSystems};
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 use crate::gpu::buffers::{GpuJunctionData, GpuJunctionNeighbor, GpuSegmentData, GpuSynapseData};
 use crate::gpu::compute::{
     extract_sim_input, prepare_bind_group, prepare_gpu_buffers, BiophysicsComputeLabel,
     BiophysicsComputeNode, ExtractedSimInput, MainWorldSimInput, VoltagesOutHandle,
 };
-use crate::gpu::pipeline::{init_biophysics_pipelines, BiophysicsShaderHandle};
+use crate::gpu::pipeline::{
+    detect_pipeline_errors, init_biophysics_pipelines, BiophysicsShaderHandle,
+};
+
+/// Set by the render world when GPU compute cannot run (a pipeline failed to
+/// build); read by the main world to fall back to the CPU backend. The same
+/// `Arc` is inserted into both worlds.
+#[derive(Resource, Clone, Default)]
+pub struct GpuComputeHealth(Arc<AtomicBool>);
+
+impl GpuComputeHealth {
+    pub fn failed(&self) -> bool {
+        self.0.load(Ordering::Relaxed)
+    }
+    pub fn mark_failed(&self) {
+        self.0.store(true, Ordering::Relaxed);
+    }
+}
 
 /// Which simulation backend is active.
 #[derive(Resource, Debug, Clone, Copy, PartialEq, Eq)]
@@ -74,6 +93,8 @@ impl Plugin for GpuComputePlugin {
     fn build(&self, app: &mut App) {
         // Main world resources
         app.init_resource::<MainWorldSimInput>();
+        let health = GpuComputeHealth::default();
+        app.insert_resource(health.clone());
 
         // Extract VoltagesOutHandle to render world
         app.add_plugins(ExtractResourcePlugin::<VoltagesOutHandle>::default());
@@ -96,6 +117,7 @@ impl Plugin for GpuComputePlugin {
         // Render-world resources
         render_app.insert_resource(BiophysicsShaderHandle(shader_handle));
         render_app.init_resource::<ExtractedSimInput>();
+        render_app.insert_resource(health);
 
         // ExtractSchedule: copy main world data to render world
         render_app.add_systems(ExtractSchedule, extract_sim_input);
@@ -109,6 +131,7 @@ impl Plugin for GpuComputePlugin {
             (
                 prepare_gpu_buffers.in_set(RenderSystems::PrepareResources),
                 prepare_bind_group.in_set(RenderSystems::PrepareBindGroups),
+                detect_pipeline_errors.in_set(RenderSystems::PrepareResources),
             ),
         );
 
@@ -122,4 +145,22 @@ impl Plugin for GpuComputePlugin {
             bevy::render::graph::CameraDriverLabel,
         );
     }
+}
+
+/// Pack the u32 CSR index arrays into the single `adj_index` storage buffer
+/// the compute shader reads (see the layout comment in `biophysics.wgsl`):
+/// junction offsets, then synapse offsets, then synapse indices. Both offset
+/// arrays have `num_segments + 1` entries.
+pub fn pack_adj_index(
+    junction_adj_offsets: &[u32],
+    synapse_adj_offsets: &[u32],
+    synapse_adj: &[u32],
+) -> Vec<u32> {
+    debug_assert_eq!(junction_adj_offsets.len(), synapse_adj_offsets.len());
+    let mut packed =
+        Vec::with_capacity(junction_adj_offsets.len() + synapse_adj_offsets.len() + synapse_adj.len());
+    packed.extend_from_slice(junction_adj_offsets);
+    packed.extend_from_slice(synapse_adj_offsets);
+    packed.extend_from_slice(synapse_adj);
+    packed
 }

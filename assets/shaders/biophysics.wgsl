@@ -144,10 +144,25 @@ struct SimParams {
 @group(0) @binding(6) var<storage, read_write> voltages_out: array<f32>;
 // Junction adjacency list (CSR format): per-segment neighbor data
 @group(0) @binding(7)  var<storage, read> junction_adj: array<JunctionNeighbor>;
-@group(0) @binding(8)  var<storage, read> junction_adj_offsets: array<u32>;
-// Synapse adjacency list (CSR format): per-segment post-synapse indices
-@group(0) @binding(9)  var<storage, read> synapse_adj: array<u32>;
-@group(0) @binding(10) var<storage, read> synapse_adj_offsets: array<u32>;
+// Packed u32 index data, kept in one buffer so the shader uses at most 8
+// storage buffers (the WebGPU default limit; Firefox allows 9). With
+// n = params.num_segments, the layout is (see `pack_adj_index` in src/gpu/mod.rs):
+//   [0, n]            junction CSR offsets (n + 1 entries)
+//   [n + 1, 2n + 1]   synapse CSR offsets  (n + 1 entries)
+//   [2n + 2, ...)     synapse indices, addressed by the synapse offsets
+@group(0) @binding(8) var<storage, read> adj_index: array<u32>;
+
+fn junction_adj_offset(i: u32) -> u32 {
+    return adj_index[i];
+}
+
+fn synapse_adj_offset(i: u32) -> u32 {
+    return adj_index[params.num_segments + 1u + i];
+}
+
+fn synapse_adj(i: u32) -> u32 {
+    return adj_index[2u * (params.num_segments + 1u) + i];
+}
 
 // --- Helper functions ---
 
@@ -274,8 +289,8 @@ fn apply_junctions(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let cap_me = segments[seg_idx].capacitance * segments[seg_idx].surface_area;
     let dt = params.dt;
 
-    let start = junction_adj_offsets[seg_idx];
-    let end = junction_adj_offsets[seg_idx + 1u];
+    let start = junction_adj_offset(seg_idx);
+    let end = junction_adj_offset(seg_idx + 1u);
 
     var delta: f32 = 0.0;
     for (var i: u32 = start; i < end; i++) {
@@ -397,12 +412,12 @@ fn apply_synapse_deltas(@builtin(global_invocation_id) global_id: vec3<u32>) {
         return;
     }
 
-    let start = synapse_adj_offsets[seg_idx];
-    let end = synapse_adj_offsets[seg_idx + 1u];
+    let start = synapse_adj_offset(seg_idx);
+    let end = synapse_adj_offset(seg_idx + 1u);
 
     var delta: f32 = 0.0;
     for (var i: u32 = start; i < end; i++) {
-        delta += synapse_deltas[synapse_adj[i]];
+        delta += synapse_deltas[synapse_adj(i)];
     }
 
     segments[seg_idx].voltage += delta;
