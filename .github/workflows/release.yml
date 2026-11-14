@@ -57,7 +57,10 @@ jobs:
     - name: Collect release assets
       run: |
         mkdir -p dist/nb-sim-wasm
-        cp result-webgpu/* result-webgl2/* dist/nb-sim-wasm/
+        cp result-webgpu/* dist/nb-sim-wasm/
+        # Both results have a README.md and package.json; keep the WebGPU
+        # build's and take only the WebGL2 build's own files.
+        cp result-webgl2/nb_sim_webgl2* dist/nb-sim-wasm/
         chmod -R u+w dist
         tar -C dist -czf dist/nb-sim-wasm.tar.gz nb-sim-wasm
         cp dist/nb-sim-wasm/nb_sim{,_webgl2}.js dist/nb-sim-wasm/nb_sim{,_webgl2}_bg.wasm dist/
