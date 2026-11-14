@@ -62,6 +62,31 @@
           pkgs.sass
           ] ++ (if isDarwin then apple-deps else linux-deps);
 
+      # wasm-pack build of the web client. `extraArgs` go to wasm-pack (before
+      # `--`) and cargo (after it).
+      mkWasmBuild = { name, extraArgs ? "" }: pkgs.rustPlatform.buildRustPackage {
+
+        src = ./.;
+        inherit name;
+
+        cargoLock = nbSimLockHashes;
+
+        buildPhase = ''
+          HOME=$(mktemp -d fake-homeXXXX) wasm-pack build --mode no-install --release --target web ${extraArgs}
+        '';
+        checkPhase = "echo 'Skipping tests'";
+        installPhase = ''
+          mkdir -p $out
+          cp pkg/* $out/
+        '';
+
+        buildInputs = buildInputs;
+        nativeBuildInputs = buildInputs;
+        PKG_CONFIG_PATH = "${pkgs.openssl.dev}/lib/pkgconfig";
+        LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath buildInputs;
+        VERGEN_GIT_SHA=self.sourceInfo.lastModifiedDate;
+      };
+
       naersk' = pkgs.callPackage naersk {};
 
     in
@@ -81,27 +106,14 @@
         LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath buildInputs;
       };
 
-      packages.wasm-build = pkgs.rustPlatform.buildRustPackage {
+      # WebGPU rendering + GPU compute simulation: nb_sim.js, nb_sim_bg.wasm
+      packages.wasm-build = mkWasmBuild { name = "nb-sim-wasm"; };
 
-        src = ./.;
-        name = "nb-sim-wasm";
-
-        cargoLock = nbSimLockHashes;
-
-        buildPhase = ''
-          HOME=$(mktemp -d fake-homeXXXX) wasm-pack build --mode no-install --release --target web
-        '';
-        checkPhase = "echo 'Skipping tests'";
-        installPhase = ''
-          mkdir -p $out
-          cp pkg/* $out/
-        '';
-
-        buildInputs = buildInputs;
-        nativeBuildInputs = buildInputs;
-        PKG_CONFIG_PATH = "${pkgs.openssl.dev}/lib/pkgconfig";
-        LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath buildInputs;
-        VERGEN_GIT_SHA=self.sourceInfo.lastModifiedDate;
+      # WebGL2 rendering + CPU simulation, for Safari:
+      # nb_sim_webgl2.js, nb_sim_webgl2_bg.wasm
+      packages.wasm-build-webgl2 = mkWasmBuild {
+        name = "nb-sim-wasm-webgl2";
+        extraArgs = "--out-name nb_sim_webgl2 -- --no-default-features";
       };
 
 

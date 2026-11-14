@@ -1,7 +1,10 @@
 name: Release
 
-# Builds the web client (nb_sim.js + nb_sim_bg.wasm) and publishes it as
-# GitHub release assets, so nb-site can download it instead of rebuilding.
+# Builds the web client and publishes it as GitHub release assets, so nb-site
+# can download it instead of rebuilding. Two builds:
+#   nb_sim.js / nb_sim_bg.wasm                 WebGPU rendering, GPU simulation
+#   nb_sim_webgl2.js / nb_sim_webgl2_bg.wasm   WebGL2 rendering, CPU simulation
+#                                              (for Safari, whose WebGPU flickers)
 #
 # Trigger by pushing a tag like `v0.3.0`, or run manually from the Actions tab
 # with an existing or new tag name.
@@ -47,16 +50,18 @@ jobs:
         authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
 
     - name: Build wasm app
-      run: nix build .#wasm-build
+      run: |
+        nix build .#wasm-build -o result-webgpu
+        nix build .#wasm-build-webgl2 -o result-webgl2
 
     - name: Collect release assets
       run: |
         mkdir -p dist/nb-sim-wasm
-        cp result/* dist/nb-sim-wasm/
+        cp result-webgpu/* result-webgl2/* dist/nb-sim-wasm/
         chmod -R u+w dist
         tar -C dist -czf dist/nb-sim-wasm.tar.gz nb-sim-wasm
-        cp dist/nb-sim-wasm/nb_sim.js dist/nb-sim-wasm/nb_sim_bg.wasm dist/
-        (cd dist && sha256sum nb_sim.js nb_sim_bg.wasm nb-sim-wasm.tar.gz > SHA256SUMS)
+        cp dist/nb-sim-wasm/nb_sim{,_webgl2}.js dist/nb-sim-wasm/nb_sim{,_webgl2}_bg.wasm dist/
+        (cd dist && sha256sum nb_sim*.js nb_sim*_bg.wasm nb-sim-wasm.tar.gz > SHA256SUMS)
         cat dist/SHA256SUMS
         ls -la dist
 
@@ -64,7 +69,7 @@ jobs:
       env:
         GH_TOKEN: ${{ github.token }}
       run: |
-        assets=(dist/nb_sim.js dist/nb_sim_bg.wasm dist/nb-sim-wasm.tar.gz dist/SHA256SUMS)
+        assets=(dist/nb_sim.js dist/nb_sim_bg.wasm dist/nb_sim_webgl2.js dist/nb_sim_webgl2_bg.wasm dist/nb-sim-wasm.tar.gz dist/SHA256SUMS)
         if gh release view "$TAG" >/dev/null 2>&1; then
           gh release upload "$TAG" "${assets[@]}" --clobber
         else

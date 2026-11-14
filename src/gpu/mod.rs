@@ -109,6 +109,15 @@ impl Plugin for GpuComputePlugin {
             .resource_mut::<Assets<Shader>>()
             .add(shader);
 
+        // A wasm build without `webgpu` renders through WebGL2, which has no
+        // compute shaders. Don't queue the pipelines at all; marking the
+        // health as failed makes `setup_gpu_readback` stay on the CPU.
+        if cfg!(all(target_arch = "wasm32", not(feature = "webgpu"))) {
+            info!("WebGL2 build: GPU compute disabled, simulating on the CPU");
+            health.mark_failed();
+            return;
+        }
+
         let Some(render_app) = app.get_sub_app_mut(RenderApp) else {
             warn!("No RenderApp found, GPU compute disabled");
             return;
