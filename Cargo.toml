@@ -34,8 +34,15 @@ bytemuck = { version = "1", features = ["derive"] }
 bevy_panorbit_camera = { version = "0.34", features = ["bevy_egui"] }
 egui_plot = "0.34"
 neuroml = { git = "https://github.com/neuronbench/neuroml-rs", version = "0.1" }
+# ONNX models: onnx-ir parses .onnx at runtime; burn (CPU `flex` backend for
+# now, no wgpu) evaluates them. See docs/onnx-integration.md.
+burn = { version = "0.22.1", default-features = false, features = ["std", "flex"] }
+onnx-ir = { version = "0.22.0", default-features = false }
 uom = { git = "https://github.com/neuronbench/uom", version = "0.36.0" }
 
+# burn pulls in getrandom 0.4, which needs a JS backend on wasm32-unknown-unknown.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom04 = { package = "getrandom", version = "0.4", features = ["wasm_js"] }
 
 [features]
 # `webgpu` renders through WebGPU and runs the simulation in compute shaders.
