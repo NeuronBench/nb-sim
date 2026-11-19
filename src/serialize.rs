@@ -5,6 +5,55 @@ pub struct Scene {
     // pub extracellular_solution: Solution,
     pub neurons: Vec<SceneNeuron>,
     pub synapses: Vec<Synapse>,
+    /// ONNX models coupled to the simulation.
+    #[serde(default)]
+    pub models: Vec<SceneModel>,
+}
+
+/// An ONNX model that reads simulation state and drives the simulation.
+/// Graph inputs and outputs bind, in order, to `inputs` and `outputs`.
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct SceneModel {
+    /// The `.onnx` file: a URL, or a path relative to the root scene file.
+    pub url: String,
+    /// Simulated seconds between evaluations. Models run at most once per frame.
+    pub interval_sec: f32,
+    /// One entry per graph input, in graph order.
+    pub inputs: Vec<ModelInput>,
+    /// One entry per graph output, in graph order.
+    pub outputs: Vec<ModelOutput>,
+}
+
+/// Where a model input's values come from. Each fills the input tensor in
+/// row-major order.
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(tag="type")]
+pub enum ModelInput {
+    /// Membrane voltages, as `(v_mv - offset_mv) * scale`.
+    Voltages { taps: Vec<SegmentRef>, offset_mv: f32, scale: f32 },
+    /// Simulated time in seconds.
+    Time,
+    /// Fixed values, for example from scene parameters.
+    Constant { values: Vec<f32> },
+}
+
+/// What a model output drives.
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(tag="type")]
+pub enum ModelOutput {
+    /// Output element i, times `scale_uamps_per_square_cm`, is injected into
+    /// `taps[i]` (added to its input current and stimulators).
+    InjectCurrent { taps: Vec<SegmentRef>, scale_uamps_per_square_cm: f32 },
+    /// The output is computed but not used.
+    Ignore,
+}
+
+/// A segment in the scene: an index into `neurons`, and the segment's SWC id
+/// (as in `stimulator_segments`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct SegmentRef {
+    pub neuron: u32,
+    pub segment: u32,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]

@@ -19,6 +19,7 @@ use crate::neuron::ecs::Neuron;
 use crate::neuron::membrane::MembraneMaterials;
 use crate::neuron::segment::ecs::Segment;
 use crate::neuron::Junction;
+use crate::onnx::plugin::{ModelFetchSender, SceneModels};
 use crate::selection::{Highlight, Selection};
 use crate::stimulator::Stimulation;
 
@@ -97,6 +98,8 @@ pub struct SceneLoader {
     pub requested: bool,
     /// A fetch failed since the last request; stop trying until the next request.
     pub failed: bool,
+    /// The next spawned scene should refetch its ONNX models too.
+    pub refetch_models: bool,
 }
 
 impl SceneLoader {
@@ -104,6 +107,7 @@ impl SceneLoader {
     pub fn request(&mut self, refetch: bool) {
         if refetch {
             self.sources.clear();
+            self.refetch_models = true;
         }
         self.requested = true;
         self.failed = false;
@@ -248,6 +252,7 @@ pub fn drive_scene_loader(
     time: Res<Time>,
     entities: SceneEntities,
     scene_sender: Res<GraceSceneSender>,
+    (mut models, model_sender): (ResMut<SceneModels>, Res<ModelFetchSender>),
     mut last_debug_reload: Local<f64>,
 ) {
     while let Ok((path, result)) = receiver.0.try_recv() {
@@ -324,6 +329,8 @@ pub fn drive_scene_loader(
                     );
                     diagnostics.0.clear();
                     entities.despawn_all(&mut commands);
+                    let refetch = std::mem::take(&mut loader.refetch_models);
+                    models.load(&scene.models, &root, refetch, &model_sender);
                     let _ = scene_sender.0.send(GraceScene(scene));
                 }
                 Err(d) => {

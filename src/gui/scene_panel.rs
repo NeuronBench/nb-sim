@@ -4,6 +4,7 @@ use bevy::prelude::*;
 use bevy_egui::{egui, EguiContexts};
 
 use crate::gui::load::{IsLoading, SceneDiagnostics, SceneLoader, SceneParams, SceneSource};
+use crate::onnx::plugin::{ModelState, SceneModels};
 
 const ERROR_COLOR: egui::Color32 = egui::Color32::from_rgb(255, 96, 96);
 
@@ -14,6 +15,7 @@ pub fn run_scene_panel(
     mut params: ResMut<SceneParams>,
     diagnostics: Res<SceneDiagnostics>,
     is_loading: Res<IsLoading>,
+    models: Res<SceneModels>,
     time: Res<Time>,
 ) {
     let Ok(ctx) = contexts.ctx_mut() else { return };
@@ -60,6 +62,34 @@ pub fn run_scene_panel(
                     }
                     if value != current {
                         params.set(&spec.name, value, now);
+                    }
+                }
+            }
+
+            if !models.slots.is_empty() {
+                ui.separator();
+                ui.heading("Models");
+                for slot in &models.slots {
+                    let name = slot.url.rsplit('/').next().unwrap_or(&slot.url);
+                    match &slot.state {
+                        ModelState::Loading(_) => {
+                            ui.label(format!("{name}: loading…"));
+                        }
+                        ModelState::Ready(instance) => {
+                            let ports = |ps: &[crate::onnx::Port]| {
+                                ps.iter().map(|p| p.name.as_str()).collect::<Vec<_>>().join(", ")
+                            };
+                            ui.label(format!(
+                                "{name}: ({}) → ({}), {} runs",
+                                ports(instance.program.inputs()),
+                                ports(instance.program.outputs()),
+                                slot.runs
+                            ))
+                            .on_hover_text(&slot.url);
+                        }
+                        ModelState::Failed(e) => {
+                            ui.colored_label(ERROR_COLOR, format!("{name}: {e}")).on_hover_text(&slot.url);
+                        }
                     }
                 }
             }

@@ -25,7 +25,7 @@ use crate::gui::oscilloscope::{step_oscilloscope_system, Oscilloscope};
 use crate::integrations::grace::Synapse;
 use crate::neuron::channel::{ca_reversal, cl_reversal, k_reversal, na_reversal};
 use crate::neuron::membrane::{Membrane, MembraneMaterials, MembraneVoltage};
-use crate::neuron::segment::{ecs::InputCurrent, ecs::Segment, Geometry};
+use crate::neuron::segment::{ecs::InputCurrent, ecs::ModelCurrent, ecs::Segment, Geometry};
 use crate::neuron::solution::{Solution, INTERSTICIAL_FLUID};
 use crate::neuron::Junction;
 
@@ -53,6 +53,11 @@ impl Plugin for NbSimPlugin {
 
         // Readback observer: GPU voltages → ECS MembraneVoltage
         app.add_observer(apply_voltage_readback);
+
+        // ONNX models: fetched and compiled as scenes load, run before the
+        // sim step so their currents apply this frame.
+        app.add_plugins(crate::onnx::OnnxPlugin);
+        app.add_systems(Update, crate::onnx::plugin::run_models.before(step_biophysics_flat));
 
         app.add_systems(Update, (
             step_biophysics_flat,
@@ -229,6 +234,7 @@ fn step_biophysics_flat(
     )>,
     junctions_query: Query<&Junction>,
     mut synapses_query: Query<&mut Synapse>,
+    model_currents: Query<&ModelCurrent>,
 ) {
     if segments_query.is_empty() {
         return;
@@ -254,11 +260,12 @@ fn step_biophysics_flat(
                 &segments_query,
                 &junctions_query,
                 &synapses_query,
+                &model_currents,
                 &timestamp,
                 &mut gpu_state,
             );
         } else {
-            extract::update_input_currents(&segments_query, &timestamp, &mut gpu_state);
+            extract::update_input_currents(&segments_query, &model_currents, &timestamp, &mut gpu_state);
         }
         timestamp.0 += simulation_step.0 * steps_per_frame.0 as f32;
         return;
@@ -268,6 +275,7 @@ fn step_biophysics_flat(
         &segments_query,
         &junctions_query,
         &synapses_query,
+        &model_currents,
         &timestamp,
         &mut gpu_state,
     );

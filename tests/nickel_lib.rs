@@ -77,6 +77,30 @@ fn refractory_demo_builds_a_row_of_neurons() {
 }
 
 #[test]
+fn onnx_clamp_demo_binds_a_model_to_the_soma() {
+    use nb_sim::serialize::{ModelInput, ModelOutput};
+
+    let linked = link_blocking(&lib("demos/onnx_clamp.ncl")).unwrap();
+    let scene = scene_from_linked(&linked, &[Override::number("params.target_mv", -30.0)]).unwrap();
+    assert_eq!(scene.neurons.len(), 2);
+    let [model] = scene.models.as_slice() else { panic!("expected one model, got {:?}", scene.models) };
+    assert_eq!(model.url, "../models/voltage_clamp.onnx");
+    assert!(matches!(&model.inputs[1], ModelInput::Constant { values } if values == &vec![-30.0]));
+    let ModelOutput::InjectCurrent { taps, .. } = &model.outputs[0] else { panic!("expected InjectCurrent") };
+    assert_eq!((taps[0].neuron, taps[0].segment), (0, 1));
+
+    // The model the demo names exists and binds to the demo's inputs/outputs.
+    let path = nb_nickel::resolve_path(&lib("demos/onnx_clamp.ncl"), &model.url);
+    let bytes = std::fs::read(&path).unwrap_or_else(|e| panic!("{path}: {e}"));
+    let program = nb_sim::onnx::Program::from_bytes(&bytes, Default::default()).unwrap();
+    nb_sim::onnx::coupling::ModelInstance::bind(std::sync::Arc::new(program), model.clone()).unwrap();
+
+    // Scenes without `models` still decode.
+    let scene = scene_from_linked(&link_blocking(&lib("scene.ncl")).unwrap(), &[]).unwrap();
+    assert!(scene.models.is_empty());
+}
+
+#[test]
 fn errors_point_at_the_library_file_and_line() {
     let tmp = format!("{}/target/nickel-test-lib", env!("CARGO_MANIFEST_DIR"));
     let _ = std::fs::remove_dir_all(&tmp);

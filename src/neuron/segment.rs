@@ -30,6 +30,25 @@ pub mod ecs {
 
     #[derive(bevy::ecs::component::Component)]
     pub struct InputCurrent(pub MicroAmpsPerSquareCm);
+
+    /// Current injected by an ONNX model, added to `InputCurrent` and any
+    /// stimulator by both simulation backends.
+    #[derive(bevy::ecs::component::Component, Debug)]
+    pub struct ModelCurrent(pub MicroAmpsPerSquareCm);
+
+    impl Default for ModelCurrent {
+        fn default() -> Self {
+            ModelCurrent(MicroAmpsPerSquareCm(0.0))
+        }
+    }
+
+    /// Where a segment came from in the scene: the index of its neuron in
+    /// `Scene::neurons` and its SWC id. Scenes address segments this way.
+    #[derive(bevy::ecs::component::Component, Clone, Copy, Debug, PartialEq, Eq, Hash)]
+    pub struct SegmentAddress {
+        pub neuron: u32,
+        pub segment: u32,
+    }
 }
 
 /// A cylindical neuron segment shape.

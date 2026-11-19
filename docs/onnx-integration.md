@@ -116,7 +116,7 @@ pub struct Scene {
 
 pub struct SceneModel {
     pub url: String,                 // relative to the scene root, like imports
-    pub update_interval_sec: f32,    // control rate; >= one frame's sim time
+    pub interval_sec: f32,           // control rate; runs at most once per frame
     pub inputs: Vec<ModelInput>,     // one per graph input, in order
     pub outputs: Vec<ModelOutput>,   // one per graph output, in order
 }
@@ -142,7 +142,11 @@ pub struct SegmentRef { pub neuron: u32, pub segment: u32 }
 `models` defaults to empty, so existing scenes keep working. Afterwards,
 regenerate `prelude/schema.ncl` (`cargo run --bin gen_nickel_schema`) and
 commit it in nb-nickel. Graph input and output shapes are checked against the
-bindings when a scene loads, and mismatches are reported as scene diagnostics.
+bindings when a model finishes compiling (`ModelInstance::bind`). Mismatches
+show in red under "Models" in the Scene panel.
+
+A dynamic input dim (`None`) absorbs the bound values: `[?, 3]` with 6 values
+becomes `[2, 3]` (`coupling::fit_shape`).
 
 ### Coupling to the simulation
 
@@ -190,10 +194,23 @@ same data.
    `uv run --with onnx --with numpy python -I sample_data/onnx/make_fixtures.py`.
    Expected outputs come from onnx's `ReferenceEvaluator`. Tests:
    `cargo test --test onnx_runtime`.
-2. **Scene coupling.** Schema plus nb-nickel schema regeneration, async
-   loader, `ModelCurrent`, `run_models`, diagnostics in the Scene panel.
-   Example in nb-lib: a closed-loop controller that holds a soma at a target
-   voltage, with the target as an `nb.Slider`.
+2. **Scene coupling. Done.**
+   - Schema types in `serialize.rs`; `SegmentAddress` and
+     `ModelCurrent::default()` on every spawned segment.
+   - `src/onnx/coupling.rs`: pure binding, gather and scatter logic.
+     NaN inputs (GPU voltages before the first readback) skip a run, and
+     outputs are summed per segment.
+   - `src/onnx/plugin.rs`: `SceneModels` caches compiled programs by
+     resolved URL. Slider changes rebind without refetching, and "Load"
+     refetches. Also `run_models` before `step_biophysics_flat`.
+     `ModelCurrent` is summed in `extract_to_gpu_state` and
+     `update_input_currents`, so it feeds both backends.
+   - A status line `model <url> (<runs> runs): n0s1: -50.2 mV, +3.1 µA/cm²`
+     is logged every 2 s.
+   - Demo: nb-lib `demos/onnx_clamp.ncl` and `models/voltage_clamp.onnx`
+     (from `models/make_models.py`).
+   - Tests: `tests/onnx_coupling.rs` (includes a headless Bevy app from
+     fetch to `ModelCurrent`), and `nickel_lib` for the demo.
 3. **Visualization.** `ModelActivations` and an egui Models window.
 4. **Coverage.** Conv1d, recurrent ops with state carried between calls
    (ONNX GRU/LSTM `initial_h` fed from the previous `Y_h`), more output

@@ -124,6 +124,25 @@ save(
     feeds={"a": f32(2, 3, 4), "b": f32(1, 4, 5), "g": f32(4, 3)},
 )
 
+# The soft voltage clamp from nb-lib's models/: drive = tanh(gain * (target - v)),
+# here with two taps so per-tap outputs and broadcasting are exercised.
+save(
+    "clamp",
+    [
+        helper.make_node("Sub", ["target_mv", "v_mv"], ["error_mv"]),
+        helper.make_node("Mul", ["error_mv", "gain_per_mv"], ["scaled"]),
+        helper.make_node("Tanh", ["scaled"], ["drive"]),
+    ],
+    inputs=[("v_mv", [1, 2]), ("target_mv", [1, 1]), ("gain_per_mv", [1, 1])],
+    outputs=[("drive", [1, 2])],
+    initializers={},
+    feeds={
+        "v_mv": np.array([[-70.0, -40.0]], np.float32),
+        "target_mv": np.array([[-50.0]], np.float32),
+        "gain_per_mv": np.array([[0.1]], np.float32),
+    },
+)
+
 # An op outside the supported set; compiling it must fail with a clear error.
 save(
     "unsupported",

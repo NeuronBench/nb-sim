@@ -10,7 +10,7 @@ use crate::gpu::GpuSimState;
 use crate::integrations::grace::Synapse;
 use crate::neuron::channel::{GateState, TimeConstant};
 use crate::neuron::membrane::{Membrane, MembraneChannel, MembraneVoltage};
-use crate::neuron::segment::ecs::{InputCurrent, Segment};
+use crate::neuron::segment::ecs::{InputCurrent, ModelCurrent, Segment};
 use crate::neuron::segment::Geometry;
 use crate::neuron::solution::Solution;
 use crate::neuron::synapse::{Receptor, Transmitter, TransmitterPump};
@@ -133,6 +133,7 @@ pub fn extract_to_gpu_state(
     >,
     junctions_query: &Query<&Junction>,
     synapses_query: &Query<&mut Synapse>,
+    model_currents: &Query<&ModelCurrent>,
     timestamp: &Timestamp,
     state: &mut GpuSimState,
 ) {
@@ -158,7 +159,8 @@ pub fn extract_to_gpu_state(
 
         let input_current = maybe_input.map_or(0.0, |i| i.0 .0);
         let stimulator_current = maybe_stim.map_or(0.0, |s| s.current(timestamp.clone()).0);
-        let total_input = input_current + stimulator_current;
+        let model_current = model_currents.get(entity).map_or(0.0, |m| m.0 .0);
+        let total_input = input_current + stimulator_current + model_current;
 
         let num_channels = membrane.membrane_channels.len().min(MAX_CHANNELS);
         let mut channels = [GpuMembraneChannel::zeroed(); MAX_CHANNELS];
@@ -304,6 +306,7 @@ pub fn update_input_currents(
             Option<&Stimulator>,
         ),
     >,
+    model_currents: &Query<&ModelCurrent>,
     timestamp: &Timestamp,
     state: &mut GpuSimState,
 ) {
@@ -313,7 +316,8 @@ pub fn update_input_currents(
         if let Some(&idx) = state.entity_to_index.get(&entity) {
             let input_current = maybe_input.map_or(0.0, |i| i.0 .0);
             let stimulator_current = maybe_stim.map_or(0.0, |s| s.current(timestamp.clone()).0);
-            state.segments[idx as usize].input_current = input_current + stimulator_current;
+            let model_current = model_currents.get(entity).map_or(0.0, |m| m.0 .0);
+            state.segments[idx as usize].input_current = input_current + stimulator_current + model_current;
         }
     }
 }

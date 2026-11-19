@@ -10,7 +10,7 @@ use crate::gui::oscilloscope::Oscilloscope;
 use crate::neuron::Junction;
 use crate::neuron::membrane::{Membrane, MembraneVoltage, MembraneMaterials};
 use crate::neuron::solution::EXAMPLE_CYTOPLASM;
-use crate::neuron::segment::{ecs::Segment, ecs::InputCurrent, Geometry};
+use crate::neuron::segment::{ecs::Segment, ecs::InputCurrent, ecs::SegmentAddress, ecs::ModelCurrent, Geometry};
 use crate::neuron::synapse::SynapseMembranes;
 use crate::stimulator;
 use crate::serialize;
@@ -38,8 +38,8 @@ impl GraceScene {
         selections: Query<Entity, With<Selection>>,
         highlights: Query<Entity, With<Highlight>>,
     ) -> Vec<(Entity, Vec<Entity>)> {
-        let neuron_entities = self.0.neurons.iter().map(|scene_neuron| {
-            spawn_neuron(&scene_neuron, soma_location_cm, &mut commands, &mut meshes, &membrane_materials, materials, &selections, &highlights)
+        let neuron_entities = self.0.neurons.iter().enumerate().map(|(neuron_index, scene_neuron)| {
+            spawn_neuron(&scene_neuron, neuron_index as u32, soma_location_cm, &mut commands, &mut meshes, &membrane_materials, materials, &selections, &highlights)
         }).collect();
 
         for synapse in &self.0.synapses {
@@ -123,6 +123,7 @@ pub fn distance_to_segment_cm(source: &serialize::Segment, dest: &serialize::Seg
 
 pub fn spawn_neuron(
     scene_neuron: &serialize::SceneNeuron,
+    neuron_index: u32,
     soma_location_cm: Vec3,
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
@@ -221,6 +222,8 @@ pub fn spawn_neuron(
                 // which has caused the model to become unstable
 
                 InputCurrent(input_current),
+                SegmentAddress { neuron: neuron_index, segment: *id as u32 },
+                ModelCurrent::default(),
                 Mesh3d(meshes.add(shape)),
                 MeshMaterial3d(membrane_materials.from_voltage(&v0)),
                 transform,
@@ -486,6 +489,7 @@ pub mod sample {
                 post_segment: 333,
                 synapse_membranes: synapse::examples::excitatory_synapse(&MilliVolts(-80.0)).serialize(),
             }],
+            models: vec![],
         }
 
     }
