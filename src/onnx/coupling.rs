@@ -4,7 +4,7 @@
 
 use std::sync::Arc;
 
-use crate::onnx::{HostTensor, Port, Program};
+use crate::onnx::{Activation, HostTensor, Port, Program};
 use crate::serialize::{ModelInput, ModelOutput, SceneModel, SegmentRef};
 
 /// A model whose bindings have been checked against its graph.
@@ -99,6 +99,16 @@ impl ModelInstance {
     /// Gather inputs from the simulation, run the model, and map its outputs
     /// to currents.
     pub fn step(&self, sim: &impl SimState) -> Result<Step, String> {
+        self.evaluate(sim, false).map(|(step, _)| step)
+    }
+
+    /// Like [`ModelInstance::step`], and also return every layer's values.
+    /// The trace is empty when the model didn't run.
+    pub fn step_traced(&self, sim: &impl SimState) -> Result<(Step, Vec<Activation>), String> {
+        self.evaluate(sim, true)
+    }
+
+    fn evaluate(&self, sim: &impl SimState, trace: bool) -> Result<(Step, Vec<Activation>), String> {
         let mut inputs = Vec::with_capacity(self.spec.inputs.len());
         for (input, shape) in self.spec.inputs.iter().zip(&self.input_shapes) {
             let data = match input {
@@ -114,12 +124,17 @@ impl ModelInstance {
                 ModelInput::Constant { values } => values.clone(),
             };
             if data.iter().any(|v| !v.is_finite()) {
-                return Ok(Step::NotReady);
+                return Ok((Step::NotReady, Vec::new()));
             }
             inputs.push(HostTensor::new(shape.clone(), data));
         }
 
-        let outputs = self.program.run(&inputs).map_err(|e| e.to_string())?;
+        let (outputs, activations) = if trace {
+            self.program.run_traced(&inputs)
+        } else {
+            self.program.run(&inputs).map(|o| (o, Vec::new()))
+        }
+        .map_err(|e| e.to_string())?;
 
         let mut currents: Vec<(SegmentRef, f32)> = Vec::new();
         for ((output, port), tensor) in self.spec.outputs.iter().zip(self.program.outputs()).zip(&outputs) {
@@ -143,7 +158,7 @@ impl ModelInstance {
                 }
             }
         }
-        Ok(Step::Inject(currents))
+        Ok((Step::Inject(currents), activations))
     }
 }
 

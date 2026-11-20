@@ -176,12 +176,23 @@ becomes `[2, 3]` (`coupling::fit_shape`).
 
 ### Visualization
 
-`Program::run` can keep every intermediate value. A `ModelActivations`
-resource holds the latest values per model, and an egui "Models" window
-draws each layer as a heatmap: the old branch's red/blue
-`tensor_to_2d_image` coloring, ported to egui textures. 3D placement of
-layers in the scene (the 2024 branch's idea) can come later and reuse the
-same data.
+`Program::run_traced` returns every graph input and every step's output as
+`Activation { name, op, tensor }`. `run_models` keeps the latest trace on
+each `ModelSlot` (`activations`), and the egui "Models" window
+(`src/gui/models_panel.rs`) draws each layer as a heatmap with painter
+rectangles, not textures. The last dim runs along a line and the other
+dims stack, wrapping when a line is too long. The coloring is diverging:
+blue for negative, red for positive, scaled per layer to its largest
+|value|. Hovering a cell shows its index and value.
+
+- Layer names: onnx-ir renames every value after its node (`tanh1_out1`).
+  Graph outputs get their names back from the `ModelProto`
+  (`Program::restore_output_names`); intermediate layers show the node
+  name (`tanh1`).
+- Every run is traced. That's cheap for controller-sized MLPs; for big
+  models, trace only while the window is open.
+- 3D placement of layers in the scene (the 2024 branch's idea) can come
+  later and reuse the same data.
 
 ## Phases
 
@@ -211,7 +222,10 @@ same data.
      (from `models/make_models.py`).
    - Tests: `tests/onnx_coupling.rs` (includes a headless Bevy app from
      fetch to `ModelCurrent`), and `nickel_lib` for the demo.
-3. **Visualization.** `ModelActivations` and an egui Models window.
+3. **Visualization. Done.** `Program::run_traced`, `ModelSlot::activations`
+   and the egui Models window. Tests: the traced run in `onnx_runtime`, the
+   kept trace in `onnx_coupling`'s headless app, and heatmap layout and
+   color in `models_panel`.
 4. **Coverage.** Conv1d, recurrent ops with state carried between calls
    (ONNX GRU/LSTM `initial_h` fed from the previous `Y_h`), more output
    sinks (conductance scaling, synaptic gain).

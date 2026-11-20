@@ -12,7 +12,7 @@ use crate::dimension::{MicroAmpsPerSquareCm, Timestamp};
 use crate::neuron::membrane::MembraneVoltage;
 use crate::neuron::segment::ecs::{ModelCurrent, SegmentAddress};
 use crate::onnx::coupling::{ModelInstance, SimState, Step};
-use crate::onnx::Program;
+use crate::onnx::{Activation, Program};
 use crate::serialize::{SceneModel, SegmentRef};
 
 pub struct OnnxPlugin;
@@ -59,6 +59,8 @@ pub struct ModelSlot {
     next_run_sec: f32,
     /// The currents from the latest evaluation; held until the next one.
     currents: Vec<(SegmentRef, f32)>,
+    /// Every layer's values from the latest evaluation, for the Models window.
+    pub activations: Vec<Activation>,
 }
 
 pub enum ModelState {
@@ -88,7 +90,7 @@ impl SceneModels {
                         ModelState::Loading(spec.clone())
                     }
                 };
-                ModelSlot { url, state, runs: 0, next_run_sec: 0.0, currents: Vec::new() }
+                ModelSlot { url, state, runs: 0, next_run_sec: 0.0, currents: Vec::new(), activations: Vec::new() }
             })
             .collect();
     }
@@ -212,16 +214,18 @@ pub fn run_models(
             if now < slot.next_run_sec {
                 continue;
             }
-            match instance.step(&snapshot) {
-                Ok(Step::Inject(c)) => {
+            match instance.step_traced(&snapshot) {
+                Ok((Step::Inject(c), activations)) => {
                     slot.currents = c;
+                    slot.activations = activations;
                     slot.runs += 1;
                     slot.next_run_sec = now + instance.spec.interval_sec;
                 }
-                Ok(Step::NotReady) => {}
+                Ok((Step::NotReady, _)) => {}
                 Err(e) => {
                     warn!("model {}: {e}", slot.url);
                     slot.currents.clear();
+                    slot.activations.clear();
                     slot.state = ModelState::Failed(e);
                 }
             }

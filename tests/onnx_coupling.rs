@@ -157,6 +157,14 @@ fn systems_fetch_compile_and_inject() {
     }
     assert!(models.slots[0].runs > 0);
 
+    // The latest run's layers are kept for the Models window: the three
+    // inputs, then Sub, Mul, Tanh, ending in the graph output `drive`.
+    let layers: Vec<(&str, &str)> = models.slots[0].activations.iter().map(|a| (a.name.as_str(), a.op)).collect();
+    assert_eq!(layers.len(), 6, "{layers:?}");
+    assert_eq!(layers[0], ("v_mv", "Input"));
+    assert_eq!(layers[5], ("drive", "Tanh"));
+    assert_eq!(models.slots[0].activations[0].tensor.data, vec![-70.0, -40.0]);
+
     let current = |e| app.world().get::<ModelCurrent>(e).unwrap().0 .0;
     assert_close(current(s0), expected(-70.0));
     assert_close(current(s1), expected(-40.0));

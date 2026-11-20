@@ -32,6 +32,16 @@ impl HostTensor {
     }
 }
 
+/// One value computed while running a program, kept for visualization.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Activation {
+    /// The ONNX value name (a graph input, or a node's output).
+    pub name: String,
+    /// The op that produced it, or `"Input"` for a graph input.
+    pub op: &'static str,
+    pub tensor: HostTensor,
+}
+
 /// A graph input or output: its name, and its shape where the model fixes it
 /// (`None` for a dynamic dimension such as a batch axis).
 #[derive(Clone, Debug, PartialEq)]
@@ -107,6 +117,9 @@ impl Value {
 
 struct Step {
     node: String,
+    /// What to call the output in a trace: the graph output's name when it
+    /// is one, else the node name (onnx-ir renames intermediate values).
+    value: String,
     op: Op,
     inputs: Vec<Slot>,
     output: Slot,
@@ -138,6 +151,30 @@ enum Op {
     Linear { transpose_weight: bool },
 }
 
+impl Op {
+    fn name(&self) -> &'static str {
+        match self {
+            Op::Identity => "Identity",
+            Op::Add => "Add",
+            Op::Sub => "Sub",
+            Op::Mul => "Mul",
+            Op::Div => "Div",
+            Op::Relu => "Relu",
+            Op::Tanh => "Tanh",
+            Op::Sigmoid => "Sigmoid",
+            Op::LeakyRelu { .. } => "LeakyRelu",
+            Op::Clip { .. } => "Clip",
+            Op::Softmax { .. } => "Softmax",
+            Op::Flatten { .. } => "Flatten",
+            Op::Reshape { .. } => "Reshape",
+            Op::Concat { .. } => "Concat",
+            Op::MatMul => "MatMul",
+            Op::Gemm { .. } => "Gemm",
+            Op::Linear { .. } => "Linear",
+        }
+    }
+}
+
 impl Program {
     /// Parse and compile an ONNX model from its bytes.
     pub fn from_bytes(bytes: &[u8], device: Device) -> Result<Program, CompileError> {
@@ -145,7 +182,26 @@ impl Program {
             node: None,
             message: format!("could not parse the ONNX model: {e}"),
         })?;
-        Program::compile(graph, device)
+        let mut program = Program::compile(graph, device)?;
+        program.restore_output_names(bytes);
+        Ok(program)
+    }
+
+    /// onnx-ir renames graph outputs after the node producing them
+    /// (`gemm2_out1`). Put back the names the model file gives them.
+    fn restore_output_names(&mut self, bytes: &[u8]) {
+        use onnx_ir::{Message, ModelProto};
+        let Ok(model) = ModelProto::parse_from_bytes(bytes) else { return };
+        let names: Vec<String> = model.graph.output.iter().map(|o| o.name.clone()).collect();
+        if names.len() != self.outputs.len() || names.iter().any(String::is_empty) {
+            return;
+        }
+        for ((port, slot), name) in self.outputs.iter_mut().zip(&self.output_slots).zip(names) {
+            for step in self.steps.iter_mut().filter(|s| s.output == *slot) {
+                step.value = name.clone();
+            }
+            port.name = name;
+        }
     }
 
     /// Compile a parsed graph, rejecting anything this interpreter can't run.
@@ -174,6 +230,11 @@ impl Program {
             outputs.push(port(arg));
             output_slots.push(compiler.input(arg, "graph output")?);
         }
+        for step in &mut steps {
+            if let Some(i) = output_slots.iter().position(|s| *s == step.output) {
+                step.value = outputs[i].name.clone();
+            }
+        }
 
         Ok(Program {
             device,
@@ -198,6 +259,18 @@ impl Program {
     /// Evaluate the program. `inputs` are in [`Program::inputs`] order; the
     /// result is in [`Program::outputs`] order.
     pub fn run(&self, inputs: &[HostTensor]) -> Result<Vec<HostTensor>, RunError> {
+        self.evaluate(inputs, None)
+    }
+
+    /// Like [`Program::run`], and also return every graph input and every
+    /// intermediate value, in evaluation order.
+    pub fn run_traced(&self, inputs: &[HostTensor]) -> Result<(Vec<HostTensor>, Vec<Activation>), RunError> {
+        let mut trace = Vec::with_capacity(inputs.len() + self.steps.len());
+        let outputs = self.evaluate(inputs, Some(&mut trace))?;
+        Ok((outputs, trace))
+    }
+
+    fn evaluate(&self, inputs: &[HostTensor], mut trace: Option<&mut Vec<Activation>>) -> Result<Vec<HostTensor>, RunError> {
         if inputs.len() != self.inputs.len() {
             return Err(RunError(format!(
                 "the model takes {} inputs, got {}",
@@ -213,6 +286,9 @@ impl Program {
         for ((port, host), slot) in self.inputs.iter().zip(inputs).zip(&self.input_slots) {
             check_input_shape(port, host)?;
             values[*slot] = Some(to_value(host, &self.device));
+            if let Some(trace) = trace.as_deref_mut() {
+                trace.push(Activation { name: port.name.clone(), op: "Input", tensor: host.clone() });
+            }
         }
 
         for step in &self.steps {
@@ -222,6 +298,9 @@ impl Program {
                 .map(|slot| values[*slot].as_ref().expect("compile order guarantees inputs are set"))
                 .collect();
             let out = eval(step, &args).map_err(|e| RunError(format!("node `{}`: {e}", step.node)))?;
+            if let Some(trace) = trace.as_deref_mut() {
+                trace.push(Activation { name: step.value.clone(), op: step.op.name(), tensor: to_host(&out)? });
+            }
             values[step.output] = Some(out);
         }
 
@@ -360,7 +439,7 @@ impl Compiler {
         let rank = out.ty.rank();
         let output = self.define(&out.name);
 
-        Ok(Some(Step { node: name, op, inputs: slots, output, rank }))
+        Ok(Some(Step { node: name.clone(), value: name, op, inputs: slots, output, rank }))
     }
 }
 

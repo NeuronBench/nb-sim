@@ -36,6 +36,8 @@ fn check_against_reference(name: &str) {
 
     let names: Vec<_> = program.inputs().iter().map(|p| p.name.clone()).collect();
     assert_eq!(names, fixture.inputs.iter().map(|i| i.name.clone()).collect::<Vec<_>>());
+    let names: Vec<_> = program.outputs().iter().map(|p| p.name.clone()).collect();
+    assert_eq!(names, fixture.outputs.iter().map(|o| o.name.clone()).collect::<Vec<_>>());
 
     let inputs: Vec<HostTensor> =
         fixture.inputs.iter().map(|i| HostTensor::new(i.shape.clone(), i.data.clone())).collect();
@@ -86,4 +88,27 @@ fn input_shape_mismatch_is_a_run_error() {
 #[test]
 fn garbage_bytes_are_a_compile_error() {
     assert!(Program::from_bytes(b"not an onnx model", Device::default()).is_err());
+}
+
+#[test]
+fn traced_run_keeps_every_layer() {
+    let program = compile("mlp").unwrap();
+    let x = HostTensor::new(vec![1, 4], vec![0.5, -1.0, 2.0, 0.25]);
+    let outputs = program.run(std::slice::from_ref(&x)).unwrap();
+    let (traced, trace) = program.run_traced(std::slice::from_ref(&x)).unwrap();
+    assert_eq!(traced, outputs);
+
+    let layers: Vec<(&str, &str, Vec<usize>)> =
+        trace.iter().map(|a| (a.name.as_str(), a.op, a.tensor.shape.clone())).collect();
+    assert_eq!(layers.len(), 4, "{layers:?}");
+    assert_eq!(layers[0], ("x", "Input", vec![1, 4]));
+    // Intermediate values are named after their node; graph outputs keep their name.
+    assert_eq!((layers[2].1, layers[2].2.clone()), ("Tanh", vec![1, 8]));
+    assert_eq!((layers[3].0, layers[3].2.clone()), ("y", vec![1, 2]));
+    assert_eq!(trace[0].tensor, x);
+    assert_eq!(trace[3].tensor, outputs[0]);
+    // The hidden activation really is tanh of the layer before it.
+    for (h, a) in trace[1].tensor.data.iter().zip(&trace[2].tensor.data) {
+        assert!((h.tanh() - a).abs() < 1e-6);
+    }
 }

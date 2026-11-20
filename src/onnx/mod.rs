@@ -5,4 +5,4 @@ pub mod plugin;
 pub mod program;
 
 pub use plugin::OnnxPlugin;
-pub use program::{CompileError, HostTensor, Port, Program, RunError};
+pub use program::{Activation, CompileError, HostTensor, Port, Program, RunError};
