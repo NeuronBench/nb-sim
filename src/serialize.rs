@@ -35,6 +35,10 @@ pub enum ModelInput {
     Time,
     /// Fixed values, for example from scene parameters.
     Constant { values: Vec<f32> },
+    /// The named model output from the previous run (zeros on the first),
+    /// for recurrent state such as a GRU's hidden state: `h0` in, `hn` out.
+    /// The input must have a fixed shape.
+    Feedback { output: String },
 }
 
 /// What a model output drives.

@@ -112,3 +112,30 @@ fn traced_run_keeps_every_layer() {
         assert!((h.tanh() - a).abs() < 1e-6);
     }
 }
+
+#[test]
+fn conv1d_padding_stride_dilation_groups_match_reference() {
+    check_against_reference("conv1d");
+}
+
+#[test]
+fn gru_directions_and_reset_modes_match_reference() {
+    check_against_reference("gru");
+}
+
+#[test]
+fn lstm_initial_state_reverse_and_clip_match_reference() {
+    check_against_reference("lstm");
+}
+
+#[test]
+fn recurrent_layers_trace_each_output() {
+    let program = compile("lstm").unwrap();
+    let fixture: Fixture = serde_json::from_slice(&std::fs::read(fixture_path("lstm.json")).unwrap()).unwrap();
+    let inputs: Vec<HostTensor> =
+        fixture.inputs.iter().map(|i| HostTensor::new(i.shape.clone(), i.data.clone())).collect();
+    let (_, trace) = program.run_traced(&inputs).unwrap();
+    let layers: Vec<(&str, &str)> = trace.iter().map(|a| (a.name.as_str(), a.op)).collect();
+    // Three inputs, then every used LSTM output under its graph name.
+    assert_eq!(&layers[3..], &[("y", "LSTM"), ("y_h", "LSTM"), ("y_c", "LSTM"), ("y2", "LSTM")]);
+}

@@ -210,7 +210,7 @@ pub fn run_models(
             time_sec: now,
         };
         for slot in models.slots.iter_mut() {
-            let ModelState::Ready(instance) = &slot.state else { continue };
+            let ModelState::Ready(instance) = &mut slot.state else { continue };
             if now < slot.next_run_sec {
                 continue;
             }

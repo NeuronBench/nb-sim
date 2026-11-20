@@ -12,7 +12,8 @@
 use std::collections::HashMap;
 use std::fmt;
 
-use burn::tensor::{activation, DType, Device, Tensor, TensorData};
+use burn::tensor::ops::ConvOptions;
+use burn::tensor::{activation, module, DType, Device, Tensor, TensorData};
 use onnx_ir::{Argument, Node, OnnxGraph, OnnxGraphBuilder};
 
 /// Highest tensor rank a program may use.
@@ -117,14 +118,20 @@ impl Value {
 
 struct Step {
     node: String,
-    /// What to call the output in a trace: the graph output's name when it
-    /// is one, else the node name (onnx-ir renames intermediate values).
-    value: String,
     op: Op,
     inputs: Vec<Slot>,
-    output: Slot,
-    /// Logical rank of the output.
+    /// One entry per value the op produces, in ONNX output order.
+    outputs: Vec<StepOutput>,
+}
+
+struct StepOutput {
+    /// `None` when the model doesn't use this output.
+    slot: Option<Slot>,
+    /// Logical rank.
     rank: usize,
+    /// What to call it in a trace: the graph output's name when it is one,
+    /// else the node name (onnx-ir renames intermediate values).
+    name: String,
 }
 
 enum Op {
@@ -149,6 +156,62 @@ enum Op {
     MatMul,
     Gemm { alpha: f32, beta: f32, trans_a: bool, trans_b: bool },
     Linear { transpose_weight: bool },
+    Conv1d { kernel: usize, stride: usize, dilation: usize, groups: usize, padding: ConvPadding },
+    Gru(Recurrent),
+    Lstm(Recurrent),
+}
+
+#[derive(Clone, Copy, Debug)]
+enum ConvPadding {
+    Explicit(usize, usize),
+    /// ONNX auto_pad SAME_UPPER (extra padding at the end) or SAME_LOWER.
+    Same { upper: bool },
+}
+
+/// GRU and LSTM settings. Inputs are always laid out as X, W, R, then the
+/// optional ones that are present, in ONNX order.
+#[derive(Clone, Debug)]
+struct Recurrent {
+    hidden: usize,
+    directions: Direction,
+    has_bias: bool,
+    has_initial_h: bool,
+    /// LSTM only.
+    has_initial_c: bool,
+    clip: Option<f32>,
+    /// GRU only.
+    linear_before_reset: bool,
+    /// LSTM only: the forget gate is 1 - input gate.
+    input_forget: bool,
+    gate: Act,
+    /// GRU's hidden activation; LSTM's cell activation.
+    cell: Act,
+    /// LSTM's hidden (output) activation.
+    hidden_act: Act,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Direction {
+    Forward,
+    Reverse,
+    Bidirectional,
+}
+
+#[derive(Clone, Copy, Debug)]
+enum Act {
+    Sigmoid,
+    Tanh,
+    Relu,
+}
+
+impl Act {
+    fn apply(self, t: Tensor<2>) -> Tensor<2> {
+        match self {
+            Act::Sigmoid => activation::sigmoid(t),
+            Act::Tanh => activation::tanh(t),
+            Act::Relu => activation::relu(t),
+        }
+    }
 }
 
 impl Op {
@@ -171,6 +234,9 @@ impl Op {
             Op::MatMul => "MatMul",
             Op::Gemm { .. } => "Gemm",
             Op::Linear { .. } => "Linear",
+            Op::Conv1d { .. } => "Conv1d",
+            Op::Gru(_) => "GRU",
+            Op::Lstm(_) => "LSTM",
         }
     }
 }
@@ -197,8 +263,8 @@ impl Program {
             return;
         }
         for ((port, slot), name) in self.outputs.iter_mut().zip(&self.output_slots).zip(names) {
-            for step in self.steps.iter_mut().filter(|s| s.output == *slot) {
-                step.value = name.clone();
+            for out in self.steps.iter_mut().flat_map(|s| &mut s.outputs).filter(|o| o.slot == Some(*slot)) {
+                out.name = name.clone();
             }
             port.name = name;
         }
@@ -230,9 +296,9 @@ impl Program {
             outputs.push(port(arg));
             output_slots.push(compiler.input(arg, "graph output")?);
         }
-        for step in &mut steps {
-            if let Some(i) = output_slots.iter().position(|s| *s == step.output) {
-                step.value = outputs[i].name.clone();
+        for out in steps.iter_mut().flat_map(|s: &mut Step| &mut s.outputs) {
+            if let Some(i) = output_slots.iter().position(|s| Some(*s) == out.slot) {
+                out.name = outputs[i].name.clone();
             }
         }
 
@@ -297,11 +363,14 @@ impl Program {
                 .iter()
                 .map(|slot| values[*slot].as_ref().expect("compile order guarantees inputs are set"))
                 .collect();
-            let out = eval(step, &args).map_err(|e| RunError(format!("node `{}`: {e}", step.node)))?;
-            if let Some(trace) = trace.as_deref_mut() {
-                trace.push(Activation { name: step.value.clone(), op: step.op.name(), tensor: to_host(&out)? });
+            let results = eval(step, &args).map_err(|e| RunError(format!("node `{}`: {e}", step.node)))?;
+            for (out, value) in step.outputs.iter().zip(results) {
+                let Some(slot) = out.slot else { continue };
+                if let Some(trace) = trace.as_deref_mut() {
+                    trace.push(Activation { name: out.name.clone(), op: step.op.name(), tensor: to_host(&value)? });
+                }
+                values[slot] = Some(value);
             }
-            values[step.output] = Some(out);
         }
 
         self.output_slots
@@ -412,6 +481,26 @@ impl Compiler {
                 (op, ins)
             }
             Node::Linear(n) => (Op::Linear { transpose_weight: n.config.transpose_weight }, ins),
+            Node::Conv1d(n) => {
+                use onnx_ir::padding::{AutoPad, PaddingConfig1d};
+                let c = &n.config;
+                let padding = match (&c.auto_pad, &c.padding) {
+                    (AutoPad::SameUpper, _) => ConvPadding::Same { upper: true },
+                    (AutoPad::SameLower, _) => ConvPadding::Same { upper: false },
+                    (AutoPad::Valid, _) | (AutoPad::NotSet, PaddingConfig1d::Valid) => ConvPadding::Explicit(0, 0),
+                    (AutoPad::NotSet, PaddingConfig1d::Explicit(l, r)) => ConvPadding::Explicit(*l, *r),
+                };
+                let op = Op::Conv1d {
+                    kernel: c.kernel_size,
+                    stride: c.stride,
+                    dilation: c.dilation,
+                    groups: c.groups,
+                    padding,
+                };
+                (op, ins)
+            }
+            Node::Gru(n) => return self.recurrent(node, recurrent_gru(&n.config).map_err(|m| err(&name, m))?, 2),
+            Node::Lstm(n) => return self.recurrent(node, recurrent_lstm(&n.config).map_err(|m| err(&name, m))?, 3),
             other => {
                 return Err(err(
                     &name,
@@ -420,11 +509,7 @@ impl Compiler {
             }
         };
 
-        // Optional inputs that weren't provided show up with an empty name and no value.
-        let operands: Vec<&Argument> = operands
-            .iter()
-            .filter(|a| !(a.name.is_empty() && a.value().is_none()))
-            .collect();
+        let operands: Vec<&Argument> = operands.iter().filter(|a| present(a)).collect();
 
         let mut slots = Vec::with_capacity(operands.len());
         for arg in operands {
@@ -436,15 +521,65 @@ impl Compiler {
             return Err(err(&name, format!("expected one output, found {}", outs.len())));
         };
         check_float_tensor(out, Some(&name))?;
-        let rank = out.ty.rank();
-        let output = self.define(&out.name);
+        let output = StepOutput { slot: Some(self.define(&out.name)), rank: out.ty.rank(), name: name.clone() };
 
-        Ok(Some(Step { node: name.clone(), value: name, op, inputs: slots, output, rank }))
+        Ok(Some(Step { node: name, op, inputs: slots, outputs: vec![output] }))
+    }
+
+    /// A GRU (`outputs` = 2: Y, Y_h) or LSTM (3: Y, Y_h, Y_c). Operands are
+    /// X, W, R and then the optional inputs that are present.
+    fn recurrent(&mut self, node: &Node, op: Op, outputs: usize) -> Result<Option<Step>, CompileError> {
+        let name = node.name().to_string();
+        let ins = node.inputs();
+        let rec = match &op {
+            Op::Gru(r) | Op::Lstm(r) => r.clone(),
+            _ => unreachable!(),
+        };
+        let optional = |i: usize| ins.get(i).filter(|a| present(a));
+        if optional(4).is_some() {
+            return Err(err(&name, "sequence_lens is not supported".into()));
+        }
+        let mut operands: Vec<&Argument> = ins[..3].iter().collect();
+        operands.extend(optional(3).filter(|_| rec.has_bias));
+        operands.extend(optional(5).filter(|_| rec.has_initial_h));
+        operands.extend(optional(6).filter(|_| rec.has_initial_c));
+        let mut slots = Vec::with_capacity(operands.len());
+        for arg in operands {
+            check_float_tensor(arg, Some(&name))?;
+            slots.push(self.input(arg, &name)?);
+        }
+
+        let outs = node.outputs();
+        if outs.len() > outputs {
+            return Err(err(&name, format!("expected at most {outputs} outputs, found {}", outs.len())));
+        }
+        let ranks = [4, 3, 3];
+        let mut step_outputs = Vec::with_capacity(outputs);
+        for (i, rank) in ranks.iter().enumerate().take(outputs) {
+            let slot = match outs.get(i).filter(|a| present(a)) {
+                Some(out) => {
+                    check_float_tensor(out, Some(&name))?;
+                    Some(self.define(&out.name))
+                }
+                None => None,
+            };
+            step_outputs.push(StepOutput { slot, rank: *rank, name: name.clone() });
+        }
+        Ok(Some(Step { node: name, op, inputs: slots, outputs: step_outputs }))
     }
 }
 
-fn eval(step: &Step, args: &[&Value]) -> Result<Value, String> {
-    let rank = step.rank;
+fn eval(step: &Step, args: &[&Value]) -> Result<Vec<Value>, String> {
+    match &step.op {
+        Op::Gru(r) => return gru(r, args),
+        Op::Lstm(r) => return lstm(r, args),
+        _ => {}
+    }
+    eval_single(step, args).map(|v| vec![v])
+}
+
+fn eval_single(step: &Step, args: &[&Value]) -> Result<Value, String> {
+    let rank = step.outputs[0].rank;
     let unary = |f: fn(Tensor<MAX_RANK>) -> Tensor<MAX_RANK>| {
         Ok::<_, String>(Value { tensor: f(args[0].tensor.clone()), rank })
     };
@@ -499,7 +634,270 @@ fn eval(step: &Step, args: &[&Value]) -> Result<Value, String> {
             }
             Ok(Value { tensor: y, rank })
         }
+        Op::Conv1d { kernel, stride, dilation, groups, padding } => {
+            let x = rank3(args[0]);
+            let w = rank3(args[1]);
+            let bias = args.get(2).map(|b| b.tensor.clone().reshape([b.tensor.dims()[MAX_RANK - 1]]));
+            let length = x.dims()[2];
+            let padding = match *padding {
+                ConvPadding::Explicit(l, r) => (l, r),
+                ConvPadding::Same { upper } => {
+                    let out = length.div_ceil(*stride);
+                    let span = (kernel - 1) * dilation + 1;
+                    let total = ((out - 1) * stride + span).saturating_sub(length);
+                    let (small, big) = (total / 2, total - total / 2);
+                    if upper { (small, big) } else { (big, small) }
+                }
+            };
+            let options = ConvOptions { stride: [*stride], padding: [padding], dilation: [*dilation], groups: *groups };
+            Ok(from_rank3(module::conv1d(x, w, bias, options)))
+        }
+        Op::Gru(_) | Op::Lstm(_) => unreachable!("handled in eval"),
     }
+}
+
+fn rank3(v: &Value) -> Tensor<3> {
+    let [_, a, b, c] = v.tensor.dims();
+    v.tensor.clone().reshape([a, b, c])
+}
+
+fn from_rank3(t: Tensor<3>) -> Value {
+    let [a, b, c] = t.dims();
+    Value { tensor: t.reshape([1, a, b, c]), rank: 3 }
+}
+
+/// Row `d` of a `[n, x, y]` tensor, as `[x, y]`.
+fn row(t: &Tensor<3>, d: usize) -> Tensor<2> {
+    let [_, x, y] = t.dims();
+    t.clone().narrow(0, d, 1).reshape([x, y])
+}
+
+/// Columns `[gate * h, (gate + 1) * h)` of a `[rows, k * h]` tensor.
+fn gate(t: &Tensor<2>, gate: usize, h: usize) -> Tensor<2> {
+    t.clone().narrow(1, gate * h, h)
+}
+
+fn clip(t: Tensor<2>, c: Option<f32>) -> Tensor<2> {
+    match c {
+        Some(c) => t.clamp(-c, c),
+        None => t,
+    }
+}
+
+fn one_minus(t: Tensor<2>) -> Tensor<2> {
+    (t * -1.0).add_scalar(1.0)
+}
+
+/// Per-direction weights and initial state shared by GRU and LSTM.
+struct RecurrentArgs {
+    x: Tensor<3>,
+    /// W^T and R^T per direction: `[input, k*h]` and `[h, k*h]`.
+    w_t: Vec<Tensor<2>>,
+    r_t: Vec<Tensor<2>>,
+    /// W and R biases per direction, `[1, k*h]` each (zeros when absent).
+    w_b: Vec<Tensor<2>>,
+    r_b: Vec<Tensor<2>>,
+    h0: Vec<Tensor<2>>,
+    c0: Vec<Tensor<2>>,
+    seq: usize,
+    batch: usize,
+}
+
+fn recurrent_args(r: &Recurrent, args: &[&Value], gates: usize, lstm: bool) -> Result<RecurrentArgs, String> {
+    let h = r.hidden;
+    let x = rank3(args[0]);
+    let [seq, batch, _] = x.dims();
+    let w = rank3(args[1]);
+    let rr = rank3(args[2]);
+    let directions = w.dims()[0];
+    let expected = if r.directions == Direction::Bidirectional { 2 } else { 1 };
+    if directions != expected {
+        return Err(format!("W has {directions} directions, expected {expected}"));
+    }
+    let device = x.device();
+    let mut next = 3;
+    let mut take = |present: bool| {
+        present.then(|| {
+            next += 1;
+            args[next - 1]
+        })
+    };
+    let bias = take(r.has_bias).map(|b| {
+        let [_, _, d, n] = b.tensor.dims();
+        b.tensor.clone().reshape([d, n])
+    });
+    let h0 = take(r.has_initial_h).map(rank3);
+    let c0 = take(lstm && r.has_initial_c).map(rank3);
+
+    let zeros = |rows: usize, cols: usize| Tensor::<2>::zeros([rows, cols], &device);
+    let mut out = RecurrentArgs {
+        x,
+        w_t: vec![],
+        r_t: vec![],
+        w_b: vec![],
+        r_b: vec![],
+        h0: vec![],
+        c0: vec![],
+        seq,
+        batch,
+    };
+    for d in 0..directions {
+        out.w_t.push(row(&w, d).transpose());
+        out.r_t.push(row(&rr, d).transpose());
+        match &bias {
+            Some(b) => {
+                let b = b.clone().narrow(0, d, 1);
+                out.w_b.push(b.clone().narrow(1, 0, gates * h));
+                out.r_b.push(b.narrow(1, gates * h, gates * h));
+            }
+            None => {
+                out.w_b.push(zeros(1, gates * h));
+                out.r_b.push(zeros(1, gates * h));
+            }
+        }
+        out.h0.push(h0.as_ref().map_or_else(|| zeros(batch, h), |t| row(t, d)));
+        out.c0.push(c0.as_ref().map_or_else(|| zeros(batch, h), |t| row(t, d)));
+    }
+    Ok(out)
+}
+
+/// Time steps in processing order for direction `d`.
+fn time_order(r: &Recurrent, d: usize, seq: usize) -> Vec<usize> {
+    let reverse = r.directions == Direction::Reverse || d == 1;
+    if reverse { (0..seq).rev().collect() } else { (0..seq).collect() }
+}
+
+/// Stack per-direction `[seq] x [batch, h]` histories into Y `[seq, dirs, batch, h]`
+/// and final states into `[dirs, batch, h]`.
+fn recurrent_outputs(histories: Vec<Vec<Tensor<2>>>, finals: Vec<Vec<Tensor<2>>>) -> Vec<Value> {
+    let per_direction: Vec<Tensor<3>> = histories.into_iter().map(|steps| Tensor::stack(steps, 0)).collect();
+    let y: Tensor<4> = Tensor::stack(per_direction, 1);
+    let mut out = vec![Value { tensor: y, rank: 4 }];
+    for states in finals {
+        out.push(from_rank3(Tensor::stack(states, 0)));
+    }
+    out
+}
+
+/// ONNX GRU, gates z, r, h.
+fn gru(r: &Recurrent, args: &[&Value]) -> Result<Vec<Value>, String> {
+    let h = r.hidden;
+    let a = recurrent_args(r, args, 3, false)?;
+    let (mut histories, mut finals) = (vec![], vec![]);
+    for d in 0..a.w_t.len() {
+        let mut ht = a.h0[d].clone();
+        let mut history = vec![None; a.seq];
+        let rh_t = gate(&a.r_t[d], 2, h);
+        for t in time_order(r, d, a.seq) {
+            let xt = a.x.clone().narrow(0, t, 1).reshape([a.batch, a.x.dims()[2]]);
+            let gx = xt.matmul(a.w_t[d].clone()) + a.w_b[d].clone();
+            let gh = ht.clone().matmul(a.r_t[d].clone()) + a.r_b[d].clone();
+            let z = r.gate.apply(clip(gate(&gx, 0, h) + gate(&gh, 0, h), r.clip));
+            let reset = r.gate.apply(clip(gate(&gx, 1, h) + gate(&gh, 1, h), r.clip));
+            let candidate = if r.linear_before_reset {
+                gate(&gx, 2, h) + reset * gate(&gh, 2, h)
+            } else {
+                gate(&gx, 2, h) + (reset * ht.clone()).matmul(rh_t.clone()) + gate(&a.r_b[d], 2, h)
+            };
+            let candidate = r.cell.apply(clip(candidate, r.clip));
+            ht = one_minus(z.clone()) * candidate + z * ht;
+            history[t] = Some(ht.clone());
+        }
+        histories.push(history.into_iter().map(|t| t.expect("every step ran")).collect());
+        finals.push(ht);
+    }
+    Ok(recurrent_outputs(histories, vec![finals]))
+}
+
+/// ONNX LSTM, gates i, o, f, c.
+fn lstm(r: &Recurrent, args: &[&Value]) -> Result<Vec<Value>, String> {
+    let h = r.hidden;
+    let a = recurrent_args(r, args, 4, true)?;
+    let (mut histories, mut finals_h, mut finals_c) = (vec![], vec![], vec![]);
+    for d in 0..a.w_t.len() {
+        let (mut ht, mut ct) = (a.h0[d].clone(), a.c0[d].clone());
+        let mut history = vec![None; a.seq];
+        for t in time_order(r, d, a.seq) {
+            let xt = a.x.clone().narrow(0, t, 1).reshape([a.batch, a.x.dims()[2]]);
+            let g = xt.matmul(a.w_t[d].clone()) + a.w_b[d].clone() + ht.clone().matmul(a.r_t[d].clone()) + a.r_b[d].clone();
+            let i = r.gate.apply(clip(gate(&g, 0, h), r.clip));
+            let o = r.gate.apply(clip(gate(&g, 1, h), r.clip));
+            let f = if r.input_forget { one_minus(i.clone()) } else { r.gate.apply(clip(gate(&g, 2, h), r.clip)) };
+            let c = r.cell.apply(clip(gate(&g, 3, h), r.clip));
+            ct = f * ct + i * c;
+            ht = o * r.hidden_act.apply(ct.clone());
+            history[t] = Some(ht.clone());
+        }
+        histories.push(history.into_iter().map(|t| t.expect("every step ran")).collect());
+        finals_h.push(ht);
+        finals_c.push(ct);
+    }
+    Ok(recurrent_outputs(histories, vec![finals_h, finals_c]))
+}
+
+fn recurrent_gru(c: &onnx_ir::gru::GruConfig) -> Result<Op, String> {
+    use onnx_ir::gru::{GruActivationFunction as F, GruDirection as D};
+    let act = |f: F| match f {
+        F::Sigmoid => Ok(Act::Sigmoid),
+        F::Tanh => Ok(Act::Tanh),
+        F::Relu => Ok(Act::Relu),
+        other => Err(format!("GRU activation {other:?} is not supported")),
+    };
+    if c.batch_first {
+        return Err("GRU with layout=1 (batch first) is not supported".into());
+    }
+    Ok(Op::Gru(Recurrent {
+        hidden: c.hidden_size,
+        directions: match c.direction {
+            D::Forward => Direction::Forward,
+            D::Reverse => Direction::Reverse,
+            D::Bidirectional => Direction::Bidirectional,
+        },
+        has_bias: c.has_bias,
+        has_initial_h: c.has_initial_h,
+        has_initial_c: false,
+        clip: c.clip,
+        linear_before_reset: c.linear_before_reset,
+        input_forget: false,
+        gate: act(c.gate_activation)?,
+        cell: act(c.hidden_activation)?,
+        hidden_act: Act::Tanh,
+    }))
+}
+
+fn recurrent_lstm(c: &onnx_ir::lstm::LstmConfig) -> Result<Op, String> {
+    use onnx_ir::lstm::{LstmActivationFunction as F, LstmDirection as D};
+    let act = |f: F| match f {
+        F::Sigmoid => Ok(Act::Sigmoid),
+        F::Tanh => Ok(Act::Tanh),
+        F::Relu => Ok(Act::Relu),
+        other => Err(format!("LSTM activation {other:?} is not supported")),
+    };
+    if c.batch_first {
+        return Err("LSTM with layout=1 (batch first) is not supported".into());
+    }
+    Ok(Op::Lstm(Recurrent {
+        hidden: c.hidden_size,
+        directions: match c.direction {
+            D::Forward => Direction::Forward,
+            D::Reverse => Direction::Reverse,
+            D::Bidirectional => Direction::Bidirectional,
+        },
+        has_bias: c.has_bias,
+        has_initial_h: c.has_initial_h,
+        has_initial_c: c.has_initial_c,
+        clip: c.clip,
+        linear_before_reset: false,
+        input_forget: c.input_forget,
+        gate: act(c.gate_activation)?,
+        cell: act(c.cell_activation)?,
+        hidden_act: act(c.hidden_activation)?,
+    }))
+}
+
+/// Whether an optional input or output was actually provided.
+fn present(arg: &Argument) -> bool {
+    !arg.is_optional() && !(arg.name.is_empty() && arg.value().is_none())
 }
 
 fn transpose_if(t: Tensor<MAX_RANK>, transpose: bool) -> Tensor<MAX_RANK> {

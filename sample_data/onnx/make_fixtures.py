@@ -2,9 +2,10 @@
 
 Each fixture is `<name>.onnx` plus `<name>.json` holding the test inputs and
 the expected outputs, computed with onnx's own reference evaluator (an
-implementation independent of ours).
+implementation independent of ours), or with onnxruntime where the reference
+evaluator falls short (it ignores LSTM's `clip`).
 
-    uv run --with onnx --with numpy python -I sample_data/onnx/make_fixtures.py
+    uv run --with onnx --with onnxruntime --with numpy python -I sample_data/onnx/make_fixtures.py
 
 Rerun after editing; commit the regenerated files.
 """
@@ -25,7 +26,7 @@ def f32(*shape):
     return rng.standard_normal(shape).astype(np.float32)
 
 
-def save(name, nodes, inputs, outputs, initializers, feeds):
+def save(name, nodes, inputs, outputs, initializers, feeds, evaluator="reference"):
     graph = helper.make_graph(
         nodes,
         name,
@@ -38,7 +39,13 @@ def save(name, nodes, inputs, outputs, initializers, feeds):
     onnx.checker.check_model(model, full_check=True)
     onnx.save(model, OUT / f"{name}.onnx")
 
-    results = ReferenceEvaluator(model).run(None, feeds)
+    if evaluator == "onnxruntime":
+        import onnxruntime
+
+        session = onnxruntime.InferenceSession(model.SerializeToString(), providers=["CPUExecutionProvider"])
+        results = session.run(None, feeds)
+    else:
+        results = ReferenceEvaluator(model).run(None, feeds)
     expected = {
         "inputs": [
             {"name": n, "shape": list(feeds[n].shape), "data": feeds[n].ravel().tolist()}
@@ -141,6 +148,70 @@ save(
         "target_mv": np.array([[-50.0]], np.float32),
         "gain_per_mv": np.array([[0.1]], np.float32),
     },
+)
+
+# Conv1d: explicit asymmetric pads with stride and dilation, then a grouped
+# conv with SAME_UPPER auto padding and no bias.
+save(
+    "conv1d",
+    [
+        helper.make_node("Conv", ["x", "w1", "b1"], ["c1"], pads=[1, 2], strides=[2], dilations=[2]),
+        helper.make_node("Relu", ["c1"], ["r1"]),
+        helper.make_node("Conv", ["r1", "w2"], ["y"], group=2, auto_pad="SAME_UPPER"),
+    ],
+    inputs=[("x", [2, 2, 9])],
+    outputs=[("y", [2, 4, 4])],
+    initializers={"w1": f32(4, 2, 3), "b1": f32(4), "w2": f32(4, 2, 2)},
+    feeds={"x": f32(2, 2, 9)},
+)
+
+H, I, SEQ, BATCH = 4, 3, 3, 2
+
+# GRU: forward with linear_before_reset (as PyTorch exports it), bias and an
+# initial state fed in as a graph input; and bidirectional without either,
+# with the default linear_before_reset=0.
+save(
+    "gru",
+    [
+        helper.make_node("GRU", ["x", "w", "r", "b", "", "h0"], ["y", "y_h"], hidden_size=H, linear_before_reset=1),
+        helper.make_node("GRU", ["x", "w2", "r2"], ["y2"], hidden_size=H, direction="bidirectional"),
+    ],
+    inputs=[("x", [SEQ, BATCH, I]), ("h0", [1, BATCH, H])],
+    outputs=[("y", [SEQ, 1, BATCH, H]), ("y_h", [1, BATCH, H]), ("y2", [SEQ, 2, BATCH, H])],
+    initializers={
+        "w": 0.5 * f32(1, 3 * H, I),
+        "r": 0.5 * f32(1, 3 * H, H),
+        "b": 0.5 * f32(1, 6 * H),
+        "w2": 0.5 * f32(2, 3 * H, I),
+        "r2": 0.5 * f32(2, 3 * H, H),
+    },
+    feeds={"x": f32(SEQ, BATCH, I), "h0": 0.5 * f32(1, BATCH, H)},
+)
+
+# LSTM: forward with bias and initial h and c; and reverse with clipping,
+# using only Y. Checked with onnxruntime: the reference evaluator ignores clip.
+save(
+    "lstm",
+    [
+        helper.make_node("LSTM", ["x", "w", "r", "b", "", "h0", "c0"], ["y", "y_h", "y_c"], hidden_size=H),
+        helper.make_node("LSTM", ["x", "w2", "r2"], ["y2"], hidden_size=H, direction="reverse", clip=0.5),
+    ],
+    inputs=[("x", [SEQ, BATCH, I]), ("h0", [1, BATCH, H]), ("c0", [1, BATCH, H])],
+    outputs=[
+        ("y", [SEQ, 1, BATCH, H]),
+        ("y_h", [1, BATCH, H]),
+        ("y_c", [1, BATCH, H]),
+        ("y2", [SEQ, 1, BATCH, H]),
+    ],
+    initializers={
+        "w": 0.5 * f32(1, 4 * H, I),
+        "r": 0.5 * f32(1, 4 * H, H),
+        "b": 0.5 * f32(1, 8 * H),
+        "w2": 0.5 * f32(1, 4 * H, I),
+        "r2": 0.5 * f32(1, 4 * H, H),
+    },
+    feeds={"x": f32(SEQ, BATCH, I), "h0": 0.5 * f32(1, BATCH, H), "c0": 0.5 * f32(1, BATCH, H)},
+    evaluator="onnxruntime",
 )
 
 # An op outside the supported set; compiling it must fail with a clear error.

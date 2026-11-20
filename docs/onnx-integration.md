@@ -127,6 +127,7 @@ pub enum ModelInput {
     Voltages { taps: Vec<SegmentRef>, offset_mv: f32, scale: f32 },
     Time,
     Constant { values: Vec<f32> },   // slider-able through nb.Slider
+    Feedback { output: String },     // previous run's output; zeros at first
 }
 
 #[serde(tag = "type")]
@@ -147,6 +148,15 @@ show in red under "Models" in the Scene panel.
 
 A dynamic input dim (`None`) absorbs the bound values: `[?, 3]` with 6 values
 becomes `[2, 3]` (`coupling::fit_shape`).
+
+**Recurrent state.** `Feedback { output }` feeds a graph input from the
+named graph output of the previous run. This is how PyTorch exports a
+stateful RNN (`h0` in, `hn` out), and it works for any graph, not just
+GRU/LSTM nodes. The input must have a fixed shape, which gives the state
+its size (onnx-ir infers no static shape for GRU/LSTM outputs). The state
+starts at zeros, resets when the scene is reloaded (the model is rebound),
+and only advances on runs that succeed. A non-finite value fed back is an
+error, so NaN can't latch.
 
 ### Coupling to the simulation
 
@@ -226,9 +236,22 @@ blue for negative, red for positive, scaled per layer to its largest
    and the egui Models window. Tests: the traced run in `onnx_runtime`, the
    kept trace in `onnx_coupling`'s headless app, and heatmap layout and
    color in `models_panel`.
-4. **Coverage.** Conv1d, recurrent ops with state carried between calls
-   (ONNX GRU/LSTM `initial_h` fed from the previous `Y_h`), more output
-   sinks (conductance scaling, synaptic gain).
+4. **Coverage. Ops and recurrent state done; output sinks not started.**
+   - Steps may have several outputs.
+   - Conv1d: explicit padding, `SAME_UPPER`/`SAME_LOWER`, stride, dilation
+     and groups.
+   - GRU (`linear_before_reset` 0 and 1) and LSTM (`input_forget`). Both
+     support forward, reverse and bidirectional, `clip`, optional bias and
+     initial state, and sigmoid/tanh/relu activations. They are written as
+     explicit per-timestep loops over burn ops. onnx-ir itself rejects
+     `sequence_lens` and LSTM peepholes; we reject `layout=1` (batch first).
+   - `ModelInput::Feedback` carries state between runs.
+   - Tests: the `conv1d`, `gru` and `lstm` fixtures. The LSTM's expected
+     values come from onnxruntime, because the reference evaluator ignores
+     `clip`. Feedback tests are in `onnx_coupling`.
+   - Remaining: more output sinks (conductance scaling, synaptic gain).
+     Both need new per-segment parameters in the GPU buffers and the WGSL
+     shader, not just the CPU path.
 5. **GPU.** Upgrade to Bevy 0.20 (wgpu 30) so burn's wgpu backend can share
    Bevy's device. Then decide on per-step models (channel surrogates) inside
    the compute pass, or a burn→WGSL path for small MLPs.

@@ -12,7 +12,7 @@ use nb_sim::neuron::membrane::MembraneVoltage;
 use nb_sim::neuron::segment::ecs::{ModelCurrent, SegmentAddress};
 use nb_sim::onnx::coupling::{ModelInstance, SimState, Step};
 use nb_sim::onnx::plugin::{run_models, ModelFetchSender, ModelState, SceneModels};
-use nb_sim::onnx::{OnnxPlugin, Program};
+use nb_sim::onnx::{HostTensor, OnnxPlugin, Program};
 use nb_sim::serialize::{ModelInput, ModelOutput, SceneModel, SegmentRef};
 
 fn fixture(name: &str) -> PathBuf {
@@ -67,7 +67,7 @@ fn assert_close(got: f32, want: f32) {
 
 #[test]
 fn clamp_injects_scaled_drive_per_tap() {
-    let model = ModelInstance::bind(clamp_program(), clamp_spec(vec![tap(0, 1), tap(1, 1)])).unwrap();
+    let mut model = ModelInstance::bind(clamp_program(), clamp_spec(vec![tap(0, 1), tap(1, 1)])).unwrap();
     let Step::Inject(currents) = model.step(&sim(-70.0, -40.0)).unwrap() else { panic!("should run") };
     assert_eq!(currents.len(), 2);
     assert_eq!(currents[0].0, tap(0, 1));
@@ -78,7 +78,7 @@ fn clamp_injects_scaled_drive_per_tap() {
 
 #[test]
 fn one_segment_driven_twice_gets_the_sum() {
-    let model = ModelInstance::bind(clamp_program(), clamp_spec(vec![tap(0, 1), tap(0, 1)])).unwrap();
+    let mut model = ModelInstance::bind(clamp_program(), clamp_spec(vec![tap(0, 1), tap(0, 1)])).unwrap();
     let Step::Inject(currents) = model.step(&sim(-70.0, -40.0)).unwrap() else { panic!("should run") };
     assert_eq!(currents.len(), 1);
     assert_close(currents[0].1, expected(-70.0) + expected(-40.0));
@@ -86,13 +86,13 @@ fn one_segment_driven_twice_gets_the_sum() {
 
 #[test]
 fn nan_voltage_means_not_ready() {
-    let model = ModelInstance::bind(clamp_program(), clamp_spec(vec![tap(0, 1), tap(1, 1)])).unwrap();
+    let mut model = ModelInstance::bind(clamp_program(), clamp_spec(vec![tap(0, 1), tap(1, 1)])).unwrap();
     assert_eq!(model.step(&sim(f32::NAN, -40.0)).unwrap(), Step::NotReady);
 }
 
 #[test]
 fn missing_segment_is_an_error() {
-    let model = ModelInstance::bind(clamp_program(), clamp_spec(vec![tap(0, 1), tap(1, 1)])).unwrap();
+    let mut model = ModelInstance::bind(clamp_program(), clamp_spec(vec![tap(0, 1), tap(1, 1)])).unwrap();
     let err = model.step(&FakeSim(HashMap::from([(tap(0, 1), -70.0)]))).unwrap_err();
     assert!(err.contains("no segment 1 in neuron 1"), "{err}");
 }
@@ -174,4 +174,61 @@ fn systems_fetch_compile_and_inject() {
     app.world_mut().resource_mut::<SceneModels>().load(&[], &root, false, &sender);
     app.update();
     assert_eq!(app.world().get::<ModelCurrent>(s0).unwrap().0 .0, 0.0);
+}
+
+fn program(name: &str) -> Arc<Program> {
+    let bytes = std::fs::read(fixture(name)).unwrap();
+    Arc::new(Program::from_bytes(&bytes, Device::default()).unwrap())
+}
+
+/// The GRU fixture with its initial state `h0` fed back from `y_h`.
+fn gru_feedback_spec() -> SceneModel {
+    SceneModel {
+        url: "gru.onnx".into(),
+        interval_sec: 0.0,
+        inputs: vec![
+            ModelInput::Constant { values: (0..18).map(|i| (i as f32 * 0.37).sin()).collect() },
+            ModelInput::Feedback { output: "y_h".into() },
+        ],
+        outputs: vec![ModelOutput::Ignore, ModelOutput::Ignore, ModelOutput::Ignore],
+    }
+}
+
+#[test]
+fn feedback_carries_state_between_runs() {
+    let program = program("gru.onnx");
+    let mut model = ModelInstance::bind(program.clone(), gru_feedback_spec()).unwrap();
+    let x = HostTensor::new(vec![3, 2, 3], (0..18).map(|i| (i as f32 * 0.37).sin()).collect());
+
+    // Replay by hand: h starts at zeros, then each run's y_h is the next h0.
+    let mut h = HostTensor::new(vec![1, 2, 4], vec![0.0; 8]);
+    for run in 0..3 {
+        let (step, trace) = model.step_traced(&sim(-70.0, -40.0)).unwrap();
+        assert_eq!(step, Step::Inject(vec![]));
+        let fed = trace.iter().find(|a| a.name == "h0").unwrap();
+        assert_eq!(fed.tensor, h, "run {run}: h0 should be the previous y_h");
+        let outputs = program.run(&[x.clone(), h.clone()]).unwrap();
+        h = outputs[1].clone();
+        assert!(h.data.iter().any(|v| *v != 0.0));
+    }
+
+    // A fresh binding starts from zeros again.
+    let mut model = ModelInstance::bind(program, gru_feedback_spec()).unwrap();
+    let (_, trace) = model.step_traced(&sim(-70.0, -40.0)).unwrap();
+    assert!(trace.iter().find(|a| a.name == "h0").unwrap().tensor.data.iter().all(|v| *v == 0.0));
+}
+
+#[test]
+fn feedback_binding_errors_name_the_problem() {
+    let mut spec = gru_feedback_spec();
+    spec.inputs[1] = ModelInput::Feedback { output: "hn".into() };
+    let err = ModelInstance::bind(program("gru.onnx"), spec).err().unwrap();
+    assert!(err.contains("`hn`") && err.contains("`y_h`"), "{err}");
+
+    // `y` is [3, 1, 2, 4]: 24 values for an 8-value input. Caught on the first run.
+    let mut spec = gru_feedback_spec();
+    spec.inputs[1] = ModelInput::Feedback { output: "y".into() };
+    let mut model = ModelInstance::bind(program("gru.onnx"), spec).unwrap();
+    let err = model.step(&sim(-70.0, -40.0)).unwrap_err();
+    assert!(err.contains("24 values") && err.contains("`h0`"), "{err}");
 }

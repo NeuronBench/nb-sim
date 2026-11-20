@@ -13,6 +13,10 @@ pub struct ModelInstance {
     pub spec: SceneModel,
     /// Tensor shape for each input, with dynamic dims resolved.
     input_shapes: Vec<Vec<usize>>,
+    /// For each `Feedback` input: the index of the output it reads.
+    feedback: Vec<Option<usize>>,
+    /// For each `Feedback` input: the values for the next run.
+    state: Vec<Vec<f32>>,
 }
 
 /// Simulation state a model can read.
@@ -59,11 +63,34 @@ impl ModelInstance {
             return Err(format!("interval_sec must be at least 0, got {}", spec.interval_sec));
         }
 
-        let input_shapes = ports
-            .iter()
-            .zip(&spec.inputs)
-            .map(|(port, input)| fit_shape(port, input_len(input)))
-            .collect::<Result<Vec<_>, _>>()?;
+        let mut input_shapes = Vec::with_capacity(ports.len());
+        let mut feedback = Vec::with_capacity(ports.len());
+        let mut state = Vec::with_capacity(ports.len());
+        for (port, input) in ports.iter().zip(&spec.inputs) {
+            let (len, source) = match input {
+                ModelInput::Feedback { output } => {
+                    let Some(j) = outputs.iter().position(|o| &o.name == output) else {
+                        return Err(format!(
+                            "input `{}` is fed back from output `{output}`, but the model's outputs are {}",
+                            port.name,
+                            port_names(outputs)
+                        ));
+                    };
+                    let Some(len) = static_len(port) else {
+                        return Err(format!(
+                            "input `{}` has shape {}; Feedback needs a fixed shape",
+                            port.name,
+                            shape_text(&port.shape)
+                        ));
+                    };
+                    (len, Some(j))
+                }
+                other => (input_len(other), None),
+            };
+            input_shapes.push(fit_shape(port, len)?);
+            state.push(if source.is_some() { vec![0.0; len] } else { Vec::new() });
+            feedback.push(source);
+        }
 
         for (port, output) in outputs.iter().zip(&spec.outputs) {
             if let ModelOutput::InjectCurrent { taps, .. } = output {
@@ -80,7 +107,7 @@ impl ModelInstance {
             }
         }
 
-        Ok(ModelInstance { program, spec, input_shapes })
+        Ok(ModelInstance { program, spec, input_shapes, feedback, state })
     }
 
     /// Every segment this model reads or writes.
@@ -98,19 +125,19 @@ impl ModelInstance {
 
     /// Gather inputs from the simulation, run the model, and map its outputs
     /// to currents.
-    pub fn step(&self, sim: &impl SimState) -> Result<Step, String> {
+    pub fn step(&mut self, sim: &impl SimState) -> Result<Step, String> {
         self.evaluate(sim, false).map(|(step, _)| step)
     }
 
     /// Like [`ModelInstance::step`], and also return every layer's values.
     /// The trace is empty when the model didn't run.
-    pub fn step_traced(&self, sim: &impl SimState) -> Result<(Step, Vec<Activation>), String> {
+    pub fn step_traced(&mut self, sim: &impl SimState) -> Result<(Step, Vec<Activation>), String> {
         self.evaluate(sim, true)
     }
 
-    fn evaluate(&self, sim: &impl SimState, trace: bool) -> Result<(Step, Vec<Activation>), String> {
+    fn evaluate(&mut self, sim: &impl SimState, trace: bool) -> Result<(Step, Vec<Activation>), String> {
         let mut inputs = Vec::with_capacity(self.spec.inputs.len());
-        for (input, shape) in self.spec.inputs.iter().zip(&self.input_shapes) {
+        for ((input, shape), state) in self.spec.inputs.iter().zip(&self.input_shapes).zip(&self.state) {
             let data = match input {
                 ModelInput::Voltages { taps, offset_mv, scale } => taps
                     .iter()
@@ -122,6 +149,7 @@ impl ModelInstance {
                     .collect::<Result<Vec<_>, _>>()?,
                 ModelInput::Time => vec![sim.time_sec()],
                 ModelInput::Constant { values } => values.clone(),
+                ModelInput::Feedback { .. } => state.clone(),
             };
             if data.iter().any(|v| !v.is_finite()) {
                 return Ok((Step::NotReady, Vec::new()));
@@ -135,6 +163,25 @@ impl ModelInstance {
             self.program.run(&inputs).map(|o| (o, Vec::new()))
         }
         .map_err(|e| e.to_string())?;
+
+        let mut next_state = Vec::new();
+        for (i, source) in self.feedback.iter().enumerate() {
+            let Some(j) = source else { continue };
+            let (port, values) = (&self.program.outputs()[*j], &outputs[*j].data);
+            if values.len() != self.state[i].len() {
+                return Err(format!(
+                    "output `{}` has {} values, but feeds back into input `{}`, which takes {}",
+                    port.name,
+                    values.len(),
+                    self.program.inputs()[i].name,
+                    self.state[i].len()
+                ));
+            }
+            if let Some(v) = values.iter().find(|v| !v.is_finite()) {
+                return Err(format!("output `{}` produced {v}, which would feed back forever", port.name));
+            }
+            next_state.push((i, values.clone()));
+        }
 
         let mut currents: Vec<(SegmentRef, f32)> = Vec::new();
         for ((output, port), tensor) in self.spec.outputs.iter().zip(self.program.outputs()).zip(&outputs) {
@@ -158,6 +205,9 @@ impl ModelInstance {
                 }
             }
         }
+        for (i, values) in next_state {
+            self.state[i] = values;
+        }
         Ok((Step::Inject(currents), activations))
     }
 }
@@ -167,6 +217,7 @@ fn input_len(input: &ModelInput) -> usize {
         ModelInput::Voltages { taps, .. } => taps.len(),
         ModelInput::Time => 1,
         ModelInput::Constant { values } => values.len(),
+        ModelInput::Feedback { .. } => unreachable!("Feedback sizes come from the input port"),
     }
 }
 
