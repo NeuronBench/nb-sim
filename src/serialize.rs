@@ -48,6 +48,21 @@ pub enum ModelOutput {
     /// Output element i, times `scale_uamps_per_square_cm`, is injected into
     /// `taps[i]` (added to its input current and stimulators).
     InjectCurrent { taps: Vec<SegmentRef>, scale_uamps_per_square_cm: f32 },
+    /// Output element i scales the conductance of `taps[i]`'s channels by
+    /// `max(0, offset + scale * value)`. `channel` picks one channel by its
+    /// index in the segment's `membrane_channels`; without it, every channel
+    /// is scaled. Several outputs on one channel multiply.
+    ScaleConductance {
+        taps: Vec<SegmentRef>,
+        #[serde(default)]
+        channel: Option<u32>,
+        offset: f32,
+        scale: f32,
+    },
+    /// Output element i scales every receptor current of synapse
+    /// `synapses[i]` (an index into the scene's `synapses`) by
+    /// `max(0, offset + scale * value)`. Several outputs on one synapse multiply.
+    SynapticGain { synapses: Vec<u32>, offset: f32, scale: f32 },
     /// The output is computed but not used.
     Ignore,
 }

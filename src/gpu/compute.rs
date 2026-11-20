@@ -48,7 +48,7 @@ pub struct VoltagesReadbackEntity(pub Entity);
 /// mismatch. That makes scene reloads and missed frames self-healing.
 #[derive(Resource, Clone, Default)]
 pub struct MainWorldSimInput {
-    pub input_currents: Vec<f32>,
+    pub controls: Vec<f32>,
     pub params: Option<SimParams>,
     /// Snapshot of the topology for `topology_generation`.
     pub segments: Option<Arc<Vec<GpuSegmentData>>>,
@@ -75,7 +75,7 @@ pub struct MainWorldSimInput {
 /// Render-world copy of the simulation input data.
 #[derive(Resource, Default)]
 pub struct ExtractedSimInput {
-    pub input_currents: Vec<f32>,
+    pub controls: Vec<f32>,
     pub params: Option<SimParams>,
     pub segments: Option<Arc<Vec<GpuSegmentData>>>,
     pub junctions: Option<Arc<Vec<GpuJunctionData>>>,
@@ -100,7 +100,7 @@ pub fn extract_sim_input(
         extracted.params = None;
         return;
     }
-    extracted.input_currents.clone_from(&main_input.input_currents);
+    extracted.controls.clone_from(&main_input.controls);
     extracted.params = main_input.params;
     extracted.segments = main_input.segments.clone();
     extracted.junctions = main_input.junctions.clone();
@@ -125,7 +125,7 @@ pub struct GpuComputeState {
     pub synapses_buf: Buffer,
     pub params_buf: Buffer,
     pub synapse_deltas_buf: Buffer,
-    pub input_currents_buf: Buffer,
+    pub controls_buf: Buffer,
     pub junction_adj_buf: Buffer,
     pub adj_index_buf: Buffer,
     pub num_segments: u32,
@@ -336,16 +336,16 @@ pub fn prepare_gpu_buffers(
         });
 
         // Input currents
-        let ic_data = &input.input_currents;
-        let input_currents_buf = if !ic_data.is_empty() {
+        let ic_data = &input.controls;
+        let controls_buf = if !ic_data.is_empty() {
             render_device.create_buffer_with_data(&BufferInitDescriptor {
-                label: Some("biophysics_input_currents"),
+                label: Some("biophysics_controls"),
                 contents: bytemuck::cast_slice(ic_data),
                 usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
             })
         } else {
             render_device.create_buffer(&BufferDescriptor {
-                label: Some("biophysics_input_currents_empty"),
+                label: Some("biophysics_controls_empty"),
                 size: 4,
                 usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
                 mapped_at_creation: false,
@@ -387,7 +387,7 @@ pub fn prepare_gpu_buffers(
             synapses_buf,
             params_buf,
             synapse_deltas_buf,
-            input_currents_buf,
+            controls_buf,
             junction_adj_buf,
             adj_index_buf,
             num_segments: n_seg as u32,
@@ -397,23 +397,23 @@ pub fn prepare_gpu_buffers(
             generation: input.topology_generation,
         });
     } else if let Some(mut state) = existing_state {
-        // Just update per-frame data: params + input_currents
+        // Just update per-frame data: params + controls
         render_queue.write_buffer(&state.params_buf, 0, bytemuck::bytes_of(params));
 
-        // Recreate input_currents buffer if size changed, otherwise write
-        let ic_data = &input.input_currents;
+        // Recreate controls buffer if size changed, otherwise write
+        let ic_data = &input.controls;
         if !ic_data.is_empty() {
             let needed_size = (ic_data.len() * std::mem::size_of::<f32>()) as u64;
-            if state.input_currents_buf.size() >= needed_size {
+            if state.controls_buf.size() >= needed_size {
                 render_queue.write_buffer(
-                    &state.input_currents_buf,
+                    &state.controls_buf,
                     0,
                     bytemuck::cast_slice(ic_data),
                 );
             } else {
-                state.input_currents_buf =
+                state.controls_buf =
                     render_device.create_buffer_with_data(&BufferInitDescriptor {
-                        label: Some("biophysics_input_currents"),
+                        label: Some("biophysics_controls"),
                         contents: bytemuck::cast_slice(ic_data),
                         usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
                     });
@@ -478,7 +478,7 @@ pub fn prepare_bind_group(
             },
             BindGroupEntry {
                 binding: 5,
-                resource: state.input_currents_buf.as_entire_binding(),
+                resource: state.controls_buf.as_entire_binding(),
             },
             BindGroupEntry {
                 binding: 6,

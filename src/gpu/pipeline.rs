@@ -74,7 +74,7 @@ fn make_layout_desc() -> BindGroupLayoutDescriptor {
                 ),
                 // binding 4: synapse_deltas (read-write storage, runtime-sized)
                 storage_buffer_sized(false, None),
-                // binding 5: input_currents (read-only storage, runtime-sized)
+                // binding 5: controls (read-only storage, runtime-sized; see GpuSimState::controls)
                 storage_buffer_read_only_sized(false, None),
                 // binding 6: voltages_out (read-write storage, runtime-sized)
                 storage_buffer_sized(false, None),

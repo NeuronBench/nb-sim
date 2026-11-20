@@ -134,6 +134,12 @@ pub enum ModelInput {
 pub enum ModelOutput {
     // Output element i drives taps[i].
     InjectCurrent { taps: Vec<SegmentRef>, scale_uamps_per_square_cm: f32 },
+    // Multiplier max(0, offset + scale * value) on one channel (by index in
+    // the segment's membrane_channels) or, with channel null, all of them.
+    ScaleConductance { taps: Vec<SegmentRef>, channel: Option<u32>, offset: f32, scale: f32 },
+    // Same multiplier on every receptor current of synapses[i] (an index
+    // into the scene's synapses).
+    SynapticGain { synapses: Vec<u32>, offset: f32, scale: f32 },
     Ignore,
 }
 
@@ -173,6 +179,21 @@ error, so NaN can't latch.
   - To keep a hand-set `InputCurrent` intact, add a separate
     `ModelCurrent` component and sum it in `update_input_currents` and the
     CPU extract. That's a 2-line change in each, and cleaner than overwriting.
+- **Sinks reach the backends through one per-frame `controls` array**
+  (`GpuSimState::controls`, filled by `extract::fill_controls`). Its
+  layout, with n segments: `[0, n)` input currents, then `MAX_CHANNELS`
+  conductance multipliers per segment, then one gain per synapse. The CPU
+  kernels read it directly. The GPU uploads it into binding 5, which
+  replaced the input-current buffer, so no new storage buffer was needed
+  (WebGPU allows 8). `run_models` writes `ModelCurrent`,
+  `ModelConductanceScale` (segments) and `ModelSynapseGain` (synapses,
+  addressed by `SynapseAddress`). Currents from several models add;
+  multipliers multiply. Sink targets are checked against the live scene
+  on each run, and a missing segment, channel or synapse fails the model
+  with an error in the Scene panel.
+  - This also fixed a phase 2 bug: the GPU's per-frame upload rebuilt
+    input currents from `InputCurrent` and the stimulator only, so
+    `ModelCurrent` never reached the shader after the first frame.
 - **Input seam: `MembraneVoltage`.** It's already kept current on both
   backends (GPU readback writes it back). A voltage readback lags the GPU
   by a frame; that's acceptable at control rates.
@@ -236,7 +257,7 @@ blue for negative, red for positive, scaled per layer to its largest
    and the egui Models window. Tests: the traced run in `onnx_runtime`, the
    kept trace in `onnx_coupling`'s headless app, and heatmap layout and
    color in `models_panel`.
-4. **Coverage. Ops and recurrent state done; output sinks not started.**
+4. **Coverage. Done.**
    - Steps may have several outputs.
    - Conv1d: explicit padding, `SAME_UPPER`/`SAME_LOWER`, stride, dilation
      and groups.
@@ -249,9 +270,12 @@ blue for negative, red for positive, scaled per layer to its largest
    - Tests: the `conv1d`, `gru` and `lstm` fixtures. The LSTM's expected
      values come from onnxruntime, because the reference evaluator ignores
      `clip`. Feedback tests are in `onnx_coupling`.
-   - Remaining: more output sinks (conductance scaling, synaptic gain).
-     Both need new per-segment parameters in the GPU buffers and the WGSL
-     shader, not just the CPU path.
+   - Output sinks: `ScaleConductance` and `SynapticGain`, through the
+     shared `controls` array (see Coupling). Tests: `onnx_coupling` (the
+     multipliers, target checks, and the headless app writing all three
+     components) and `sim_controls` (the CPU kernels' response to each
+     control, plus naga validation of the WGSL and its layout constants).
+     The GPU path has not been run on a real GPU.
 5. **GPU.** Upgrade to Bevy 0.20 (wgpu 30) so burn's wgpu backend can share
    Bevy's device. Then decide on per-step models (channel surrogates) inside
    the compute pass, or a burn→WGSL path for small MLPs.

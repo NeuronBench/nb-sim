@@ -10,7 +10,7 @@ use crate::gui::oscilloscope::Oscilloscope;
 use crate::neuron::Junction;
 use crate::neuron::membrane::{Membrane, MembraneVoltage, MembraneMaterials};
 use crate::neuron::solution::EXAMPLE_CYTOPLASM;
-use crate::neuron::segment::{ecs::Segment, ecs::InputCurrent, ecs::SegmentAddress, ecs::ModelCurrent, Geometry};
+use crate::neuron::segment::{ecs::Segment, ecs::InputCurrent, ecs::SegmentAddress, ecs::ModelCurrent, ecs::ModelConductanceScale, Geometry};
 use crate::neuron::synapse::SynapseMembranes;
 use crate::stimulator;
 use crate::serialize;
@@ -42,8 +42,8 @@ impl GraceScene {
             spawn_neuron(&scene_neuron, neuron_index as u32, soma_location_cm, &mut commands, &mut meshes, &membrane_materials, materials, &selections, &highlights)
         }).collect();
 
-        for synapse in &self.0.synapses {
-            spawn_synapse(&mut commands, &synapse, &neuron_entities, meshes, materials);
+        for (index, synapse) in self.0.synapses.iter().enumerate() {
+            spawn_synapse(&mut commands, synapse, index as u32, &neuron_entities, meshes, materials);
         }
         neuron_entities
 
@@ -224,6 +224,7 @@ pub fn spawn_neuron(
                 InputCurrent(input_current),
                 SegmentAddress { neuron: neuron_index, segment: *id as u32 },
                 ModelCurrent::default(),
+                ModelConductanceScale::default(),
                 Mesh3d(meshes.add(shape)),
                 MeshMaterial3d(membrane_materials.from_voltage(&v0)),
                 transform,
@@ -294,6 +295,21 @@ fn deselect_all(
     }
 }
 
+/// A synapse's index in `Scene::synapses`. Scenes address synapses this way.
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct SynapseAddress(pub u32);
+
+/// Multiplier on a synapse's receptor currents, set by ONNX models
+/// (1 = unchanged). Read by both simulation backends.
+#[derive(Component, Clone, Copy, Debug, PartialEq)]
+pub struct ModelSynapseGain(pub f32);
+
+impl Default for ModelSynapseGain {
+    fn default() -> Self {
+        ModelSynapseGain(1.0)
+    }
+}
+
 #[derive(Component)]
 pub struct Synapse {
     pub pre_segment: Entity,
@@ -305,6 +321,7 @@ pub struct Synapse {
 pub fn spawn_synapse(
     commands: &mut Commands,
     synapse: &serialize::Synapse,
+    index: u32,
     neurons_and_segments: &Vec<(Entity, Vec<Entity>)>,
     _meshes: &mut ResMut<Assets<Mesh>>,
     _materials: &mut ResMut<Assets<StandardMaterial>>
@@ -312,7 +329,11 @@ pub fn spawn_synapse(
     if let Ok(parsed_synapse_membranes) = SynapseMembranes::deserialize(&synapse.synapse_membranes) {
         let pre_segment = neurons_and_segments[synapse.pre_neuron].1[synapse.pre_segment];
         let post_segment = neurons_and_segments[synapse.post_neuron].1[synapse.post_segment];
-        commands.spawn(Synapse { pre_segment, post_segment, synapse_membranes: parsed_synapse_membranes});
+        commands.spawn((
+            Synapse { pre_segment, post_segment, synapse_membranes: parsed_synapse_membranes },
+            SynapseAddress(index),
+            ModelSynapseGain::default(),
+        ));
     } else {
         eprintln!("Parse result: {:?}", SynapseMembranes::deserialize(&synapse.synapse_membranes));
         panic!("TEMPORARY, quit if synapse parsing fails");

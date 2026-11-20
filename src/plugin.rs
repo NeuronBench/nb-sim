@@ -22,7 +22,7 @@ use crate::stimulator::{Stimulation, Stimulator, StimulatorMaterials};
 
 use crate::gui;
 use crate::gui::oscilloscope::{step_oscilloscope_system, Oscilloscope};
-use crate::integrations::grace::Synapse;
+use crate::integrations::grace::{ModelSynapseGain, Synapse};
 use crate::neuron::channel::{ca_reversal, cl_reversal, k_reversal, na_reversal};
 use crate::neuron::membrane::{Membrane, MembraneMaterials, MembraneVoltage};
 use crate::neuron::segment::{ecs::InputCurrent, ecs::ModelCurrent, ecs::Segment, Geometry};
@@ -233,8 +233,10 @@ fn step_biophysics_flat(
         Option<&Stimulator>,
     )>,
     junctions_query: Query<&Junction>,
-    mut synapses_query: Query<&mut Synapse>,
+    mut synapses_query: Query<(Entity, &mut Synapse)>,
     model_currents: Query<&ModelCurrent>,
+    controls_query: Query<extract::SegmentControls>,
+    synapse_gains: Query<&ModelSynapseGain>,
 ) {
     if segments_query.is_empty() {
         return;
@@ -264,9 +266,8 @@ fn step_biophysics_flat(
                 &timestamp,
                 &mut gpu_state,
             );
-        } else {
-            extract::update_input_currents(&segments_query, &model_currents, &timestamp, &mut gpu_state);
         }
+        extract::fill_controls(&controls_query, &synapse_gains, &timestamp, &mut gpu_state);
         timestamp.0 += simulation_step.0 * steps_per_frame.0 as f32;
         return;
     }
@@ -299,11 +300,13 @@ fn step_biophysics_flat(
         _pad1: 0.0,
     };
 
+    extract::fill_controls(&controls_query, &synapse_gains, &timestamp, &mut gpu_state);
     let state = &mut *gpu_state;
     cpu_sim::step_biophysics_cpu(
         &mut state.segments,
         &state.junctions,
         &mut state.synapses,
+        &state.controls,
         &params,
     );
 
@@ -421,18 +424,8 @@ fn extract_sim_input_to_render_world(
     steps_per_frame: Res<StepsPerFrame>,
     backend: Res<SimBackend>,
     gpu_state: Res<GpuSimState>,
-    timestamp: Res<Timestamp>,
     mut main_input: ResMut<MainWorldSimInput>,
-    segments_query: Query<(
-        Entity,
-        &Segment,
-        &Solution,
-        &Geometry,
-        &Membrane,
-        &MembraneVoltage,
-        Option<&InputCurrent>,
-        Option<&Stimulator>,
-    )>,
+    segments_query: Query<Entity, With<Segment>>,
 ) {
     // Only populate when GPU is active
     if *backend != SimBackend::Gpu {
@@ -445,18 +438,9 @@ fn extract_sim_input_to_render_world(
         return;
     }
 
-    // Build input_currents from ECS
-    let n_seg = gpu_state.segment_entities.len();
-    main_input.input_currents.resize(n_seg, 0.0);
-    for (entity, _seg, _sol, _geom, _membrane, _voltage, maybe_input, maybe_stim) in
-        segments_query.iter()
-    {
-        if let Some(&idx) = gpu_state.entity_to_index.get(&entity) {
-            let ic = maybe_input.map_or(0.0, |i| i.0 .0);
-            let sc = maybe_stim.map_or(0.0, |s| s.current(timestamp.clone()).0);
-            main_input.input_currents[idx as usize] = ic + sc;
-        }
-    }
+    // Per-frame controls (input, stimulator and model currents, conductance
+    // scales, synapse gains), built by `step_biophysics_flat` this frame.
+    main_input.controls.clone_from(&gpu_state.controls);
 
     // Build params
     main_input.params = Some(SimParams {

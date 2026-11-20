@@ -58,7 +58,9 @@ fn reversal_potential(intra: f32, extra: f32, temperature: f32, valence: f32) ->
 
 // --- Per-segment channel step ---
 
-fn step_channels_cpu(seg: &mut GpuSegmentData, params: &SimParams) {
+/// `input_current` is in µA/cm²; `scales` holds one conductance multiplier
+/// per channel slot.
+fn step_channels_cpu(seg: &mut GpuSegmentData, input_current: f32, scales: &[f32], params: &SimParams) {
     let v = seg.voltage;
     let temp = params.temperature;
 
@@ -82,7 +84,7 @@ fn step_channels_cpu(seg: &mut GpuSegmentData, params: &SimParams) {
         let i_ca = ch.ion_ca * g_coef * (v - e_ca) * 0.001;
         let i_cl = ch.ion_cl * g_coef * (v - e_cl) * 0.001;
 
-        total_current_per_cm2 += (i_k + i_na + i_ca + i_cl) * ch.siemens_per_square_cm;
+        total_current_per_cm2 += (i_k + i_na + i_ca + i_cl) * ch.siemens_per_square_cm * scales[c];
     }
 
     // Update voltage from channel currents
@@ -93,7 +95,7 @@ fn step_channels_cpu(seg: &mut GpuSegmentData, params: &SimParams) {
     seg.voltage += 1000.0 * dv_dt * params.dt;
 
     // Apply input/stimulator current
-    let input_current = seg.input_current * 1e-6 * sa;
+    let input_current = input_current * 1e-6 * sa;
     let input_dv_dt = input_current / cap;
     seg.voltage += 1000.0 * input_dv_dt * params.dt;
 
@@ -107,9 +109,11 @@ fn step_channels_cpu(seg: &mut GpuSegmentData, params: &SimParams) {
 
 // --- Per-synapse step ---
 
+/// `gain` multiplies every receptor current.
 fn step_synapse_cpu(
     syn: &mut GpuSynapseData,
     segments: &mut [GpuSegmentData],
+    gain: f32,
     params: &SimParams,
 ) {
     let pre_v = segments[syn.pre_segment_idx as usize].voltage;
@@ -197,7 +201,7 @@ fn step_synapse_cpu(
     }
 
     // Apply synaptic current to postsynaptic segment
-    let current_microamps = total_current_per_cm2 * syn.surface_area;
+    let current_microamps = total_current_per_cm2 * gain * syn.surface_area;
     let synapse_resistance_ohms = params.synapse_resistance_ohms;
     let dv_dt_volts_per_second = current_microamps * 1e-6 * synapse_resistance_ohms * -1.0;
     let delta_mv = dv_dt_volts_per_second * params.dt * 1000.0;
@@ -207,16 +211,21 @@ fn step_synapse_cpu(
 // --- Main CPU simulation entry point ---
 
 /// Run the full simulation for `steps_per_dispatch` steps over flat arrays.
+/// `controls` is laid out as [`crate::gpu::GpuSimState::controls`].
 pub fn step_biophysics_cpu(
     segments: &mut [GpuSegmentData],
     junctions: &[GpuJunctionData],
     synapses: &mut [GpuSynapseData],
+    controls: &[f32],
     params: &SimParams,
 ) {
+    let (scales_at, gains_at) = crate::gpu::extract::control_offsets(segments.len());
+    assert_eq!(controls.len(), gains_at + synapses.len(), "controls don't match the flat arrays");
     for _step in 0..params.steps_per_dispatch {
         // Stage 1: Channel currents and voltage update (per-segment, independent)
-        for seg in segments.iter_mut() {
-            step_channels_cpu(seg, params);
+        for (i, seg) in segments.iter_mut().enumerate() {
+            let scales = &controls[scales_at + i * MAX_CHANNELS..scales_at + (i + 1) * MAX_CHANNELS];
+            step_channels_cpu(seg, controls[i], scales, params);
         }
 
         // Stage 2: Gap junction coupling
@@ -243,7 +252,7 @@ pub fn step_biophysics_cpu(
         for syn_idx in 0..synapses.len() {
             // Split borrow: take synapse out, operate, put back
             let mut syn = synapses[syn_idx];
-            step_synapse_cpu(&mut syn, segments, params);
+            step_synapse_cpu(&mut syn, segments, controls[gains_at + syn_idx], params);
             synapses[syn_idx] = syn;
         }
     }

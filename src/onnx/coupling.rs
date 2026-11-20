@@ -19,20 +19,37 @@ pub struct ModelInstance {
     state: Vec<Vec<f32>>,
 }
 
-/// Simulation state a model can read.
+/// Simulation state a model can read, and the targets it can write.
 pub trait SimState {
     /// Membrane voltage of a segment in mV, or `None` if it doesn't exist.
     fn voltage_mv(&self, segment: SegmentRef) -> Option<f32>;
     /// Simulated time in seconds.
     fn time_sec(&self) -> f32;
+    /// How many channels a segment's membrane has, or `None` if the segment
+    /// doesn't exist.
+    fn channel_count(&self, segment: SegmentRef) -> Option<usize>;
+    /// Whether the scene has synapse `index`.
+    fn has_synapse(&self, index: u32) -> bool;
+}
+
+/// What one evaluation asks of the simulation.
+#[derive(Debug, Default, PartialEq)]
+pub struct Effects {
+    /// Currents to inject, in µA/cm², per segment. A segment named by several
+    /// outputs gets the sum.
+    pub currents: Vec<(SegmentRef, f32)>,
+    /// Conductance multipliers per segment and channel (`None`: all of the
+    /// segment's channels). Several outputs on one target multiply.
+    pub conductance_scales: Vec<(SegmentRef, Option<u32>, f32)>,
+    /// Receptor current multipliers per synapse index. Several outputs on
+    /// one synapse multiply.
+    pub synapse_gains: Vec<(u32, f32)>,
 }
 
 /// The outcome of one evaluation.
 #[derive(Debug, PartialEq)]
 pub enum Step {
-    /// Currents to inject, in µA/cm², per segment. A segment named by several
-    /// outputs gets the sum.
-    Inject(Vec<(SegmentRef, f32)>),
+    Ran(Effects),
     /// Some input was not a finite number yet (for example GPU voltages
     /// before the first readback); the model was not run.
     NotReady,
@@ -93,16 +110,10 @@ impl ModelInstance {
         }
 
         for (port, output) in outputs.iter().zip(&spec.outputs) {
-            if let ModelOutput::InjectCurrent { taps, .. } = output {
-                // Only checkable now when the model fixes the output shape.
-                if let Some(len) = static_len(port) {
-                    if len != taps.len() {
-                        return Err(format!(
-                            "output `{}` has {len} values, but InjectCurrent names {} taps",
-                            port.name,
-                            taps.len()
-                        ));
-                    }
+            // Only checkable now when the model fixes the output shape.
+            if let (Some((sink, count)), Some(len)) = (targets(output), static_len(port)) {
+                if len != count {
+                    return Err(format!("output `{}` has {len} values, but {sink} names {count} targets", port.name));
                 }
             }
         }
@@ -117,8 +128,8 @@ impl ModelInstance {
             _ => &[],
         });
         let outs = self.spec.outputs.iter().flat_map(|o| match o {
-            ModelOutput::InjectCurrent { taps, .. } => taps.as_slice(),
-            ModelOutput::Ignore => &[],
+            ModelOutput::InjectCurrent { taps, .. } | ModelOutput::ScaleConductance { taps, .. } => taps.as_slice(),
+            ModelOutput::SynapticGain { .. } | ModelOutput::Ignore => &[],
         });
         ins.chain(outs).copied()
     }
@@ -183,32 +194,81 @@ impl ModelInstance {
             next_state.push((i, values.clone()));
         }
 
-        let mut currents: Vec<(SegmentRef, f32)> = Vec::new();
+        let mut effects = Effects::default();
         for ((output, port), tensor) in self.spec.outputs.iter().zip(self.program.outputs()).zip(&outputs) {
-            let ModelOutput::InjectCurrent { taps, scale_uamps_per_square_cm } = output else { continue };
-            if tensor.data.len() != taps.len() {
+            let Some((sink, count)) = targets(output) else { continue };
+            if tensor.data.len() != count {
                 return Err(format!(
-                    "output `{}` has {} values, but InjectCurrent names {} taps",
+                    "output `{}` has {} values, but {sink} names {count} targets",
                     port.name,
-                    tensor.data.len(),
-                    taps.len()
+                    tensor.data.len()
                 ));
             }
-            for (tap, value) in taps.iter().zip(&tensor.data) {
-                if !value.is_finite() {
-                    return Err(format!("output `{}` produced {value}", port.name));
+            if let Some(v) = tensor.data.iter().find(|v| !v.is_finite()) {
+                return Err(format!("output `{}` produced {v}", port.name));
+            }
+            let missing = |tap: &SegmentRef| format!("{sink}: no segment {} in neuron {}", tap.segment, tap.neuron);
+            match output {
+                ModelOutput::InjectCurrent { taps, scale_uamps_per_square_cm } => {
+                    for (tap, value) in taps.iter().zip(&tensor.data) {
+                        sim.voltage_mv(*tap).ok_or_else(|| missing(tap))?;
+                        let current = value * scale_uamps_per_square_cm;
+                        match effects.currents.iter_mut().find(|(t, _)| t == tap) {
+                            Some((_, total)) => *total += current,
+                            None => effects.currents.push((*tap, current)),
+                        }
+                    }
                 }
-                let current = value * scale_uamps_per_square_cm;
-                match currents.iter_mut().find(|(t, _)| t == tap) {
-                    Some((_, total)) => *total += current,
-                    None => currents.push((*tap, current)),
+                ModelOutput::ScaleConductance { taps, channel, offset, scale } => {
+                    for (tap, value) in taps.iter().zip(&tensor.data) {
+                        let channels = sim.channel_count(*tap).ok_or_else(|| missing(tap))?;
+                        if let Some(c) = channel.filter(|c| *c as usize >= channels) {
+                            return Err(format!(
+                                "{sink}: segment {} in neuron {} has {channels} channels, so there is no channel {c}",
+                                tap.segment, tap.neuron
+                            ));
+                        }
+                        let factor = multiplier(*value, *offset, *scale);
+                        match effects.conductance_scales.iter_mut().find(|(t, c, _)| t == tap && c == channel) {
+                            Some((_, _, total)) => *total *= factor,
+                            None => effects.conductance_scales.push((*tap, *channel, factor)),
+                        }
+                    }
                 }
+                ModelOutput::SynapticGain { synapses, offset, scale } => {
+                    for (synapse, value) in synapses.iter().zip(&tensor.data) {
+                        if !sim.has_synapse(*synapse) {
+                            return Err(format!("{sink}: the scene has no synapse {synapse}"));
+                        }
+                        let factor = multiplier(*value, *offset, *scale);
+                        match effects.synapse_gains.iter_mut().find(|(s, _)| s == synapse) {
+                            Some((_, total)) => *total *= factor,
+                            None => effects.synapse_gains.push((*synapse, factor)),
+                        }
+                    }
+                }
+                ModelOutput::Ignore => {}
             }
         }
         for (i, values) in next_state {
             self.state[i] = values;
         }
-        Ok((Step::Inject(currents), activations))
+        Ok((Step::Ran(effects), activations))
+    }
+}
+
+/// A multiplier from a model output: `max(0, offset + scale * value)`.
+pub fn multiplier(value: f32, offset: f32, scale: f32) -> f32 {
+    (offset + scale * value).max(0.0)
+}
+
+/// The sink an output drives and how many targets it names.
+fn targets(output: &ModelOutput) -> Option<(&'static str, usize)> {
+    match output {
+        ModelOutput::InjectCurrent { taps, .. } => Some(("InjectCurrent", taps.len())),
+        ModelOutput::ScaleConductance { taps, .. } => Some(("ScaleConductance", taps.len())),
+        ModelOutput::SynapticGain { synapses, .. } => Some(("SynapticGain", synapses.len())),
+        ModelOutput::Ignore => None,
     }
 }
 

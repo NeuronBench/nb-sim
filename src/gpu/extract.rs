@@ -7,10 +7,10 @@ use crate::constants::CONDUCTANCE_PER_SQUARE_CM;
 use crate::dimension::Timestamp;
 use crate::gpu::buffers::*;
 use crate::gpu::GpuSimState;
-use crate::integrations::grace::Synapse;
+use crate::integrations::grace::{ModelSynapseGain, Synapse};
 use crate::neuron::channel::{GateState, TimeConstant};
 use crate::neuron::membrane::{Membrane, MembraneChannel, MembraneVoltage};
-use crate::neuron::segment::ecs::{InputCurrent, ModelCurrent, Segment};
+use crate::neuron::segment::ecs::{InputCurrent, ModelConductanceScale, ModelCurrent, Segment};
 use crate::neuron::segment::Geometry;
 use crate::neuron::solution::Solution;
 use crate::neuron::synapse::{Receptor, Transmitter, TransmitterPump};
@@ -132,7 +132,7 @@ pub fn extract_to_gpu_state(
         ),
     >,
     junctions_query: &Query<&Junction>,
-    synapses_query: &Query<&mut Synapse>,
+    synapses_query: &Query<(Entity, &mut Synapse)>,
     model_currents: &Query<&ModelCurrent>,
     timestamp: &Timestamp,
     state: &mut GpuSimState,
@@ -142,6 +142,7 @@ pub fn extract_to_gpu_state(
     state.segments.clear();
     state.junctions.clear();
     state.synapses.clear();
+    state.synapse_entities.clear();
 
     // Extract segments
     for (entity, _seg, solution, geometry, membrane, voltage, maybe_input, maybe_stim) in
@@ -212,7 +213,7 @@ pub fn extract_to_gpu_state(
     }
 
     // Extract synapses
-    for synapse in synapses_query.iter() {
+    for (synapse_entity, synapse) in synapses_query.iter() {
         let pre_idx = state.entity_to_index.get(&synapse.pre_segment).copied();
         let post_idx = state.entity_to_index.get(&synapse.post_segment).copied();
         if let (Some(pre), Some(post)) = (pre_idx, post_idx) {
@@ -235,6 +236,7 @@ pub fn extract_to_gpu_state(
                 receptors[i] = receptor_to_gpu(receptor);
             }
 
+            state.synapse_entities.push(synapse_entity);
             state.synapses.push(GpuSynapseData {
                 pre_segment_idx: pre,
                 post_segment_idx: post,
@@ -291,35 +293,46 @@ pub fn extract_to_gpu_state(
     state.topology_generation += 1;
 }
 
-/// Update only the per-frame mutable data (stimulator currents) without
-/// rebuilding topology.
-pub fn update_input_currents(
-    segments_query: &Query<
-        (
-            Entity,
-            &Segment,
-            &Solution,
-            &Geometry,
-            &mut Membrane,
-            &mut MembraneVoltage,
-            Option<&InputCurrent>,
-            Option<&Stimulator>,
-        ),
-    >,
-    model_currents: &Query<&ModelCurrent>,
+/// What the per-frame controls read from each segment entity.
+pub type SegmentControls<'a> = (
+    Option<&'a InputCurrent>,
+    Option<&'a Stimulator>,
+    Option<&'a ModelCurrent>,
+    Option<&'a ModelConductanceScale>,
+);
+
+/// Rebuild `state.controls` (see [`GpuSimState::controls`]) from the ECS:
+/// input currents (input + stimulator + model), conductance multipliers and
+/// synapse gains. Runs every frame on both backends.
+pub fn fill_controls(
+    segments: &Query<SegmentControls>,
+    synapse_gains: &Query<&ModelSynapseGain>,
     timestamp: &Timestamp,
     state: &mut GpuSimState,
 ) {
-    for (entity, _seg, _solution, _geometry, _membrane, _voltage, maybe_input, maybe_stim) in
-        segments_query.iter()
-    {
-        if let Some(&idx) = state.entity_to_index.get(&entity) {
-            let input_current = maybe_input.map_or(0.0, |i| i.0 .0);
-            let stimulator_current = maybe_stim.map_or(0.0, |s| s.current(timestamp.clone()).0);
-            let model_current = model_currents.get(entity).map_or(0.0, |m| m.0 .0);
-            state.segments[idx as usize].input_current = input_current + stimulator_current + model_current;
-        }
+    let n = state.segment_entities.len();
+    state.controls.clear();
+    state.controls.resize(n + n * MAX_CHANNELS, 0.0);
+    let (currents, scales) = state.controls.split_at_mut(n);
+    for (i, entity) in state.segment_entities.iter().enumerate() {
+        let Ok((input, stimulator, model_current, model_scale)) = segments.get(*entity) else {
+            scales[i * MAX_CHANNELS..(i + 1) * MAX_CHANNELS].fill(1.0);
+            continue;
+        };
+        currents[i] = input.map_or(0.0, |c| c.0 .0)
+            + stimulator.map_or(0.0, |s| s.current(timestamp.clone()).0)
+            + model_current.map_or(0.0, |m| m.0 .0);
+        let factors = model_scale.map_or([1.0; MAX_CHANNELS], |s| s.0);
+        scales[i * MAX_CHANNELS..(i + 1) * MAX_CHANNELS].copy_from_slice(&factors);
     }
+    for entity in &state.synapse_entities {
+        state.controls.push(synapse_gains.get(*entity).map_or(1.0, |g| g.0));
+    }
+}
+
+/// Offsets into [`GpuSimState::controls`] for `n` segments.
+pub fn control_offsets(n: usize) -> (usize, usize) {
+    (n, n + n * MAX_CHANNELS)
 }
 
 /// Write back simulation results from flat arrays to ECS components.
@@ -337,7 +350,7 @@ pub fn writeback_to_ecs(
             Option<&Stimulator>,
         ),
     >,
-    synapses_query: &mut Query<&mut Synapse>,
+    synapses_query: &mut Query<(Entity, &mut Synapse)>,
 ) {
     // Write back voltages and gate states to segments
     for (i, entity) in state.segment_entities.iter().enumerate() {
@@ -356,8 +369,8 @@ pub fn writeback_to_ecs(
     }
 
     // Write back synapse state
-    for (i, mut synapse) in synapses_query.iter_mut().enumerate() {
-        if i < state.synapses.len() {
+    for (i, entity) in state.synapse_entities.iter().enumerate() {
+        if let Ok((_, mut synapse)) = synapses_query.get_mut(*entity) {
             let gpu_syn = &state.synapses[i];
             synapse.synapse_membranes.transmitter_concentrations.glutamate.0 =
                 gpu_syn.glutamate_conc;

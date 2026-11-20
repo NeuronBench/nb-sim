@@ -9,9 +9,11 @@ use burn::tensor::Device;
 use crossbeam::channel::{unbounded, Receiver, Sender};
 
 use crate::dimension::{MicroAmpsPerSquareCm, Timestamp};
-use crate::neuron::membrane::MembraneVoltage;
-use crate::neuron::segment::ecs::{ModelCurrent, SegmentAddress};
-use crate::onnx::coupling::{ModelInstance, SimState, Step};
+use crate::gpu::buffers::MAX_CHANNELS;
+use crate::integrations::grace::{ModelSynapseGain, SynapseAddress};
+use crate::neuron::membrane::{Membrane, MembraneVoltage};
+use crate::neuron::segment::ecs::{ModelConductanceScale, ModelCurrent, SegmentAddress};
+use crate::onnx::coupling::{Effects, ModelInstance, SimState, Step};
 use crate::onnx::{Activation, Program};
 use crate::serialize::{SceneModel, SegmentRef};
 
@@ -57,8 +59,8 @@ pub struct ModelSlot {
     /// Evaluations so far.
     pub runs: u64,
     next_run_sec: f32,
-    /// The currents from the latest evaluation; held until the next one.
-    currents: Vec<(SegmentRef, f32)>,
+    /// What the latest evaluation asked for; held until the next one.
+    pub effects: Effects,
     /// Every layer's values from the latest evaluation, for the Models window.
     pub activations: Vec<Activation>,
 }
@@ -90,7 +92,7 @@ impl SceneModels {
                         ModelState::Loading(spec.clone())
                     }
                 };
-                ModelSlot { url, state, runs: 0, next_run_sec: 0.0, currents: Vec::new(), activations: Vec::new() }
+                ModelSlot { url, state, runs: 0, next_run_sec: 0.0, effects: Effects::default(), activations: Vec::new() }
             })
             .collect();
     }
@@ -169,25 +171,40 @@ fn receive_model_fetches(receiver: Res<ModelFetchReceiver>, mut models: ResMut<S
 const LOG_INTERVAL_SECS: f32 = 2.0;
 
 struct Snapshot {
-    voltages: HashMap<SegmentRef, f32>,
+    /// Voltage and channel count per segment.
+    segments: HashMap<SegmentRef, (f32, usize)>,
+    synapses: std::collections::HashSet<u32>,
     time_sec: f32,
 }
 
 impl SimState for Snapshot {
     fn voltage_mv(&self, segment: SegmentRef) -> Option<f32> {
-        self.voltages.get(&segment).copied()
+        self.segments.get(&segment).map(|s| s.0)
     }
     fn time_sec(&self) -> f32 {
         self.time_sec
     }
+    fn channel_count(&self, segment: SegmentRef) -> Option<usize> {
+        self.segments.get(&segment).map(|s| s.1)
+    }
+    fn has_synapse(&self, index: u32) -> bool {
+        self.synapses.contains(&index)
+    }
 }
 
-/// Run every model that is due, then write each segment's total model current.
+/// What models write into the simulation, per segment and per synapse.
+type SegmentSinks<'a> = (&'a SegmentAddress, &'a mut ModelCurrent, &'a mut ModelConductanceScale);
+
+/// Run every model that is due, then write what all models ask of each
+/// segment and synapse: summed currents, multiplied conductance scales and
+/// synapse gains.
 pub fn run_models(
     mut models: ResMut<SceneModels>,
     timestamp: Res<Timestamp>,
-    voltages: Query<(&SegmentAddress, &MembraneVoltage)>,
-    mut currents: Query<(&SegmentAddress, &mut ModelCurrent)>,
+    segments: Query<(&SegmentAddress, &MembraneVoltage, &Membrane)>,
+    synapse_addresses: Query<&SynapseAddress>,
+    mut segment_sinks: Query<SegmentSinks>,
+    mut synapse_sinks: Query<(&SynapseAddress, &mut ModelSynapseGain)>,
     time: Res<Time>,
     mut since_log: Local<f32>,
 ) {
@@ -203,10 +220,14 @@ pub fn run_models(
     let due = models.slots.iter().any(|s| matches!(s.state, ModelState::Ready(_)) && now >= s.next_run_sec);
     if due {
         let snapshot = Snapshot {
-            voltages: voltages
+            segments: segments
                 .iter()
-                .map(|(a, v)| (SegmentRef { neuron: a.neuron, segment: a.segment }, v.0 .0))
+                .map(|(a, v, m)| {
+                    let channels = m.membrane_channels.len().min(MAX_CHANNELS);
+                    (SegmentRef { neuron: a.neuron, segment: a.segment }, (v.0 .0, channels))
+                })
                 .collect(),
+            synapses: synapse_addresses.iter().map(|a| a.0).collect(),
             time_sec: now,
         };
         for slot in models.slots.iter_mut() {
@@ -215,8 +236,8 @@ pub fn run_models(
                 continue;
             }
             match instance.step_traced(&snapshot) {
-                Ok((Step::Inject(c), activations)) => {
-                    slot.currents = c;
+                Ok((Step::Ran(effects), activations)) => {
+                    slot.effects = effects;
                     slot.activations = activations;
                     slot.runs += 1;
                     slot.next_run_sec = now + instance.spec.interval_sec;
@@ -224,7 +245,7 @@ pub fn run_models(
                 Ok((Step::NotReady, _)) => {}
                 Err(e) => {
                     warn!("model {}: {e}", slot.url);
-                    slot.currents.clear();
+                    slot.effects = Effects::default();
                     slot.activations.clear();
                     slot.state = ModelState::Failed(e);
                 }
@@ -235,33 +256,66 @@ pub fn run_models(
     if log_now {
         for slot in &models.slots {
             if let ModelState::Ready(_) = slot.state {
-                let taps: Vec<String> = slot
-                    .currents
-                    .iter()
-                    .map(|(tap, i)| {
-                        let v = voltages
-                            .iter()
-                            .find(|(a, _)| a.neuron == tap.neuron && a.segment == tap.segment)
-                            .map_or(f32::NAN, |(_, v)| v.0 .0);
-                        format!("n{}s{}: {v:.1} mV, {i:+.1} µA/cm²", tap.neuron, tap.segment)
-                    })
-                    .collect();
-                info!("model {} ({} runs): {}", slot.url, slot.runs, taps.join("; "));
+                info!("model {} ({} runs): {}", slot.url, slot.runs, describe(&slot.effects, &segments));
             }
         }
     }
 
-    let mut totals: HashMap<SegmentRef, f32> = HashMap::new();
-    for slot in &models.slots {
-        for (tap, current) in &slot.currents {
-            *totals.entry(*tap).or_default() += current;
+    let mut currents: HashMap<SegmentRef, f32> = HashMap::new();
+    let mut scales: HashMap<SegmentRef, [f32; MAX_CHANNELS]> = HashMap::new();
+    let mut gains: HashMap<u32, f32> = HashMap::new();
+    for effects in models.slots.iter().map(|s| &s.effects) {
+        for (tap, current) in &effects.currents {
+            *currents.entry(*tap).or_default() += current;
+        }
+        for (tap, channel, factor) in &effects.conductance_scales {
+            let scale = scales.entry(*tap).or_insert([1.0; MAX_CHANNELS]);
+            match channel {
+                Some(c) => scale[*c as usize] *= factor,
+                None => scale.iter_mut().for_each(|s| *s *= factor),
+            }
+        }
+        for (synapse, factor) in &effects.synapse_gains {
+            *gains.entry(*synapse).or_insert(1.0) *= factor;
         }
     }
-    for (address, mut current) in &mut currents {
+    for (address, mut current, mut scale) in &mut segment_sinks {
         let tap = SegmentRef { neuron: address.neuron, segment: address.segment };
-        let total = totals.get(&tap).copied().unwrap_or(0.0);
+        let total = currents.get(&tap).copied().unwrap_or(0.0);
         if current.0 .0 != total {
             current.0 = MicroAmpsPerSquareCm(total);
         }
+        let factors = scales.get(&tap).copied().unwrap_or([1.0; MAX_CHANNELS]);
+        if scale.0 != factors {
+            scale.0 = factors;
+        }
     }
+    for (address, mut gain) in &mut synapse_sinks {
+        let total = gains.get(&address.0).copied().unwrap_or(1.0);
+        if gain.0 != total {
+            gain.0 = total;
+        }
+    }
+}
+
+/// One log line's worth of a model's effects, with each tapped segment's voltage.
+fn describe(effects: &Effects, segments: &Query<(&SegmentAddress, &MembraneVoltage, &Membrane)>) -> String {
+    let voltage = |tap: &SegmentRef| {
+        segments
+            .iter()
+            .find(|(a, ..)| a.neuron == tap.neuron && a.segment == tap.segment)
+            .map_or(f32::NAN, |(_, v, _)| v.0 .0)
+    };
+    let mut parts: Vec<String> = Vec::new();
+    for (tap, i) in &effects.currents {
+        parts.push(format!("n{}s{}: {:.1} mV, {i:+.1} µA/cm²", tap.neuron, tap.segment, voltage(tap)));
+    }
+    for (tap, channel, factor) in &effects.conductance_scales {
+        let which = channel.map_or("all channels".to_string(), |c| format!("channel {c}"));
+        parts.push(format!("n{}s{} {which}: ×{factor:.3}", tap.neuron, tap.segment));
+    }
+    for (synapse, factor) in &effects.synapse_gains {
+        parts.push(format!("synapse {synapse}: ×{factor:.3}"));
+    }
+    parts.join("; ")
 }

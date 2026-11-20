@@ -138,8 +138,21 @@ struct SimParams {
 @group(0) @binding(3) var<uniform>             params: SimParams;
 // Per-synapse scratch: voltage delta for post_segment
 @group(0) @binding(4) var<storage, read_write> synapse_deltas: array<f32>;
-// Per-segment input currents (stimulators + InputCurrent), uploaded from CPU each frame
-@group(0) @binding(5) var<storage, read> input_currents: array<f32>;
+// Per-frame controls, uploaded from the CPU each frame (GpuSimState::controls).
+// With n = params.num_segments:
+//   [0, n)                      input current per segment (µA/cm²)
+//   [n, n + n * MAX_CHANNELS)   conductance multiplier per segment and channel
+//   [n + n * MAX_CHANNELS, ..)  receptor current multiplier per synapse
+@group(0) @binding(5) var<storage, read> controls: array<f32>;
+const MAX_CHANNELS: u32 = 8u;
+
+fn conductance_scale(segment: u32, channel: u32) -> f32 {
+    return controls[params.num_segments + segment * MAX_CHANNELS + channel];
+}
+
+fn synapse_gain(synapse: u32) -> f32 {
+    return controls[params.num_segments * (1u + MAX_CHANNELS) + synapse];
+}
 // Per-segment voltage output for readback to CPU (written once per frame after all steps)
 @group(0) @binding(6) var<storage, read_write> voltages_out: array<f32>;
 // Junction adjacency list (CSR format): per-segment neighbor data
@@ -250,7 +263,8 @@ fn step_channels(@builtin(global_invocation_id) global_id: vec3<u32>) {
         let i_ca = ch.ion_ca * g_coef * (v - e_ca) * 0.001;
         let i_cl = ch.ion_cl * g_coef * (v - e_cl) * 0.001;
 
-        total_current_per_cm2 += (i_k + i_na + i_ca + i_cl) * ch.siemens_per_square_cm;
+        total_current_per_cm2 += (i_k + i_na + i_ca + i_cl) * ch.siemens_per_square_cm
+            * conductance_scale(idx, c);
     }
 
     // Voltage update from channel currents
@@ -260,7 +274,7 @@ fn step_channels(@builtin(global_invocation_id) global_id: vec3<u32>) {
     seg.voltage += 1000.0 * (current / cap) * dt;
 
     // Stimulator / input current (read from separate buffer, uploaded from CPU each frame)
-    let input_current = input_currents[idx] * 1e-6 * sa;
+    let input_current = controls[idx] * 1e-6 * sa;
     seg.voltage += 1000.0 * (input_current / cap) * dt;
 
     // Step all gates at the new voltage
@@ -393,7 +407,7 @@ fn step_synapses(@builtin(global_invocation_id) global_id: vec3<u32>) {
     }
 
     // Voltage delta for postsynaptic segment (V = I * R model)
-    let current_microamps = total_current_per_cm2 * syn.surface_area;
+    let current_microamps = total_current_per_cm2 * synapse_gain(idx) * syn.surface_area;
     let dv = current_microamps * 1e-6 * params.synapse_resistance_ohms * -1.0 * dt * 1000.0;
     synapse_deltas[idx] = dv;
 

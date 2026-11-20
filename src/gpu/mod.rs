@@ -60,6 +60,14 @@ pub struct GpuSimState {
     pub synapse_adj_offsets: Vec<u32>,
     pub segment_entities: Vec<Entity>,
     pub entity_to_index: HashMap<Entity, u32>,
+    /// The synapse entity behind each entry of `synapses`.
+    pub synapse_entities: Vec<Entity>,
+    /// Per-frame controls, rebuilt every frame by `extract::fill_controls`
+    /// and read by both backends (the GPU's `controls` binding). Layout, with
+    /// n segments: `[0, n)` input current per segment (µA/cm²),
+    /// `[n, n + n * MAX_CHANNELS)` conductance multiplier per segment and
+    /// channel, then one receptor current multiplier per synapse.
+    pub controls: Vec<f32>,
     pub topology_dirty: bool,
     pub initialized: bool,
     /// Incremented on every full extraction. The render world recreates its
@@ -79,6 +87,8 @@ impl Default for GpuSimState {
             synapse_adj_offsets: Vec::new(),
             segment_entities: Vec::new(),
             entity_to_index: HashMap::new(),
+            synapse_entities: Vec::new(),
+            controls: Vec::new(),
             topology_dirty: true,
             initialized: false,
             topology_generation: 0,

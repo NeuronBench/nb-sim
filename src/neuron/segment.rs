@@ -42,6 +42,17 @@ pub mod ecs {
         }
     }
 
+    /// Multipliers on a segment's channel conductances, one per channel slot,
+    /// set by ONNX models (1 = unchanged). Read by both simulation backends.
+    #[derive(bevy::ecs::component::Component, Clone, Debug, PartialEq)]
+    pub struct ModelConductanceScale(pub [f32; crate::gpu::buffers::MAX_CHANNELS]);
+
+    impl Default for ModelConductanceScale {
+        fn default() -> Self {
+            ModelConductanceScale([1.0; crate::gpu::buffers::MAX_CHANNELS])
+        }
+    }
+
     /// Where a segment came from in the scene: the index of its neuron in
     /// `Scene::neurons` and its SWC id. Scenes address segments this way.
     #[derive(bevy::ecs::component::Component, Clone, Copy, Debug, PartialEq, Eq, Hash)]

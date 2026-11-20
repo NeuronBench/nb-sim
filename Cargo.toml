@@ -51,5 +51,10 @@ getrandom04 = { package = "getrandom", version = "0.4", features = ["wasm_js"] }
 default = ["webgpu"]
 webgpu = ["bevy/webgpu"]
 
+[dev-dependencies]
+# Validates assets/shaders/biophysics.wgsl without a GPU. Same major version
+# as the naga Bevy's wgpu uses, so nothing extra is fetched.
+naga = { version = "27", features = ["wgsl-in"] }
+
 [build-dependencies]
 vergen = { version = "^8.1", features = [ "build", "git", "gitcl" ] }

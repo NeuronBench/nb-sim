@@ -6730,7 +6730,7 @@ checksum = "8d5439c4ad607c3c23abf66de8c8bf57ba8adcd1f129e699851a6e43935d339d"
 [[package]]
 name = "nb-nickel"
 version = "0.1.0"
-source = "git+https://github.com/NeuronBench/nb-nickel?branch=main#0097a9a24332cbb0664a9c58be617131647c894a"
+source = "git+https://github.com/NeuronBench/nb-nickel?branch=main#c92f09c60704e4ea53757e349a1314db55eb1039"
 dependencies = [
  "nickel-lang-core",
  "serde",
@@ -6751,6 +6751,7 @@ dependencies = [
  "egui_plot",
  "ehttp",
  "getrandom 0.4.3",
+ "naga 27.0.3",
  "nb-nickel",
  "neuroml",
  "once_cell",
