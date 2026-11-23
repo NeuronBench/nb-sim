@@ -27,7 +27,7 @@ const NEUTRAL: [f32; 3] = [52.0, 52.0, 58.0];
 const POSITIVE: [f32; 3] = [235.0, 95.0, 70.0];
 const NEGATIVE: [f32; 3] = [75.0, 140.0, 235.0];
 
-pub fn run_models_panel(mut contexts: EguiContexts, models: Res<SceneModels>) {
+pub fn run_models_panel(mut contexts: EguiContexts, models: Res<SceneModels>, mut view: ResMut<crate::gui::model_view::ModelView>) {
     if models.slots.iter().all(|s| s.activations.is_empty()) {
         return;
     }
@@ -36,6 +36,8 @@ pub fn run_models_panel(mut contexts: EguiContexts, models: Res<SceneModels>) {
         .default_pos([380.0, 460.0])
         .default_width(340.0)
         .show(ctx, |ui| {
+            ui.checkbox(&mut view.enabled, "Show in the 3D scene")
+                .on_hover_text("Each value as a slab of cubes behind the neurons; hover a cube to see its connections");
             egui::ScrollArea::vertical().max_height(520.0).show(ui, |ui| {
                 for slot in models.slots.iter().filter(|s| !s.activations.is_empty()) {
                     let name = slot.url.rsplit('/').next().unwrap_or(&slot.url);

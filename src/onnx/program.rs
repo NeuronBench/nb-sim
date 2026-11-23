@@ -16,6 +16,8 @@ use burn::tensor::ops::{ConvOptions, MaxPoolOptions};
 use burn::tensor::{activation, module, DType, Device, Tensor, TensorData};
 use onnx_ir::{Argument, Node, OnnxGraph, OnnxGraphBuilder};
 
+use crate::onnx::links::Link;
+
 /// Highest tensor rank a program may use.
 pub const MAX_RANK: usize = 4;
 
@@ -41,6 +43,13 @@ pub struct Activation {
     /// The op that produced it, or `"Input"` for a graph input.
     pub op: &'static str,
     pub tensor: HostTensor,
+    /// The op's inputs, in ONNX order: the trace index of each traced value,
+    /// `None` for constants (weights).
+    pub inputs: Vec<Option<usize>>,
+    /// The shape of each input, traced or not.
+    pub input_shapes: Vec<Vec<usize>>,
+    /// How output elements depend on input elements.
+    pub link: Link,
 }
 
 /// A graph input or output: its name, and its shape where the model fixes it
@@ -351,6 +360,8 @@ impl Program {
         }
 
         let mut values: Vec<Option<Value>> = vec![None; self.slot_count];
+        // Where each traced value sits in the trace.
+        let mut traced: Vec<Option<usize>> = vec![None; self.slot_count];
         for (slot, value) in &self.constants {
             values[*slot] = Some(value.clone());
         }
@@ -358,7 +369,15 @@ impl Program {
             check_input_shape(port, host)?;
             values[*slot] = Some(to_value(host, &self.device));
             if let Some(trace) = trace.as_deref_mut() {
-                trace.push(Activation { name: port.name.clone(), op: "Input", tensor: host.clone() });
+                traced[*slot] = Some(trace.len());
+                trace.push(Activation {
+                    name: port.name.clone(),
+                    op: "Input",
+                    tensor: host.clone(),
+                    inputs: Vec::new(),
+                    input_shapes: Vec::new(),
+                    link: Link::Opaque,
+                });
             }
         }
 
@@ -369,11 +388,24 @@ impl Program {
                 .map(|slot| values[*slot].as_ref().expect("compile order guarantees inputs are set"))
                 .collect();
             let results = eval(step, &args).map_err(|e| RunError(format!("node `{}`: {e}", step.node)))?;
+            let inputs: Vec<Option<usize>> = step.inputs.iter().map(|s| traced[*s]).collect();
+            let mut produced = Vec::with_capacity(results.len());
             for (out, value) in step.outputs.iter().zip(results) {
                 let Some(slot) = out.slot else { continue };
                 if let Some(trace) = trace.as_deref_mut() {
-                    trace.push(Activation { name: out.name.clone(), op: step.op.name(), tensor: to_host(&value)? });
+                    traced[slot] = Some(trace.len());
+                    trace.push(Activation {
+                        name: out.name.clone(),
+                        op: step.op.name(),
+                        tensor: to_host(&value)?,
+                        inputs: inputs.clone(),
+                        input_shapes: args.iter().map(|a| a.shape()).collect(),
+                        link: link(&step.op, &args, &value),
+                    });
                 }
+                produced.push((slot, value));
+            }
+            for (slot, value) in produced {
                 values[slot] = Some(value);
             }
         }
@@ -597,6 +629,44 @@ impl Compiler {
             step_outputs.push(StepOutput { slot, rank: *rank, name: name.clone() });
         }
         Ok(Some(Step { node: name, op, inputs: slots, outputs: step_outputs }))
+    }
+}
+
+/// How `op`'s output `out` depends on its inputs `args`, for the trace.
+fn link(op: &Op, args: &[&Value], out: &Value) -> Link {
+    let logical = |axis: usize| axis.saturating_sub(MAX_RANK - out.rank);
+    let window = |kernel: &[usize; 2], stride: &[usize; 2], dilation: &[usize; 2], padding: &[ConvPadding; 2]| {
+        let dims = args[0].tensor.dims();
+        let pad = std::array::from_fn(|i| padding[i].resolve(dims[2 + i], kernel[i], stride[i], dilation[i]).0);
+        (*kernel, *stride, *dilation, pad)
+    };
+    match op {
+        Op::Identity | Op::Flatten { .. } | Op::Reshape { .. } => Link::SameIndex,
+        Op::Add | Op::Sub | Op::Mul | Op::Div | Op::Relu | Op::Tanh | Op::Sigmoid | Op::LeakyRelu { .. } | Op::Clip { .. } => {
+            Link::Elementwise
+        }
+        Op::Softmax { axis } => Link::Axis { axis: logical(*axis) },
+        Op::Concat { axis } => Link::Concat { axis: logical(*axis) },
+        Op::MatMul => Link::Dense { trans_a: false, trans_b: false },
+        Op::Gemm { trans_a, trans_b, .. } => Link::Dense { trans_a: *trans_a, trans_b: *trans_b },
+        Op::Linear { transpose_weight } => Link::Dense { trans_a: false, trans_b: *transpose_weight },
+        Op::Conv2d { kernel, stride, dilation, groups, padding } => {
+            let (kernel, stride, dilation, pad) = window(kernel, stride, dilation, padding);
+            let groups = (*groups).max(1);
+            Link::Window {
+                kernel,
+                stride,
+                dilation,
+                pad,
+                channels_per_group: Some(args[0].tensor.dims()[1] / groups),
+                out_channels_per_group: out.tensor.dims()[1] / groups,
+            }
+        }
+        Op::MaxPool2d { kernel, stride, dilation, padding, .. } => {
+            let (kernel, stride, dilation, pad) = window(kernel, stride, dilation, padding);
+            Link::Window { kernel, stride, dilation, pad, channels_per_group: None, out_channels_per_group: 1 }
+        }
+        Op::Conv1d { .. } | Op::Gru(_) | Op::Lstm(_) => Link::Opaque,
     }
 }
 

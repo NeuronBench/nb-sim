@@ -222,8 +222,33 @@ blue for negative, red for positive, scaled per layer to its largest
   name (`tanh1`).
 - Every run is traced. That's cheap for controller-sized MLPs; for big
   models, trace only while the window is open.
-- 3D placement of layers in the scene (the 2024 branch's idea) can come
-  later and reuse the same data.
+
+The trace also records each activation's traced `inputs` (trace indices,
+`None` for constants) and a `Link` saying how its elements read theirs:
+elementwise with broadcasting, same index (Reshape), a conv or pool window
+with resolved padding and groups, dense rows and columns (MatMul, Gemm), a
+softmax axis, or concat. `onnx::links::{sources, consumers}` walk one
+element; GRU, LSTM and Conv1d are `Opaque`. `tests/model_view.rs` checks
+the links by perturbing each input element of the fixtures: every output
+that moves must have that element among its traced sources.
+
+The 3D view (`src/gui/model_view.rs`, layout in `src/onnx/layout.rs`)
+draws every activation in the scene as cubes, one mesh per layer, unlit
+and additively blended, brighter where |value| is larger (warm positive,
+cool negative, per-layer scale):
+
+- A layer's depth is its longest path from a graph input; depths stand as
+  vertical slabs 250 µm apart along -z, the last in front.
+- Outputs that drive segments are anchored 200 µm above their taps, joined
+  by a line whose brightness follows the value. Layers feeding them
+  one-to-one (the logits behind a Softmax) line up in the same columns.
+- Other layers tile `[N, C, H, W]` as one image per channel and wrap
+  vectors, sized to the anchors' width and at most 400 µm tall.
+- Hovering a cube (a ray against cube centers, not mesh picking, so the
+  cubes never block selecting neurons) draws lines to the elements it reads
+  (cyan) and those that read it (orange), at most 400 each, and shows its
+  name, index and value. "Show in the 3D scene" in the Models window turns
+  it off.
 
 ## Phases
 

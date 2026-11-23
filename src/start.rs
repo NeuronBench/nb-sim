@@ -13,6 +13,7 @@ use wasm_bindgen::prelude::*;
 use crate::plugin::NbSimPlugin;
 use crate::gui::run_gui;
 use crate::gui::load::{handle_loaded_neuron, SceneSource};
+use crate::gui::model_view::{model_view_tooltip, ModelViewPlugin};
 use crate::gui::models_panel::run_models_panel;
 use crate::gui::scene_panel::run_scene_panel;
 use crate::integrations::grace::{self, GraceScene};
@@ -69,16 +70,36 @@ pub fn start(
         .add_plugins(NbSimPlugin)
         .add_plugins(ExternalTriggerPlugin)
         .add_plugins(PanOrbitCameraPlugin)
+        .add_plugins(ModelViewPlugin)
         .add_systems(Startup, setup_scene)
         .insert_resource(ClearColor(Srgba::hex("#0e0e1f").unwrap().into()))
-        .add_systems(EguiPrimaryContextPass, (run_gui, run_scene_panel, run_models_panel))
-        .add_systems(Update, handle_loaded_neuron);
+        .add_systems(EguiPrimaryContextPass, (run_gui, run_scene_panel, run_models_panel, model_view_tooltip))
+        .add_systems(Update, (handle_loaded_neuron, debug_screenshot));
 
         if demo {
           app.add_systems(Startup, setup_grace_neuron);
         }
 
         app.run();
+}
+
+/// Diagnostic knob: NB_DEBUG_SCREENSHOT=path saves one screenshot of the
+/// window after NB_DEBUG_SCREENSHOT_SECS (default 10) seconds.
+fn debug_screenshot(mut commands: Commands, time: Res<Time>, mut done: Local<bool>) {
+  use bevy::render::view::screenshot::{save_to_disk, Screenshot};
+  if *done {
+    return;
+  }
+  let Ok(path) = std::env::var("NB_DEBUG_SCREENSHOT") else {
+    *done = true;
+    return;
+  };
+  let after = std::env::var("NB_DEBUG_SCREENSHOT_SECS").ok().and_then(|s| s.parse().ok()).unwrap_or(10.0);
+  if time.elapsed_secs_f64() >= after {
+    *done = true;
+    info!("NB_DEBUG_SCREENSHOT: saving {path}");
+    commands.spawn(Screenshot::primary_window()).observe(save_to_disk(path));
+  }
 }
 
 fn setup_grace_neuron(

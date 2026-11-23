@@ -1,6 +1,8 @@
 //! ONNX models in scenes. See docs/onnx-integration.md.
 
 pub mod coupling;
+pub mod layout;
+pub mod links;
 pub mod plugin;
 pub mod program;
 
