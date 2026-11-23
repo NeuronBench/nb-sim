@@ -358,8 +358,10 @@ pub fn handle_loaded_neuron(
     mut materials: ResMut<Assets<StandardMaterial>>,
     selections: Query<Entity, With<Selection>>,
     highlights: Query<Entity, With<Highlight>>,
+    mut models: ResMut<SceneModels>,
 ) {
     if let Ok(scene) = grace_scene_receiver.0.try_recv() {
+        models.scene_spawned();
         scene.spawn(
             Vec3::new(0.0, 0.0, 0.0),
             commands,

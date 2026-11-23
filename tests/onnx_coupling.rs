@@ -170,6 +170,7 @@ fn systems_fetch_compile_and_inject() {
     app.world_mut()
         .resource_mut::<SceneModels>()
         .load(&[clamp_spec(vec![tap(0, 1), tap(1, 1)]), gains, synaptic], &root, false, &sender);
+    app.world_mut().resource_mut::<SceneModels>().scene_spawned();
 
     for _ in 0..3 {
         app.update();
@@ -206,10 +207,36 @@ fn systems_fetch_compile_and_inject() {
 
     // Reloading with no models resets every sink.
     app.world_mut().resource_mut::<SceneModels>().load(&[], &root, false, &sender);
+    app.world_mut().resource_mut::<SceneModels>().scene_spawned();
     app.update();
     assert_eq!(app.world().get::<ModelCurrent>(s0).unwrap().0 .0, 0.0);
     assert_eq!(scales(&app, s1), [1.0; 8]);
     assert_eq!(app.world().get::<ModelSynapseGain>(synapse).unwrap().0, 1.0);
+
+    // A slider change respawns the scene: the compiled model is bound at
+    // once, but the old neurons are gone and the new ones spawn frames
+    // later. The model waits for them instead of failing on missing taps.
+    for e in [s0, s1, bystander] {
+        app.world_mut().despawn(e);
+    }
+    app.world_mut().resource_mut::<SceneModels>().load(&[clamp_spec(vec![tap(0, 1), tap(1, 1)])], &root, false, &sender);
+    for _ in 0..3 {
+        app.update();
+    }
+    let slot = &app.world().resource::<SceneModels>().slots[0];
+    assert!(matches!(slot.state, ModelState::Ready(_)) && slot.runs == 0);
+    let s0 = segment(&mut app, 0, -70.0);
+    segment(&mut app, 1, -40.0);
+    app.world_mut().resource_mut::<SceneModels>().scene_spawned();
+    for _ in 0..3 {
+        app.update();
+    }
+    let slot = &app.world().resource::<SceneModels>().slots[0];
+    if let ModelState::Failed(e) = &slot.state {
+        panic!("model failed after respawn: {e}");
+    }
+    assert!(slot.runs > 0);
+    assert_close(app.world().get::<ModelCurrent>(s0).unwrap().0 .0, expected(-70.0));
 }
 
 fn program(name: &str) -> Arc<Program> {

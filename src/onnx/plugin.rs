@@ -43,6 +43,12 @@ pub struct ModelFetchReceiver(pub Receiver<ModelFetch>);
 pub struct SceneModels {
     cache: HashMap<String, Cached>,
     pub slots: Vec<ModelSlot>,
+    /// Scenes loaded whose neurons have not been spawned yet. Models wait
+    /// for them: a model bound to a new scene would otherwise run against
+    /// the old scene's despawned segments and fail on missing taps.
+    unspawned: u32,
+    /// Skip one more run after a spawn, until its commands are applied.
+    settling: bool,
 }
 
 enum Cached {
@@ -75,6 +81,7 @@ impl SceneModels {
     /// Replace the scene's models. URLs are resolved against `root`; already
     /// compiled models are reused unless `refetch`.
     pub fn load(&mut self, models: &[SceneModel], root: &str, refetch: bool, sender: &ModelFetchSender) {
+        self.unspawned += 1;
         if refetch {
             self.cache.retain(|_, c| matches!(c, Cached::Pending));
         }
@@ -95,6 +102,18 @@ impl SceneModels {
                 ModelSlot { url, state, runs: 0, next_run_sec: 0.0, effects: Effects::default(), activations: Vec::new() }
             })
             .collect();
+    }
+
+    /// A loaded scene's neurons were spawned (their commands apply at the
+    /// end of this frame).
+    pub fn scene_spawned(&mut self) {
+        self.unspawned = self.unspawned.saturating_sub(1);
+        self.settling = true;
+    }
+
+    /// Whether models must wait for their scene's neurons to exist.
+    fn waiting_for_scene(&mut self) -> bool {
+        self.unspawned > 0 || std::mem::take(&mut self.settling)
     }
 
     fn compiled(&mut self, url: String, result: Result<Arc<Program>, String>) {
@@ -217,7 +236,8 @@ pub fn run_models(
     if log_now {
         *since_log = 0.0;
     }
-    let due = models.slots.iter().any(|s| matches!(s.state, ModelState::Ready(_)) && now >= s.next_run_sec);
+    let waiting = models.waiting_for_scene();
+    let due = !waiting && models.slots.iter().any(|s| matches!(s.state, ModelState::Ready(_)) && now >= s.next_run_sec);
     if due {
         let snapshot = Snapshot {
             segments: segments
