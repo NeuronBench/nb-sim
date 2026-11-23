@@ -261,13 +261,20 @@ blue for negative, red for positive, scaled per layer to its largest
    - Steps may have several outputs.
    - Conv1d: explicit padding, `SAME_UPPER`/`SAME_LOWER`, stride, dilation
      and groups.
+   - Conv2d and MaxPool2d on `[N, C, H, W]`: explicit (also asymmetric)
+     padding, `SAME_UPPER`/`SAME_LOWER`/`VALID`, stride and dilation;
+     groups for Conv2d, `ceil_mode` for MaxPool2d. MaxPool's Indices output
+     is rejected. This is enough for the ONNX model zoo's MNIST CNN
+     (mnist-12), which matches the zoo's own test output to 2e-5.
    - GRU (`linear_before_reset` 0 and 1) and LSTM (`input_forget`). Both
      support forward, reverse and bidirectional, `clip`, optional bias and
      initial state, and sigmoid/tanh/relu activations. They are written as
      explicit per-timestep loops over burn ops. onnx-ir itself rejects
      `sequence_lens` and LSTM peepholes; we reject `layout=1` (batch first).
    - `ModelInput::Feedback` carries state between runs.
-   - Tests: the `conv1d`, `gru` and `lstm` fixtures. The LSTM's expected
+   - Tests: the `conv1d`, `conv2d`, `gru` and `lstm` fixtures, and the
+     nb-lib `onnx_digits` (MLP) and `onnx_mnist` (zoo CNN) demos in
+     `nickel_lib`. The LSTM's expected
      values come from onnxruntime, because the reference evaluator ignores
      `clip`. Feedback tests are in `onnx_coupling`.
    - Output sinks: `ScaleConductance` and `SynapticGain`, through the

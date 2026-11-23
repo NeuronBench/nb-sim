@@ -133,3 +133,68 @@ fn schema_file_is_current() {
         "nb-nickel's prelude/schema.ncl is stale; run `cargo run --bin gen_nickel_schema` and commit it in nb-nickel"
     );
 }
+
+/// The digit models read only constants; every segment exists.
+struct NoSim;
+impl nb_sim::onnx::coupling::SimState for NoSim {
+    fn voltage_mv(&self, _: nb_sim::serialize::SegmentRef) -> Option<f32> { Some(-70.0) }
+    fn time_sec(&self) -> f32 { 0.0 }
+    fn channel_count(&self, _: nb_sim::serialize::SegmentRef) -> Option<usize> { None }
+    fn has_synapse(&self, _: u32) -> bool { false }
+}
+
+/// Evaluate a digit demo with `params.sample` set, run its model once, and
+/// return the neuron given the most current, that current, and the trace.
+fn run_digit_demo(path: &str, sample: usize) -> (usize, f32, Vec<nb_sim::onnx::Activation>) {
+    use nb_sim::onnx::coupling::{ModelInstance, Step};
+
+    let linked = link_blocking(path).unwrap();
+    let scene = scene_from_linked(&linked, &[Override::number("params.sample", sample as f64)]).unwrap();
+    assert_eq!(scene.neurons.len(), 10);
+    let model = &scene.models[0];
+    let bytes = std::fs::read(nb_nickel::resolve_path(path, &model.url)).unwrap();
+    let program = nb_sim::onnx::Program::from_bytes(&bytes, Default::default()).unwrap();
+    let mut instance = ModelInstance::bind(std::sync::Arc::new(program), model.clone()).unwrap();
+    let (Step::Ran(effects), trace) = instance.step_traced(&NoSim).unwrap() else { panic!("not ready") };
+    let (winner, current) = effects
+        .currents
+        .iter()
+        .max_by(|a, b| a.1.total_cmp(&b.1))
+        .map(|(seg, i)| (seg.neuron as usize, *i))
+        .unwrap();
+    (winner, current, trace)
+}
+
+#[test]
+fn onnx_digits_demo_fires_the_neuron_for_each_sample_digit() {
+    for sample in 0..20 {
+        let (winner, current, trace) = run_digit_demo(&lib("demos/onnx_digits.ncl"), sample);
+        assert_eq!(winner, sample / 2, "sample {sample}");
+        assert!(current > 50.0, "sample {sample}: winner gets only {current}");
+        let image = trace.iter().find(|a| a.name == "reshape1").expect("the image layer");
+        assert_eq!(image.tensor.shape, vec![8, 8]);
+    }
+}
+
+#[test]
+fn onnx_mnist_demo_runs_the_zoo_cnn_on_ascii_digits() {
+    let path = lib("demos/onnx_mnist.ncl");
+    // Sample 10, a 5, reads as a 6 once its pixels are rounded to 4 levels;
+    // models/mnist_samples.ncl records that as its `predicted`.
+    let mut correct = 0;
+    for sample in 0..20 {
+        let (winner, current, _) = run_digit_demo(&path, sample);
+        let expected = if sample == 10 { 6 } else { sample / 2 };
+        assert_eq!(winner, expected, "sample {sample}");
+        assert!(current > 50.0, "sample {sample}: winner gets only {current}");
+        correct += usize::from(winner == sample / 2);
+    }
+    assert_eq!(correct, 19);
+
+    // Sample 20 is the hand-drawn 2 in the demo file.
+    let (winner, _, trace) = run_digit_demo(&path, 20);
+    assert_eq!(winner, 2);
+    let shapes: Vec<_> = trace.iter().map(|a| (a.op, a.tensor.shape.clone())).collect();
+    assert!(shapes.contains(&("Conv2d", vec![1, 16, 14, 14])), "{shapes:?}");
+    assert!(shapes.contains(&("MaxPool2d", vec![1, 16, 4, 4])), "{shapes:?}");
+}

@@ -139,3 +139,8 @@ fn recurrent_layers_trace_each_output() {
     // Three inputs, then every used LSTM output under its graph name.
     assert_eq!(&layers[3..], &[("y", "LSTM"), ("y_h", "LSTM"), ("y_c", "LSTM"), ("y2", "LSTM")]);
 }
+
+#[test]
+fn conv2d_and_max_pool_padding_stride_dilation_groups_match_reference() {
+    check_against_reference("conv2d");
+}

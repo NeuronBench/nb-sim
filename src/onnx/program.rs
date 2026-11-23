@@ -12,7 +12,7 @@
 use std::collections::HashMap;
 use std::fmt;
 
-use burn::tensor::ops::ConvOptions;
+use burn::tensor::ops::{ConvOptions, MaxPoolOptions};
 use burn::tensor::{activation, module, DType, Device, Tensor, TensorData};
 use onnx_ir::{Argument, Node, OnnxGraph, OnnxGraphBuilder};
 
@@ -157,6 +157,9 @@ enum Op {
     Gemm { alpha: f32, beta: f32, trans_a: bool, trans_b: bool },
     Linear { transpose_weight: bool },
     Conv1d { kernel: usize, stride: usize, dilation: usize, groups: usize, padding: ConvPadding },
+    /// Input `[N, C, H, W]`; `padding` is per spatial axis.
+    Conv2d { kernel: [usize; 2], stride: [usize; 2], dilation: [usize; 2], groups: usize, padding: [ConvPadding; 2] },
+    MaxPool2d { kernel: [usize; 2], stride: [usize; 2], dilation: [usize; 2], ceil_mode: bool, padding: [ConvPadding; 2] },
     Gru(Recurrent),
     Lstm(Recurrent),
 }
@@ -235,6 +238,8 @@ impl Op {
             Op::Gemm { .. } => "Gemm",
             Op::Linear { .. } => "Linear",
             Op::Conv1d { .. } => "Conv1d",
+            Op::Conv2d { .. } => "Conv2d",
+            Op::MaxPool2d { .. } => "MaxPool2d",
             Op::Gru(_) => "GRU",
             Op::Lstm(_) => "LSTM",
         }
@@ -499,6 +504,31 @@ impl Compiler {
                 };
                 (op, ins)
             }
+            Node::Conv2d(n) => {
+                let c = &n.config;
+                let op = Op::Conv2d {
+                    kernel: c.kernel_size,
+                    stride: c.stride,
+                    dilation: c.dilation,
+                    groups: c.groups,
+                    padding: padding_2d(&c.auto_pad, &c.padding),
+                };
+                (op, ins)
+            }
+            Node::MaxPool2d(n) => {
+                if outs.iter().skip(1).any(present) {
+                    return Err(err(&name, "MaxPool's Indices output is not supported".into()));
+                }
+                let c = &n.config;
+                let op = Op::MaxPool2d {
+                    kernel: c.kernel_size,
+                    stride: c.strides,
+                    dilation: c.dilation,
+                    ceil_mode: c.ceil_mode,
+                    padding: padding_2d(&c.auto_pad, &c.padding),
+                };
+                (op, &ins[..1])
+            }
             Node::Gru(n) => return self.recurrent(node, recurrent_gru(&n.config).map_err(|m| err(&name, m))?, 2),
             Node::Lstm(n) => return self.recurrent(node, recurrent_lstm(&n.config).map_err(|m| err(&name, m))?, 3),
             other => {
@@ -517,7 +547,8 @@ impl Compiler {
             slots.push(self.input(arg, &name)?);
         }
 
-        let [out] = outs else {
+        let outs: Vec<&Argument> = outs.iter().filter(|a| present(a)).collect();
+        let [out] = outs[..] else {
             return Err(err(&name, format!("expected one output, found {}", outs.len())));
         };
         check_float_tensor(out, Some(&name))?;
@@ -639,21 +670,73 @@ fn eval_single(step: &Step, args: &[&Value]) -> Result<Value, String> {
             let w = rank3(args[1]);
             let bias = args.get(2).map(|b| b.tensor.clone().reshape([b.tensor.dims()[MAX_RANK - 1]]));
             let length = x.dims()[2];
-            let padding = match *padding {
-                ConvPadding::Explicit(l, r) => (l, r),
-                ConvPadding::Same { upper } => {
-                    let out = length.div_ceil(*stride);
-                    let span = (kernel - 1) * dilation + 1;
-                    let total = ((out - 1) * stride + span).saturating_sub(length);
-                    let (small, big) = (total / 2, total - total / 2);
-                    if upper { (small, big) } else { (big, small) }
-                }
-            };
+            let padding = padding.resolve(length, *kernel, *stride, *dilation);
             let options = ConvOptions { stride: [*stride], padding: [padding], dilation: [*dilation], groups: *groups };
             Ok(from_rank3(module::conv1d(x, w, bias, options)))
         }
+        Op::Conv2d { kernel, stride, dilation, groups, padding } => {
+            let x = spatial_input(args[0])?;
+            let bias = args.get(2).map(|b| b.tensor.clone().reshape([b.tensor.dims()[MAX_RANK - 1]]));
+            let padding = resolve_2d(padding, &x, kernel, stride, dilation);
+            let options = ConvOptions { stride: *stride, padding, dilation: *dilation, groups: *groups };
+            Ok(Value { tensor: module::conv2d(x, args[1].tensor.clone(), bias, options), rank: 4 })
+        }
+        Op::MaxPool2d { kernel, stride, dilation, ceil_mode, padding } => {
+            let x = spatial_input(args[0])?;
+            let padding = resolve_2d(padding, &x, kernel, stride, dilation);
+            let options = MaxPoolOptions { kernel_size: *kernel, stride: *stride, padding, dilation: *dilation, ceil_mode: *ceil_mode };
+            Ok(Value { tensor: module::max_pool2d(x, options), rank: 4 })
+        }
         Op::Gru(_) | Op::Lstm(_) => unreachable!("handled in eval"),
     }
+}
+
+impl ConvPadding {
+    /// `(begin, end)` padding for one spatial axis of `length`.
+    fn resolve(self, length: usize, kernel: usize, stride: usize, dilation: usize) -> (usize, usize) {
+        match self {
+            ConvPadding::Explicit(begin, end) => (begin, end),
+            ConvPadding::Same { upper } => {
+                let out = length.div_ceil(stride);
+                let span = (kernel - 1) * dilation + 1;
+                let total = ((out - 1) * stride + span).saturating_sub(length);
+                let (small, big) = (total / 2, total - total / 2);
+                if upper { (small, big) } else { (big, small) }
+            }
+        }
+    }
+}
+
+fn padding_2d(auto_pad: &onnx_ir::padding::AutoPad, padding: &onnx_ir::padding::PaddingConfig2d) -> [ConvPadding; 2] {
+    use onnx_ir::padding::AutoPad;
+    match auto_pad {
+        AutoPad::SameUpper => [ConvPadding::Same { upper: true }; 2],
+        AutoPad::SameLower => [ConvPadding::Same { upper: false }; 2],
+        AutoPad::Valid => [ConvPadding::Explicit(0, 0); 2],
+        AutoPad::NotSet => {
+            let (top, left, bottom, right) = padding.as_tuple();
+            [ConvPadding::Explicit(top, bottom), ConvPadding::Explicit(left, right)]
+        }
+    }
+}
+
+fn resolve_2d(
+    padding: &[ConvPadding; 2],
+    x: &Tensor<4>,
+    kernel: &[usize; 2],
+    stride: &[usize; 2],
+    dilation: &[usize; 2],
+) -> [(usize, usize); 2] {
+    let dims = x.dims();
+    std::array::from_fn(|i| padding[i].resolve(dims[2 + i], kernel[i], stride[i], dilation[i]))
+}
+
+/// A 2D conv or pool input must be `[N, C, H, W]`.
+fn spatial_input(v: &Value) -> Result<Tensor<4>, String> {
+    if v.rank != 4 {
+        return Err(format!("expected an [N, C, H, W] input, got shape {:?}", v.shape()));
+    }
+    Ok(v.tensor.clone())
 }
 
 fn rank3(v: &Value) -> Tensor<3> {

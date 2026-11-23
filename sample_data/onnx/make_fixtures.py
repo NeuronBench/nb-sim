@@ -223,3 +223,22 @@ save(
     initializers={},
     feeds={"x": f32(1, 4)},
 )
+
+# 2D conv and max pooling: asymmetric explicit pads, stride, dilation and a
+# bias; groups with SAME_LOWER; pooling with padding, ceil_mode and SAME_UPPER.
+save(
+    "conv2d",
+    [
+        helper.make_node("Conv", ["x", "w1", "b1"], ["c1"], pads=[1, 0, 2, 1], strides=[2, 1], dilations=[1, 2]),
+        helper.make_node("Relu", ["c1"], ["r1"]),
+        helper.make_node("MaxPool", ["r1"], ["p1"], kernel_shape=[2, 3], strides=[1, 2], pads=[0, 1, 1, 1]),
+        helper.make_node("Conv", ["p1", "w2"], ["y"], group=2, strides=[2, 1], auto_pad="SAME_LOWER"),
+        helper.make_node("MaxPool", ["x"], ["p2"], kernel_shape=[2, 2], strides=[2, 2], ceil_mode=1),
+        helper.make_node("MaxPool", ["x"], ["p3"], kernel_shape=[3, 3], strides=[2, 2], auto_pad="SAME_UPPER"),
+        helper.make_node("Add", ["p2", "p3"], ["y2"]),
+    ],
+    inputs=[("x", [2, 3, 7, 9])],
+    outputs=[("y", [2, 6, 2, 3]), ("y2", [2, 3, 4, 5])],
+    initializers={"w1": f32(4, 3, 3, 3), "b1": f32(4), "w2": f32(6, 2, 2, 2)},
+    feeds={"x": f32(2, 3, 7, 9)},
+)
