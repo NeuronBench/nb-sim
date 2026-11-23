@@ -51,7 +51,13 @@ pub fn start(
       })
       .set(RenderPlugin {
         render_creation: RenderCreation::Automatic(WgpuSettings {
-          backends: Some(Backends::BROWSER_WEBGPU | Backends::GL),
+          // The web build picks WebGPU or WebGL2; native uses its own
+          // primary API (Metal, Vulkan, DX12).
+          backends: Some(if cfg!(target_arch = "wasm32") {
+            Backends::BROWSER_WEBGPU | Backends::GL
+          } else {
+            Backends::PRIMARY
+          }),
           ..default()
         }),
         ..default()
