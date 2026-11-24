@@ -78,8 +78,28 @@ fn receptor(ion_na: f32, ion_k: f32, ion_ca: f32, siemens: f32) -> GpuReceptor {
     r
 }
 
+/// A spine voltage-gated calcium channel (high-voltage activated, 1 ms):
+/// an always-bound receptor whose gate opens with the back-propagating
+/// spike, so a postsynaptic spike brings calcium of its own.
+fn vgcc(siemens: f32) -> GpuReceptor {
+    let mut r = receptor(0.0, 0.0, 1.0, siemens);
+    r.sens_conc_half_max = 0.0;
+    r.sens_slope = 1e6;
+    let g = &mut r.channel.activation;
+    g.present = 1.0;
+    g.gates = 1.0;
+    g.ss_v_at_half_max = -20.0;
+    g.ss_slope = 5.0;
+    g.tc_type = 1.0;
+    g.tc_param0 = -20.0;
+    g.tc_param1 = 1e-3;
+    g.tc_param3 = 1.0;
+    r
+}
+
 /// AMPA (plastic, fast) and NMDA (Mg2+ blocked, slow unbinding, some
-/// calcium) receptors, a spine calcium pool, and the plasticity rule.
+/// calcium) receptors, a spine VGCC, a spine calcium pool, and the
+/// plasticity rule.
 fn synapse(plasticity: Plasticity) -> GpuSynapseData {
     let mut s = GpuSynapseData::zeroed();
     s.pre_segment_idx = 0;
@@ -92,7 +112,7 @@ fn synapse(plasticity: Plasticity) -> GpuSynapseData {
     s.surface_area = 1e-6;
     s.num_pumps = 1.0;
     s.pumps[0] = glutamate_pump();
-    s.num_receptors = 2.0;
+    s.num_receptors = 3.0;
     let mut ampa = receptor(0.5, 0.5, 0.0, 1e3);
     ampa.plastic = 1.0;
     let mut nmda = receptor(0.45, 0.45, 0.1, 10.0);
@@ -101,6 +121,7 @@ fn synapse(plasticity: Plasticity) -> GpuSynapseData {
     nmda.magnesium_molar = 1e-3;
     s.receptors[0] = ampa;
     s.receptors[1] = nmda;
+    s.receptors[2] = vgcc(0.1);
     s.calcium = 50e-9;
     s.calcium_rest = 50e-9;
     s.calcium_decay = 12e-3;
@@ -130,12 +151,13 @@ struct Plasticity {
 
 const OFF: Plasticity = Plasticity { initial: 0.5, tau: 0.0, theta_d: 0.0, theta_p: 0.0, gamma_d: 0.0, gamma_p: 0.0 };
 
-/// Graupner & Brunel's rates, with thresholds placed around this synapse's
-/// calcium: a lone presynaptic spike peaks near 1 µM, just over the
-/// depression threshold; only a postsynaptic spike while NMDA receptors are
-/// still bound pushes calcium well over the potentiation threshold. A 15 s
-/// time constant (theirs is 150 s) keeps the test short.
-const GB: Plasticity = Plasticity { initial: 0.5, tau: 15.0, theta_d: 0.93e-6, theta_p: 1.1e-6, gamma_d: 200.0, gamma_p: 321.8 };
+/// Graupner & Brunel's rates and their arrangement of thresholds: a lone
+/// presynaptic spike (about 1 µM) stays under the depression threshold; a
+/// postsynaptic spike's VGCC calcium (about 1.4 µM) crosses it; a
+/// postsynaptic spike while NMDA receptors are still bound crosses the
+/// potentiation threshold for longer. A 15 s time constant (theirs is
+/// 150 s) keeps the test short.
+const GB: Plasticity = Plasticity { initial: 0.5, tau: 15.0, theta_d: 1.2e-6, theta_p: 1.5e-6, gamma_d: 200.0, gamma_p: 321.8 };
 
 /// Five pairings at 10 Hz, the postsynaptic spike `lag` seconds after the
 /// presynaptic one (before it when negative).
@@ -197,38 +219,42 @@ fn binding_rises_and_decays_with_its_own_time_constants() {
 }
 
 #[test]
-fn nmda_calcium_detects_pre_then_post_coincidence() {
+fn calcium_reports_spikes_and_their_coincidence() {
     let pre_alone = run(OFF, &[0.01], &[], 0.15).peak_calcium;
     let post_alone = run(OFF, &[], &[0.01], 0.15).peak_calcium;
     let pre_post = run(OFF, &[0.01], &[0.02], 0.15).peak_calcium;
     let post_pre = run(OFF, &[0.02], &[0.01], 0.15).peak_calcium;
-    // Without glutamate there is almost no NMDA current; with it alone the
-    // Mg2+ block passes a little; a postsynaptic spike while glutamate is
-    // still bound expels the Mg2+ and roughly doubles the calcium.
-    assert!(post_alone < 0.2e-6, "post alone {post_alone:e}");
+    // A lone presynaptic spike: NMDA calcium through the Mg2+ block, under
+    // the depression threshold. A lone postsynaptic spike: VGCC calcium,
+    // between the thresholds.
     assert!((0.9e-6..1.1e-6).contains(&pre_alone), "pre alone {pre_alone:e}");
-    assert!(pre_post > 1.5 * pre_alone, "pre then post {pre_post:e}");
-    // The postsynaptic spike before release finds nothing bound to unblock.
-    assert!((post_pre - pre_alone).abs() < 0.05 * pre_alone, "post then pre {post_pre:e}");
+    assert!(post_alone > GB.theta_d && post_alone < GB.theta_p, "post alone {post_alone:e}");
+    // A postsynaptic spike while glutamate is still bound expels the Mg2+:
+    // several times the calcium of either spike alone.
+    assert!(pre_post > 3.0 * pre_alone, "pre then post {pre_post:e}");
+    // Before release there is nothing bound to unblock; the presynaptic
+    // calcium only adds to the postsynaptic spike's tail.
+    assert!(post_pre >= post_alone && post_pre < 1.2 * post_alone, "post then pre {post_pre:e}");
 }
 
 #[test]
 fn spike_timing_sets_the_sign_of_plasticity() {
-    let quiet = run(GB, &[], &[], 0.6).efficacy;
-    assert_eq!(quiet, 0.5, "resting calcium is below both thresholds");
-    // The Bi & Poo window: potentiation when the presynaptic spike leads by
-    // a few ms, depression when it follows, and depression again when the
-    // postsynaptic spike comes too late to meet bound NMDA receptors.
-    for lag in [0.005, 0.01, 0.02] {
+    let five = |offset: f32| -> Vec<f32> { (0..5).map(|k| offset + 0.1 * k as f32).collect() };
+    assert_eq!(run(GB, &[], &[], 0.6).efficacy, 0.5, "resting calcium is below both thresholds");
+    assert_eq!(run(GB, &five(0.05), &[], 0.6).efficacy, 0.5, "presynaptic spikes alone change nothing");
+    assert!(run(GB, &[], &five(0.05), 0.6).efficacy < 0.45, "unpaired postsynaptic spikes depress");
+    // The Bi & Poo window: potentiation when the presynaptic spike leads,
+    // depression when it follows within a few tens of ms.
+    for lag in [0.005, 0.01, 0.02, 0.04] {
         let e = pairings(lag).efficacy;
         assert!(e > 0.52, "pre {} ms before post: efficacy {e}", lag * 1e3);
     }
-    for lag in [-0.005, -0.01, -0.02, -0.04] {
+    for lag in [-0.005, -0.01, -0.02] {
         let e = pairings(lag).efficacy;
         assert!(e < 0.47, "post {} ms before pre: efficacy {e}", -lag * 1e3);
     }
-    assert!(pairings(0.08).efficacy < 0.45, "unpaired release depresses");
-    assert!(pairings(0.005).efficacy > pairings(0.04).efficacy);
+    // Too late to meet bound NMDA receptors: as good as unpaired.
+    assert!(pairings(0.08).efficacy < 0.45);
 }
 
 #[test]
@@ -242,7 +268,7 @@ fn the_weight_scales_only_plastic_receptors() {
         let mut syn = synapse(OFF);
         syn.efficacy = efficacy;
         syn.glutamate_conc = 1.1e-2;
-        for r in 0..2 {
+        for r in 0..3 {
             syn.receptors[r].bound = 1.0;
             syn.receptors[r].binding_rise = 0.0;
             syn.receptors[r].binding_decay = 0.0;
@@ -264,5 +290,6 @@ fn the_weight_scales_only_plastic_receptors() {
     assert!((ampa_high / ampa_low - 2.0 / 0.5).abs() < 1e-3, "{ampa_low} {ampa_high}");
     assert_eq!(delta(0.25, 1), delta(1.0, 1));
 }
+
 
 

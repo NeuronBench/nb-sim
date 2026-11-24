@@ -31,15 +31,30 @@ use crate::neuron::Junction;
 
 pub struct NbSimPlugin;
 
+/// Diagnostic knobs: NB_SIM_DT (seconds per step) and NB_STEPS_PER_FRAME
+/// start the simulation with other values than the GUI defaults (native
+/// only; the web build always starts from the defaults).
+fn env_knob<T: std::str::FromStr>(name: &str) -> Option<T> {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        std::env::var(name).ok()?.parse().ok()
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = name;
+        None
+    }
+}
+
 impl Plugin for NbSimPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(default_env())
             .insert_resource(Timestamp(0.0))
-            .insert_resource(StepsPerFrame(100))
+            .insert_resource(StepsPerFrame(env_knob("NB_STEPS_PER_FRAME").unwrap_or(100)))
             .init_resource::<gui::NextClickAction>()
             .init_resource::<Oscilloscope>()
             .insert_resource(Stimulator::default())
-            .insert_resource(SimulationStepSeconds(5e-7))
+            .insert_resource(SimulationStepSeconds(env_knob("NB_SIM_DT").unwrap_or(5e-7)))
             .init_resource::<MembraneMaterials>()
             .init_resource::<StimulatorMaterials>()
             .init_resource::<GpuSimState>()
