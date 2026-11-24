@@ -250,6 +250,25 @@ cool negative, per-layer scale):
   name, index and value. "Show in the 3D scene" in the Models window turns
   it off.
 
+### Hidden taps and canvases
+
+`SceneModel.hidden` lists extra sinks fed from intermediate values:
+`{ value, elements, output }` takes elements of the named value (as the
+Models window names it) and drives `output`'s targets with them, through
+the same code as graph outputs (`coupling::drive`). Binding checks that the
+value exists (`Program::value_names`) and that `elements` matches the
+targets; a model with hidden taps is always traced. The 3D view draws a
+line from each tapped element to its segment.
+
+`Scene.canvases` are grids of injected current, one segment per cell,
+painted in an egui window (`gui/canvas_panel.rs`): left-drag raises cells,
+right-drag lowers them, over -1..1 times `max_uamps_per_square_cm`.
+`canvas::SceneCanvases` keeps the painting across reloads while a canvas's
+name and size are unchanged, and `run_models` adds its currents to the
+models' in `ModelCurrent`. A model reads painted cells like any others,
+through a `Voltages` input; nb-lib's `onnx_mnist_neurons.ncl` uses one as a
+28x28 retina for the MNIST CNN.
+
 ## Phases
 
 1. **Runtime. Done.** burn-flex and onnx-ir deps; `src/onnx/program.rs`

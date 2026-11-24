@@ -336,6 +336,14 @@ impl Program {
         &self.outputs
     }
 
+    /// The names of every value a trace can contain: graph inputs, then each
+    /// step's used outputs, in evaluation order.
+    pub fn value_names(&self) -> Vec<&str> {
+        let inputs = self.inputs.iter().map(|p| p.name.as_str());
+        let steps = self.steps.iter().flat_map(|s| &s.outputs).filter(|o| o.slot.is_some()).map(|o| o.name.as_str());
+        inputs.chain(steps).collect()
+    }
+
     /// Evaluate the program. `inputs` are in [`Program::inputs`] order; the
     /// result is in [`Program::outputs`] order.
     pub fn run(&self, inputs: &[HostTensor]) -> Result<Vec<HostTensor>, RunError> {

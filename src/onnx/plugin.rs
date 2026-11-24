@@ -226,8 +226,10 @@ pub fn run_models(
     mut synapse_sinks: Query<(&SynapseAddress, &mut ModelSynapseGain)>,
     time: Res<Time>,
     mut since_log: Local<f32>,
+    canvases: Option<Res<crate::canvas::SceneCanvases>>,
 ) {
-    if models.slots.is_empty() && !models.is_changed() {
+    let painting = canvases.as_ref().is_some_and(|c| !c.canvases.is_empty() || c.is_changed());
+    if models.slots.is_empty() && !models.is_changed() && !painting {
         return;
     }
     let now = timestamp.0;
@@ -282,6 +284,9 @@ pub fn run_models(
     }
 
     let mut currents: HashMap<SegmentRef, f32> = HashMap::new();
+    for (tap, current) in canvases.iter().flat_map(|c| c.currents()) {
+        *currents.entry(tap).or_default() += current;
+    }
     let mut scales: HashMap<SegmentRef, [f32; MAX_CHANNELS]> = HashMap::new();
     let mut gains: HashMap<u32, f32> = HashMap::new();
     for effects in models.slots.iter().map(|s| &s.effects) {

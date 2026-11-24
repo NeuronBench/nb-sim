@@ -42,6 +42,7 @@ fn clamp_spec(out_taps: Vec<SegmentRef>) -> SceneModel {
             ModelInput::Constant { values: vec![0.1] },
         ],
         outputs: vec![ModelOutput::InjectCurrent { taps: out_taps, scale_uamps_per_square_cm: 100.0 }],
+        hidden: vec![],
     }
 }
 
@@ -254,6 +255,7 @@ fn gru_feedback_spec() -> SceneModel {
             ModelInput::Feedback { output: "y_h".into() },
         ],
         outputs: vec![ModelOutput::Ignore, ModelOutput::Ignore, ModelOutput::Ignore],
+        hidden: vec![],
     }
 }
 
@@ -351,4 +353,48 @@ fn sink_targets_are_checked_against_the_scene() {
     assert!(err.contains("has 3 channels") && err.contains("no channel 3"), "{err}");
     let err = run(ModelOutput::InjectCurrent { taps: vec![tap(0, 1), tap(4, 4)], scale_uamps_per_square_cm: 1.0 });
     assert!(err.contains("no segment 4 in neuron 4"), "{err}");
+}
+
+#[test]
+fn hidden_taps_drive_segments_from_intermediate_values() {
+    use nb_sim::serialize::HiddenTap;
+    let names: Vec<String> = clamp_program().value_names().iter().map(|s| s.to_string()).collect();
+    let hidden = names.iter().find(|n| n.starts_with("sub")).expect("the clamp subtracts").clone();
+    let hidden_tap = |value: &str, elements: Vec<u32>, taps: Vec<SegmentRef>| HiddenTap {
+        value: value.into(),
+        elements,
+        output: ModelOutput::InjectCurrent { taps, scale_uamps_per_square_cm: 2.0 },
+    };
+
+    // Unknown values and miscounted elements are binding errors.
+    let mut spec = clamp_spec(vec![tap(0, 1), tap(1, 1)]);
+    spec.hidden = vec![hidden_tap("nope", vec![0], vec![tap(2, 1)])];
+    let err = ModelInstance::bind(clamp_program(), spec.clone()).err().unwrap();
+    assert!(err.contains("`nope`") && err.contains(&hidden), "{err}");
+    spec.hidden = vec![hidden_tap(&hidden, vec![0, 1], vec![tap(2, 1)])];
+    let err = ModelInstance::bind(clamp_program(), spec.clone()).err().unwrap();
+    assert!(err.contains("picks 2 elements") && err.contains("1 targets"), "{err}");
+
+    // Element 1 of the hidden value drives segment (2, 1), element 0 adds to
+    // segment (0, 1) on top of the graph output's current there.
+    spec.hidden = vec![hidden_tap(&hidden, vec![1, 0], vec![tap(2, 1), tap(0, 1)])];
+    let mut model = ModelInstance::bind(clamp_program(), spec).unwrap();
+    let mut state = sim(-70.0, -40.0);
+    state.0.insert(tap(2, 1), -65.0);
+    let (Step::Ran(effects), trace) = model.step_traced(&state).unwrap() else { panic!("should run") };
+    let values = &trace.iter().find(|a| a.name == hidden).unwrap().tensor.data;
+    let current = |t| effects.currents.iter().find(|(s, _)| *s == t).unwrap().1;
+    assert_close(current(tap(2, 1)), 2.0 * values[1]);
+    assert_close(current(tap(0, 1)), expected(-70.0) + 2.0 * values[0]);
+    assert!(model.taps().any(|t| t == tap(2, 1)), "hidden targets count as the model's taps");
+
+    // A missing target segment is a runtime error naming the sink.
+    let mut model = ModelInstance::bind(clamp_program(), {
+        let mut s = clamp_spec(vec![tap(0, 1), tap(1, 1)]);
+        s.hidden = vec![hidden_tap(&hidden, vec![0], vec![tap(9, 9)])];
+        s
+    })
+    .unwrap();
+    let err = model.step(&sim(-70.0, -40.0)).err().unwrap();
+    assert!(err.contains("no segment 9 in neuron 9"), "{err}");
 }

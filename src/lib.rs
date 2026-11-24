@@ -1,3 +1,4 @@
+pub mod canvas;
 pub mod constants;
 pub mod cpu_sim;
 pub mod dimension;

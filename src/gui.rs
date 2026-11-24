@@ -1,3 +1,4 @@
+pub mod canvas_panel;
 pub mod external_trigger;
 pub mod load;
 pub mod oscilloscope;

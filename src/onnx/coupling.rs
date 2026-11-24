@@ -118,6 +118,22 @@ impl ModelInstance {
             }
         }
 
+        let names = program.value_names();
+        for tap in &spec.hidden {
+            if !names.contains(&tap.value.as_str()) {
+                return Err(format!("hidden tap reads `{}`, but the model's values are {}", tap.value, names.join(", ")));
+            }
+            if let Some((sink, count)) = targets(&tap.output) {
+                if count != tap.elements.len() {
+                    return Err(format!(
+                        "hidden tap on `{}` picks {} elements, but {sink} names {count} targets",
+                        tap.value,
+                        tap.elements.len()
+                    ));
+                }
+            }
+        }
+
         Ok(ModelInstance { program, spec, input_shapes, feedback, state })
     }
 
@@ -127,7 +143,7 @@ impl ModelInstance {
             ModelInput::Voltages { taps, .. } => taps.as_slice(),
             _ => &[],
         });
-        let outs = self.spec.outputs.iter().flat_map(|o| match o {
+        let outs = self.spec.outputs.iter().chain(self.spec.hidden.iter().map(|h| &h.output)).flat_map(|o| match o {
             ModelOutput::InjectCurrent { taps, .. } | ModelOutput::ScaleConductance { taps, .. } => taps.as_slice(),
             ModelOutput::SynapticGain { .. } | ModelOutput::Ignore => &[],
         });
@@ -168,7 +184,7 @@ impl ModelInstance {
             inputs.push(HostTensor::new(shape.clone(), data));
         }
 
-        let (outputs, activations) = if trace {
+        let (outputs, activations) = if trace || !self.spec.hidden.is_empty() {
             self.program.run_traced(&inputs)
         } else {
             self.program.run(&inputs).map(|o| (o, Vec::new()))
@@ -207,47 +223,27 @@ impl ModelInstance {
             if let Some(v) = tensor.data.iter().find(|v| !v.is_finite()) {
                 return Err(format!("output `{}` produced {v}", port.name));
             }
-            let missing = |tap: &SegmentRef| format!("{sink}: no segment {} in neuron {}", tap.segment, tap.neuron);
-            match output {
-                ModelOutput::InjectCurrent { taps, scale_uamps_per_square_cm } => {
-                    for (tap, value) in taps.iter().zip(&tensor.data) {
-                        sim.voltage_mv(*tap).ok_or_else(|| missing(tap))?;
-                        let current = value * scale_uamps_per_square_cm;
-                        match effects.currents.iter_mut().find(|(t, _)| t == tap) {
-                            Some((_, total)) => *total += current,
-                            None => effects.currents.push((*tap, current)),
-                        }
-                    }
+            drive(sink, output, &tensor.data, sim, &mut effects)?;
+        }
+        if !self.spec.hidden.is_empty() {
+            for tap in &self.spec.hidden {
+                let Some((sink, _)) = targets(&tap.output) else { continue };
+                let Some(act) = activations.iter().rev().find(|a| a.name == tap.value) else {
+                    return Err(format!("hidden tap: the model computed no value `{}`", tap.value));
+                };
+                let values = tap
+                    .elements
+                    .iter()
+                    .map(|e| {
+                        act.tensor.data.get(*e as usize).copied().ok_or_else(|| {
+                            format!("hidden tap: `{}` has {} values, so there is no element {e}", tap.value, act.tensor.data.len())
+                        })
+                    })
+                    .collect::<Result<Vec<f32>, String>>()?;
+                if let Some(v) = values.iter().find(|v| !v.is_finite()) {
+                    return Err(format!("hidden tap: `{}` produced {v}", tap.value));
                 }
-                ModelOutput::ScaleConductance { taps, channel, offset, scale } => {
-                    for (tap, value) in taps.iter().zip(&tensor.data) {
-                        let channels = sim.channel_count(*tap).ok_or_else(|| missing(tap))?;
-                        if let Some(c) = channel.filter(|c| *c as usize >= channels) {
-                            return Err(format!(
-                                "{sink}: segment {} in neuron {} has {channels} channels, so there is no channel {c}",
-                                tap.segment, tap.neuron
-                            ));
-                        }
-                        let factor = multiplier(*value, *offset, *scale);
-                        match effects.conductance_scales.iter_mut().find(|(t, c, _)| t == tap && c == channel) {
-                            Some((_, _, total)) => *total *= factor,
-                            None => effects.conductance_scales.push((*tap, *channel, factor)),
-                        }
-                    }
-                }
-                ModelOutput::SynapticGain { synapses, offset, scale } => {
-                    for (synapse, value) in synapses.iter().zip(&tensor.data) {
-                        if !sim.has_synapse(*synapse) {
-                            return Err(format!("{sink}: the scene has no synapse {synapse}"));
-                        }
-                        let factor = multiplier(*value, *offset, *scale);
-                        match effects.synapse_gains.iter_mut().find(|(s, _)| s == synapse) {
-                            Some((_, total)) => *total *= factor,
-                            None => effects.synapse_gains.push((*synapse, factor)),
-                        }
-                    }
-                }
-                ModelOutput::Ignore => {}
+                drive(sink, &tap.output, &values, sim, &mut effects)?;
             }
         }
         for (i, values) in next_state {
@@ -255,6 +251,54 @@ impl ModelInstance {
         }
         Ok((Step::Ran(effects), activations))
     }
+}
+
+/// Write one sink's values into `effects`: element i of `values` drives
+/// target i of `output`.
+fn drive(sink: &str, output: &ModelOutput, values: &[f32], sim: &impl SimState, effects: &mut Effects) -> Result<(), String> {
+    let missing = |tap: &SegmentRef| format!("{sink}: no segment {} in neuron {}", tap.segment, tap.neuron);
+    match output {
+        ModelOutput::InjectCurrent { taps, scale_uamps_per_square_cm } => {
+            for (tap, value) in taps.iter().zip(values) {
+                sim.voltage_mv(*tap).ok_or_else(|| missing(tap))?;
+                let current = value * scale_uamps_per_square_cm;
+                match effects.currents.iter_mut().find(|(t, _)| t == tap) {
+                    Some((_, total)) => *total += current,
+                    None => effects.currents.push((*tap, current)),
+                }
+            }
+        }
+        ModelOutput::ScaleConductance { taps, channel, offset, scale } => {
+            for (tap, value) in taps.iter().zip(values) {
+                let channels = sim.channel_count(*tap).ok_or_else(|| missing(tap))?;
+                if let Some(c) = channel.filter(|c| *c as usize >= channels) {
+                    return Err(format!(
+                        "{sink}: segment {} in neuron {} has {channels} channels, so there is no channel {c}",
+                        tap.segment, tap.neuron
+                    ));
+                }
+                let factor = multiplier(*value, *offset, *scale);
+                match effects.conductance_scales.iter_mut().find(|(t, c, _)| t == tap && c == channel) {
+                    Some((_, _, total)) => *total *= factor,
+                    None => effects.conductance_scales.push((*tap, *channel, factor)),
+                }
+            }
+        }
+        ModelOutput::SynapticGain { synapses, offset, scale } => {
+            for (synapse, value) in synapses.iter().zip(values) {
+                if !sim.has_synapse(*synapse) {
+                    return Err(format!("{sink}: the scene has no synapse {synapse}"));
+                }
+                let factor = multiplier(*value, *offset, *scale);
+                match effects.synapse_gains.iter_mut().find(|(s, _)| s == synapse) {
+                    Some((_, total)) => *total *= factor,
+                    None => effects.synapse_gains.push((*synapse, factor)),
+                }
+            }
+        }
+        ModelOutput::Ignore => {}
+    }
+    Ok(())
 }
 
 /// A multiplier from a model output: `max(0, offset + scale * value)`.

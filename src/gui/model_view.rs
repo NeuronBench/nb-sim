@@ -58,7 +58,8 @@ struct ViewSlot {
     placements: Vec<Placement>,
     meshes: Vec<Option<Handle<Mesh>>>,
     colored_runs: u64,
-    /// (trace index, element) → the segment it drives.
+    /// (trace index, element, segment it drives), for graph outputs and
+    /// hidden taps.
     taps: Vec<(usize, usize, SegmentRef)>,
 }
 
@@ -137,7 +138,21 @@ fn sync_model_view(
                     key.push_str(&format!("({:.0},{:.0},{:.0})", p.x, p.y, p.z));
                 }
             }
-            wanted.push((s, anchors, taps));
+            // Lines (layer, element, segment): every graph-output tap, then
+            // every hidden tap.
+            let mut lines: Vec<(usize, usize, SegmentRef)> = taps
+                .iter()
+                .flat_map(|(layer, refs)| refs.iter().enumerate().map(move |(i, r)| (*layer, i, *r)))
+                .collect();
+            for tap in &instance.spec.hidden {
+                let Some(layer) = slot.activations.iter().rposition(|a| a.name == tap.value) else { continue };
+                let refs = match &tap.output {
+                    ModelOutput::InjectCurrent { taps, .. } | ModelOutput::ScaleConductance { taps, .. } => taps,
+                    _ => continue,
+                };
+                lines.extend(tap.elements.iter().zip(refs).map(|(e, r)| (layer, *e as usize, *r)));
+            }
+            wanted.push((s, anchors, lines));
         }
     }
     if view.key.as_deref() == Some(key.as_str()) {
@@ -180,10 +195,6 @@ fn sync_model_view(
                 ));
                 Some(handle)
             })
-            .collect();
-        let taps = taps
-            .into_iter()
-            .flat_map(|(layer, refs)| refs.into_iter().enumerate().map(move |(i, r)| (layer, i, r)))
             .collect();
         view.slots.push(ViewSlot { slot: s, placements, meshes: handles, colored_runs: u64::MAX, taps });
     }
@@ -343,7 +354,7 @@ fn draw_model_view(
             if s > 0.0 { (value(l, i).abs() / s).clamp(0.0, 1.0) } else { 0.0 }
         };
 
-        // Outputs hang above the segments they drive.
+        // A line from each output or hidden-tap element to the segment it drives.
         for (layer, i, tap) in &vs.taps {
             let (Some(from), Some(to)) = (at(*layer, *i), positions.get(tap)) else { continue };
             let [r, g, b] = WARM;

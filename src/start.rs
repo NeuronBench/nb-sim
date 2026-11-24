@@ -15,6 +15,7 @@ use crate::gui::run_gui;
 use crate::gui::load::{handle_loaded_neuron, SceneSource};
 use crate::gui::model_view::{model_view_tooltip, ModelViewPlugin};
 use crate::gui::models_panel::run_models_panel;
+use crate::gui::canvas_panel::run_canvas_panel;
 use crate::gui::scene_panel::run_scene_panel;
 use crate::integrations::grace::{self, GraceScene};
 use crate::integrations::neuroml::sample as neuroml_sample;
@@ -73,7 +74,7 @@ pub fn start(
         .add_plugins(ModelViewPlugin)
         .add_systems(Startup, setup_scene)
         .insert_resource(ClearColor(Srgba::hex("#0e0e1f").unwrap().into()))
-        .add_systems(EguiPrimaryContextPass, (run_gui, run_scene_panel, run_models_panel, model_view_tooltip))
+        .add_systems(EguiPrimaryContextPass, (run_gui, run_scene_panel, run_models_panel, run_canvas_panel, model_view_tooltip))
         .add_systems(Update, (handle_loaded_neuron, debug_screenshot));
 
         if demo {

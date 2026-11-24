@@ -166,6 +166,7 @@ pub fn setup(app: &mut App) {
     app.init_resource::<SceneLoader>();
     app.init_resource::<SceneParams>();
     app.init_resource::<SceneDiagnostics>();
+    app.init_resource::<crate::canvas::SceneCanvases>();
     let (tx, rx) = unbounded();
     app.insert_resource(GraceSceneSender(tx));
     app.insert_resource(GraceSceneReceiver(rx));
@@ -252,7 +253,7 @@ pub fn drive_scene_loader(
     time: Res<Time>,
     entities: SceneEntities,
     scene_sender: Res<GraceSceneSender>,
-    (mut models, model_sender): (ResMut<SceneModels>, Res<ModelFetchSender>),
+    (mut models, model_sender, mut canvases): (ResMut<SceneModels>, Res<ModelFetchSender>, ResMut<crate::canvas::SceneCanvases>),
     mut last_debug_reload: Local<f64>,
 ) {
     while let Ok((path, result)) = receiver.0.try_recv() {
@@ -331,6 +332,7 @@ pub fn drive_scene_loader(
                     entities.despawn_all(&mut commands);
                     let refetch = std::mem::take(&mut loader.refetch_models);
                     models.load(&scene.models, &root, refetch, &model_sender);
+                    canvases.load(&scene.canvases);
                     let _ = scene_sender.0.send(GraceScene(scene));
                 }
                 Err(d) => {

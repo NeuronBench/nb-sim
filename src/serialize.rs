@@ -8,6 +8,28 @@ pub struct Scene {
     /// ONNX models coupled to the simulation.
     #[serde(default)]
     pub models: Vec<SceneModel>,
+    /// Grids of injected current painted in the Canvas window.
+    #[serde(default)]
+    pub canvases: Vec<Canvas>,
+}
+
+/// A grid of current injections, one cell per segment, painted with the
+/// mouse in the Canvas window: left-drag raises a cell, right-drag lowers
+/// it. Cells range over -1..1; a cell at 1 injects
+/// `max_uamps_per_square_cm` into its segment.
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct Canvas {
+    /// Shown as the window title; the painting is kept across reloads while
+    /// the name and size stay the same.
+    pub name: String,
+    pub width: u32,
+    pub height: u32,
+    /// The segment under each cell, row-major (`width * height` of them).
+    pub taps: Vec<SegmentRef>,
+    pub max_uamps_per_square_cm: f32,
+    /// Starting cell values in -1..1, row-major; empty for all zeros.
+    #[serde(default)]
+    pub initial: Vec<f32>,
 }
 
 /// An ONNX model that reads simulation state and drives the simulation.
@@ -22,6 +44,20 @@ pub struct SceneModel {
     pub inputs: Vec<ModelInput>,
     /// One entry per graph output, in graph order.
     pub outputs: Vec<ModelOutput>,
+    /// Extra sinks fed from intermediate values (hidden layers).
+    #[serde(default)]
+    pub hidden: Vec<HiddenTap>,
+}
+
+/// Drive the simulation from part of an intermediate value of a model.
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct HiddenTap {
+    /// The value's name, as the Models window shows it (`conv2d1`, `relu2`).
+    pub value: String,
+    /// Flat (row-major) indices into the value: element `elements[i]` drives
+    /// target i of `output`.
+    pub elements: Vec<u32>,
+    pub output: ModelOutput,
 }
 
 /// Where a model input's values come from. Each fills the input tensor in

@@ -198,3 +198,75 @@ fn onnx_mnist_demo_runs_the_zoo_cnn_on_ascii_digits() {
     assert!(shapes.contains(&("Conv2d", vec![1, 16, 14, 14])), "{shapes:?}");
     assert!(shapes.contains(&("MaxPool2d", vec![1, 16, 4, 4])), "{shapes:?}");
 }
+
+/// Voltages read from a map; segments not in it don't exist.
+struct MapSim(std::collections::HashMap<nb_sim::serialize::SegmentRef, f32>);
+
+impl nb_sim::onnx::coupling::SimState for MapSim {
+    fn voltage_mv(&self, segment: nb_sim::serialize::SegmentRef) -> Option<f32> {
+        self.0.get(&segment).copied()
+    }
+    fn time_sec(&self) -> f32 {
+        0.0
+    }
+    fn channel_count(&self, segment: nb_sim::serialize::SegmentRef) -> Option<usize> {
+        self.0.get(&segment).map(|_| 3)
+    }
+    fn has_synapse(&self, _: u32) -> bool {
+        false
+    }
+}
+
+#[test]
+fn onnx_mnist_neurons_demo_reads_the_painted_retina_and_drives_allen_cells() {
+    use nb_sim::onnx::coupling::{ModelInstance, Step};
+    use nb_sim::serialize::SegmentRef;
+
+    let path = lib("demos/onnx_mnist_neurons.ncl");
+    let linked = link_blocking(&path).unwrap();
+    let scene = scene_from_linked(&linked, &[Override::number("params.sample", 6.0)]).unwrap();
+    // 784 pixel cells, 4 hidden and 10 digit cells, the Allen ones decimated
+    // to about a tenth of the original's 1497 points.
+    assert_eq!(scene.neurons.len(), 784 + 14);
+    let allen = &scene.neurons[784].neuron;
+    assert!((100..200).contains(&allen.segments.len()), "{}", allen.segments.len());
+
+    // The canvas starts as the sample image: a 3 reaching well down the grid.
+    let canvas = &scene.canvases[0];
+    assert_eq!((canvas.width, canvas.height, canvas.taps.len(), canvas.initial.len()), (28, 28, 784, 784));
+    let rows: Vec<usize> = (0..28).filter(|r| canvas.initial[r * 28..(r + 1) * 28].iter().any(|v| *v > 0.0)).collect();
+    assert!(rows.len() > 12 && *rows.last().unwrap() > 18, "painted rows {rows:?}");
+
+    // Pixel cells sit at rest (the black level the model's input expects)
+    // plus their painted depolarization (1 mV per µA/cm² on the pixel
+    // membrane); every other segment rests.
+    let nb_sim::serialize::ModelInput::Voltages { offset_mv: rest, .. } = scene.models[0].inputs[0] else {
+        panic!("the model reads the retina's voltages")
+    };
+    let mut volts = std::collections::HashMap::new();
+    for n in 784..scene.neurons.len() {
+        for s in &scene.neurons[n].neuron.segments {
+            volts.insert(SegmentRef { neuron: n as u32, segment: s.id as u32 }, rest);
+        }
+    }
+    for (tap, v) in canvas.taps.iter().zip(&canvas.initial) {
+        volts.insert(*tap, rest + v * canvas.max_uamps_per_square_cm);
+    }
+
+    let model = &scene.models[0];
+    let bytes = std::fs::read(nb_nickel::resolve_path(&path, &model.url)).unwrap();
+    let program = nb_sim::onnx::Program::from_bytes(&bytes, Default::default()).unwrap();
+    let mut instance = ModelInstance::bind(std::sync::Arc::new(program), model.clone()).unwrap();
+    let (Step::Ran(effects), _) = instance.step_traced(&MapSim(volts)).unwrap() else { panic!("not ready") };
+
+    let soma = |n: u32| effects.currents.iter().find(|(t, _)| *t == SegmentRef { neuron: n, segment: 1 }).map_or(0.0, |c| c.1);
+    let winner = (0..10).max_by(|a, b| soma(788 + a).total_cmp(&soma(788 + b))).unwrap();
+    assert_eq!(winner, 3);
+    assert!(soma(788 + 3) > 100.0);
+    // Each hidden cell gets current on its dendrite tips, not its soma.
+    for h in 0..4u32 {
+        let on_tips: Vec<_> = effects.currents.iter().filter(|(t, _)| t.neuron == 784 + h).collect();
+        assert!(!on_tips.is_empty() && on_tips.iter().all(|(t, _)| t.segment != 1), "hidden cell {h}: {on_tips:?}");
+    }
+    assert!(effects.currents.iter().filter(|(t, _)| (784..788).contains(&t.neuron)).any(|(_, c)| *c > 0.0));
+}
