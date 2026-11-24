@@ -157,7 +157,7 @@ pub struct GpuSynapseData {
     pub calcium_decay: f32,
     /// Molar per (µA·s) of calcium current: 1 / (2 F V).
     pub calcium_per_microamp_second: f32,
-    /// Graupner–Brunel efficacy rho (state).
+    /// Efficacy rho of either plasticity rule (state).
     pub efficacy: f32,
     /// 0 means the synapse is not plastic.
     pub plasticity_tau: f32,
@@ -168,6 +168,17 @@ pub struct GpuSynapseData {
     pub bistability: f32,
     pub weight_at_0: f32,
     pub weight_at_1: f32,
+    /// Pair STDP: 0 for `stdp_pre_tau` means the rule is off.
+    pub stdp_threshold: f32,
+    pub stdp_pre_tau: f32,
+    pub stdp_post_tau: f32,
+    pub stdp_potentiation: f32,
+    pub stdp_depression: f32,
+    /// STDP state: traces, and whether each side was above threshold.
+    pub pre_trace: f32,
+    pub post_trace: f32,
+    pub pre_above: f32,
+    pub post_above: f32,
     pub pumps: [GpuTransmitterPump; MAX_PUMPS],
     pub receptors: [GpuReceptor; MAX_RECEPTORS],
 }

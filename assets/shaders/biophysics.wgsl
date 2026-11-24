@@ -127,6 +127,15 @@ struct GpuSynapseData {
     bistability: f32,
     weight_at_0: f32,
     weight_at_1: f32,
+    stdp_threshold: f32,
+    stdp_pre_tau: f32,
+    stdp_post_tau: f32,
+    stdp_potentiation: f32,
+    stdp_depression: f32,
+    pre_trace: f32,
+    post_trace: f32,
+    pre_above: f32,
+    post_above: f32,
     pumps: array<GpuTransmitterPump, 4>,
     receptors: array<GpuReceptor, 4>,
 }
@@ -483,6 +492,32 @@ fn step_synapses(@builtin(global_invocation_id) global_id: vec3<u32>) {
             drho -= syn.depression_rate * rho;
         }
         syn.efficacy = clamp(rho + dt * drho / syn.plasticity_tau, 0.0, 1.0);
+    }
+
+    // Pair STDP (mirrors cpu_sim::step_spike_timing).
+    if syn.stdp_pre_tau > 0.0 {
+        syn.pre_trace *= exp(-dt / syn.stdp_pre_tau);
+        syn.post_trace *= exp(-dt / syn.stdp_post_tau);
+        let pre_up = pre_v > syn.stdp_threshold;
+        let post_up = post_v > syn.stdp_threshold;
+        let pre_spike = pre_up && syn.pre_above < 0.5;
+        let post_spike = post_up && syn.post_above < 0.5;
+        syn.pre_above = select(0.0, 1.0, pre_up);
+        syn.post_above = select(0.0, 1.0, post_up);
+        var rho = syn.efficacy;
+        if pre_spike {
+            rho -= syn.stdp_depression * rho * syn.post_trace;
+        }
+        if post_spike {
+            rho += syn.stdp_potentiation * (1.0 - rho) * syn.pre_trace;
+        }
+        if pre_spike {
+            syn.pre_trace = 1.0;
+        }
+        if post_spike {
+            syn.post_trace = 1.0;
+        }
+        syn.efficacy = clamp(rho, 0.0, 1.0);
     }
 
     // Write back updated synapse (transmitter, binding, gates, calcium, efficacy)

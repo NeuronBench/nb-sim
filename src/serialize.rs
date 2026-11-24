@@ -282,6 +282,33 @@ pub struct SynapseMembranes {
     /// Calcium-driven change of the synapse's strength. Needs `calcium`.
     #[serde(default)]
     pub plasticity: Option<CalciumPlasticity>,
+    /// Pair-based spike-timing-dependent plasticity, an alternative to
+    /// `plasticity` that needs no calcium.
+    #[serde(default)]
+    pub spike_timing: Option<SpikeTimingPlasticity>,
+}
+
+/// Phenomenological, pair-based STDP (nearest spike, soft bounds). A spike
+/// is an upward crossing of `spike_threshold_mv` by the pre- or postsynaptic
+/// segment. Each spike sets its side's trace to 1, which then decays with
+/// `pre_trace_sec` (presynaptic) or `post_trace_sec` (postsynaptic). On a
+/// postsynaptic spike the efficacy `rho` (0..1) gains
+/// `potentiation * (1 - rho) * pre_trace`; on a presynaptic spike it loses
+/// `depression * rho * post_trace`. So a presynaptic spike shortly before a
+/// postsynaptic one strengthens the synapse, and one shortly after weakens
+/// it, each by an amount that falls off exponentially with the delay.
+/// Receptors marked `plastic` have their conductance scaled by
+/// `weight_at_0 + rho (weight_at_1 - weight_at_0)`.
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct SpikeTimingPlasticity {
+    pub spike_threshold_mv: f32,
+    pub pre_trace_sec: f32,
+    pub post_trace_sec: f32,
+    pub potentiation: f32,
+    pub depression: f32,
+    pub initial_efficacy: f32,
+    pub weight_at_0: f32,
+    pub weight_at_1: f32,
 }
 
 /// Spine calcium: `d[Ca]/dt = ([Ca]_rest - [Ca]) / decay - I_Ca / (2 F V)`,

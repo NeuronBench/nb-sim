@@ -46,5 +46,5 @@ fn shader_structs_match_the_uploaded_structs() {
     }
     // The fields added for plasticity are where both sides expect them.
     assert_eq!(wgsl("GpuReceptor").1, 13);
-    assert_eq!(wgsl("GpuSynapseData").1, 26);
+    assert_eq!(wgsl("GpuSynapseData").1, 35);
 }

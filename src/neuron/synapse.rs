@@ -19,18 +19,34 @@ pub struct SynapseMembranes {
     pub surface_area: AreaSquareMillimeters,
     pub calcium: Option<serialize::SynapticCalcium>,
     pub plasticity: Option<serialize::CalciumPlasticity>,
+    pub spike_timing: Option<serialize::SpikeTimingPlasticity>,
+    /// STDP state: the pre- and postsynaptic traces, and whether each side
+    /// was above the spike threshold (1) or not (0) at the last step.
+    pub spike_traces: [f32; 4],
     /// Spine Ca2+ (state; the resting level without a calcium pool).
     pub calcium_molar: f32,
-    /// Graupner–Brunel efficacy `rho` in 0..1 (state).
+    /// Efficacy `rho` in 0..1 of either plasticity rule (state).
     pub efficacy: f32,
 }
 
 impl SynapseMembranes {
     /// The multiplier on receptors marked `plastic`.
     pub fn weight(&self) -> f32 {
-        match &self.plasticity {
-            Some(p) => p.weight_at_0 + self.efficacy * (p.weight_at_1 - p.weight_at_0),
-            None => 1.0,
+        let (w0, w1) = self.weight_range();
+        w0 + self.efficacy * (w1 - w0)
+    }
+
+    /// Whether either plasticity rule changes this synapse.
+    pub fn is_plastic(&self) -> bool {
+        self.plasticity.is_some() || self.spike_timing.is_some()
+    }
+
+    /// The weight at efficacy 0 and 1 (1 and 1 when not plastic).
+    pub fn weight_range(&self) -> (f32, f32) {
+        match (&self.plasticity, &self.spike_timing) {
+            (Some(p), _) => (p.weight_at_0, p.weight_at_1),
+            (None, Some(p)) => (p.weight_at_0, p.weight_at_1),
+            (None, None) => (1.0, 1.0),
         }
     }
 }
@@ -173,6 +189,7 @@ impl SynapseMembranes {
             surface_area_square_mm: self.surface_area.0,
             calcium: self.calcium.clone(),
             plasticity: self.plasticity.clone(),
+            spike_timing: self.spike_timing.clone(),
         }
     }
 
@@ -190,6 +207,14 @@ impl SynapseMembranes {
                 return Err(format!("plasticity needs time_constant_sec above 0 and initial_efficacy in 0..1, got {p:?}"));
             }
         }
+        if let Some(p) = &s.spike_timing {
+            if s.plasticity.is_some() {
+                return Err("a synapse takes one plasticity rule: `plasticity` (calcium) or `spike_timing`, not both".into());
+            }
+            if !(p.pre_trace_sec > 0.0 && p.post_trace_sec > 0.0) || !(0.0..=1.0).contains(&p.initial_efficacy) {
+                return Err(format!("spike_timing needs trace time constants above 0 and initial_efficacy in 0..1, got {p:?}"));
+            }
+        }
         let transmitter_concentrations = TransmitterConcentrations::deserialize(&s.transmitter_concentrations)?;
         let mut postsynaptic_receptors: Vec<Receptor> =
             s.postsynaptic_receptors.iter().map(|r| Receptor::deserialize(r)).collect::<Result<_,_>>()?;
@@ -204,9 +229,16 @@ impl SynapseMembranes {
             postsynaptic_receptors,
             surface_area: AreaSquareMillimeters(s.surface_area_square_mm),
             calcium_molar: s.calcium.as_ref().map_or(0.0, |c| c.resting_molar),
-            efficacy: s.plasticity.as_ref().map_or(0.0, |p| p.initial_efficacy),
+            efficacy: s
+                .plasticity
+                .as_ref()
+                .map(|p| p.initial_efficacy)
+                .or(s.spike_timing.as_ref().map(|p| p.initial_efficacy))
+                .unwrap_or(0.0),
             calcium: s.calcium.clone(),
             plasticity: s.plasticity.clone(),
+            spike_timing: s.spike_timing.clone(),
+            spike_traces: [0.0; 4],
         })
     }
 }
@@ -477,6 +509,8 @@ pub mod examples {
             surface_area: AreaSquareMillimeters(1e-6),
             calcium: None,
             plasticity: None,
+            spike_timing: None,
+            spike_traces: [0.0; 4],
             calcium_molar: 0.0,
             efficacy: 0.0,
         }

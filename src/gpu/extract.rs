@@ -271,8 +271,17 @@ pub fn extract_to_gpu_state(
                 depression_rate: sm.plasticity.as_ref().map_or(0.0, |p| p.depression_rate),
                 potentiation_rate: sm.plasticity.as_ref().map_or(0.0, |p| p.potentiation_rate),
                 bistability: sm.plasticity.as_ref().map_or(0.0, |p| p.bistability),
-                weight_at_0: sm.plasticity.as_ref().map_or(1.0, |p| p.weight_at_0),
-                weight_at_1: sm.plasticity.as_ref().map_or(1.0, |p| p.weight_at_1),
+                weight_at_0: sm.weight_range().0,
+                weight_at_1: sm.weight_range().1,
+                stdp_threshold: sm.spike_timing.as_ref().map_or(0.0, |p| p.spike_threshold_mv),
+                stdp_pre_tau: sm.spike_timing.as_ref().map_or(0.0, |p| p.pre_trace_sec),
+                stdp_post_tau: sm.spike_timing.as_ref().map_or(0.0, |p| p.post_trace_sec),
+                stdp_potentiation: sm.spike_timing.as_ref().map_or(0.0, |p| p.potentiation),
+                stdp_depression: sm.spike_timing.as_ref().map_or(0.0, |p| p.depression),
+                pre_trace: sm.spike_traces[0],
+                post_trace: sm.spike_traces[1],
+                pre_above: sm.spike_traces[2],
+                post_above: sm.spike_traces[3],
                 pumps,
                 receptors,
             });
@@ -400,6 +409,8 @@ pub fn writeback_to_ecs(
             synapse.synapse_membranes.transmitter_concentrations.gaba.0 = gpu_syn.gaba_conc;
             synapse.synapse_membranes.calcium_molar = gpu_syn.calcium;
             synapse.synapse_membranes.efficacy = gpu_syn.efficacy;
+            synapse.synapse_membranes.spike_traces =
+                [gpu_syn.pre_trace, gpu_syn.post_trace, gpu_syn.pre_above, gpu_syn.post_above];
 
             // Write back receptor channel gate states
             let num_receptors = synapse

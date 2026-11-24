@@ -217,6 +217,38 @@ fn step_synapse_cpu(
     segments[syn.post_segment_idx as usize].voltage += delta_mv;
 
     step_calcium_and_efficacy(syn, calcium_current_per_cm2 * gain * syn.surface_area, params.dt);
+    step_spike_timing(syn, pre_v, post_v, params.dt);
+}
+
+/// Pair STDP (see `serialize::SpikeTimingPlasticity`): decay the traces,
+/// detect upward threshold crossings, and move the efficacy. With both
+/// spikes in one step, each sees the other's trace from before it.
+pub fn step_spike_timing(syn: &mut GpuSynapseData, pre_v: f32, post_v: f32, dt: f32) {
+    if syn.stdp_pre_tau <= 0.0 {
+        return;
+    }
+    syn.pre_trace *= (-dt / syn.stdp_pre_tau).exp();
+    syn.post_trace *= (-dt / syn.stdp_post_tau).exp();
+    let pre_up = pre_v > syn.stdp_threshold;
+    let post_up = post_v > syn.stdp_threshold;
+    let pre_spike = pre_up && syn.pre_above < 0.5;
+    let post_spike = post_up && syn.post_above < 0.5;
+    syn.pre_above = if pre_up { 1.0 } else { 0.0 };
+    syn.post_above = if post_up { 1.0 } else { 0.0 };
+    let mut rho = syn.efficacy;
+    if pre_spike {
+        rho -= syn.stdp_depression * rho * syn.post_trace;
+    }
+    if post_spike {
+        rho += syn.stdp_potentiation * (1.0 - rho) * syn.pre_trace;
+    }
+    if pre_spike {
+        syn.pre_trace = 1.0;
+    }
+    if post_spike {
+        syn.post_trace = 1.0;
+    }
+    syn.efficacy = rho.clamp(0.0, 1.0);
 }
 
 /// The bound fraction after `dt`, relaxing toward `target` with time

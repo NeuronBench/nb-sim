@@ -641,8 +641,8 @@ fn print_voltages(
 //     }
 // }
 
-/// Every 2 s of wall time, log each plastic synapse's peak spine calcium
-/// since the last line and its efficacy. Only the CPU backend writes
+/// Every 2 s of wall time, log each plastic synapse's peak voltages (and
+/// spine calcium) since the last line and its efficacy. Only the CPU backend writes
 /// synapse state back from the flat arrays, so on the GPU backend this
 /// stays quiet rather than log stale values.
 fn log_plasticity(
@@ -658,7 +658,7 @@ fn log_plasticity(
         return;
     }
     for (a, s) in &synapses {
-        if s.synapse_membranes.plasticity.is_some() {
+        if s.synapse_membranes.is_plastic() {
             let v = |e| voltages.get(e).map_or(f32::NEG_INFINITY, |v| v.0 .0);
             let peak = peaks.entry(a.0).or_insert([0.0, f32::NEG_INFINITY, f32::NEG_INFINITY]);
             peak[0] = peak[0].max(s.synapse_membranes.calcium_molar);
@@ -673,17 +673,17 @@ fn log_plasticity(
     *since = 0.0;
     let mut lines: Vec<(u32, String)> = synapses
         .iter()
-        .filter(|(_, s)| s.synapse_membranes.plasticity.is_some())
+        .filter(|(_, s)| s.synapse_membranes.is_plastic())
         .map(|(a, s)| {
             let m = &s.synapse_membranes;
             let [ca, pre, post] = peaks.remove(&a.0).unwrap_or([m.calcium_molar, f32::NAN, f32::NAN]);
             (
                 a.0,
                 format!(
-                    "t = {:.3} s, synapse {}: peaks: calcium {:.2} µM, pre {:.0} mV, post {:.0} mV; efficacy {:.3}, weight {:.2}",
+                    "t = {:.3} s, synapse {}: peaks: {}pre {:.0} mV, post {:.0} mV; efficacy {:.3}, weight {:.2}",
                     timestamp.0,
                     a.0,
-                    ca * 1e6,
+                    if m.calcium.is_some() { format!("calcium {:.2} µM, ", ca * 1e6) } else { String::new() },
                     pre,
                     post,
                     m.efficacy,
@@ -693,7 +693,8 @@ fn log_plasticity(
         })
         .collect();
     lines.sort_by_key(|l| l.0);
-    for (_, line) in lines {
+    // Large learning networks would flood the log; their first few stand in.
+    for (_, line) in lines.into_iter().take(12) {
         info!("{line}");
     }
 }

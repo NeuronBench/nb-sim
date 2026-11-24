@@ -214,6 +214,8 @@ pub fn spawn_neuroml_synapse(
                     surface_area: crate::dimension::AreaSquareMillimeters(1.0),
                     calcium: None,
                     plasticity: None,
+                    spike_timing: None,
+                    spike_traces: [0.0; 4],
                     calcium_molar: 0.0,
                     efficacy: 0.0,
                 },
