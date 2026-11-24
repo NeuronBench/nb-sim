@@ -17,6 +17,22 @@ pub struct SynapseMembranes {
     pub presynaptic_pumps: Vec<TransmitterPump>,
     pub postsynaptic_receptors: Vec<Receptor>,
     pub surface_area: AreaSquareMillimeters,
+    pub calcium: Option<serialize::SynapticCalcium>,
+    pub plasticity: Option<serialize::CalciumPlasticity>,
+    /// Spine Ca2+ (state; the resting level without a calcium pool).
+    pub calcium_molar: f32,
+    /// Graupner–Brunel efficacy `rho` in 0..1 (state).
+    pub efficacy: f32,
+}
+
+impl SynapseMembranes {
+    /// The multiplier on receptors marked `plastic`.
+    pub fn weight(&self) -> f32 {
+        match &self.plasticity {
+            Some(p) => p.weight_at_0 + self.efficacy * (p.weight_at_1 - p.weight_at_0),
+            None => 1.0,
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -155,16 +171,42 @@ impl SynapseMembranes {
             presynaptic_pumps: self.presynaptic_pumps.iter().map(|p| p.serialize()).collect(),
             postsynaptic_receptors: self.postsynaptic_receptors.iter().map(|r| r.serialize()).collect(),
             surface_area_square_mm: self.surface_area.0,
+            calcium: self.calcium.clone(),
+            plasticity: self.plasticity.clone(),
         }
     }
 
     pub fn deserialize(s: &serialize::SynapseMembranes) -> Result<Self, String> {
+        if let Some(c) = &s.calcium {
+            if !(c.decay_sec > 0.0 && c.spine_volume_cubic_um > 0.0 && c.resting_molar >= 0.0) {
+                return Err(format!("synaptic calcium needs decay_sec and spine_volume_cubic_um above 0, got {c:?}"));
+            }
+        }
+        if let Some(p) = &s.plasticity {
+            if s.calcium.is_none() {
+                return Err("synaptic plasticity is driven by calcium: give the synapse a `calcium` pool too".into());
+            }
+            if !(p.time_constant_sec > 0.0) || !(0.0..=1.0).contains(&p.initial_efficacy) {
+                return Err(format!("plasticity needs time_constant_sec above 0 and initial_efficacy in 0..1, got {p:?}"));
+            }
+        }
+        let transmitter_concentrations = TransmitterConcentrations::deserialize(&s.transmitter_concentrations)?;
+        let mut postsynaptic_receptors: Vec<Receptor> =
+            s.postsynaptic_receptors.iter().map(|r| Receptor::deserialize(r)).collect::<Result<_,_>>()?;
+        // Start each receptor bound as it would be at the cleft's resting level.
+        for r in &mut postsynaptic_receptors {
+            r.bound = r.neurotransmitter_sensitivity.gating_coefficient(&transmitter_concentrations);
+        }
         Ok(SynapseMembranes {
             cleft_solution: Solution::deserialize(&s.cleft_solution)?,
-            transmitter_concentrations: TransmitterConcentrations::deserialize(&s.transmitter_concentrations)?,
+            transmitter_concentrations,
             presynaptic_pumps: s.presynaptic_pumps.iter().map(|p| TransmitterPump::deserialize(p)).collect::<Result<_,_>>()?,
-            postsynaptic_receptors: s.postsynaptic_receptors.iter().map(|r| Receptor::deserialize(r)).collect::<Result<_,_>>()?,
+            postsynaptic_receptors,
             surface_area: AreaSquareMillimeters(s.surface_area_square_mm),
+            calcium_molar: s.calcium.as_ref().map_or(0.0, |c| c.resting_molar),
+            efficacy: s.plasticity.as_ref().map_or(0.0, |p| p.initial_efficacy),
+            calcium: s.calcium.clone(),
+            plasticity: s.plasticity.clone(),
         })
     }
 }
@@ -199,6 +241,11 @@ impl FromStr for Transmitter {
 pub struct Receptor {
     pub membrane_channel: MembraneChannel,
     pub neurotransmitter_sensitivity: Sensitivity,
+    pub binding: Option<serialize::BindingKinetics>,
+    pub magnesium_block: Option<serialize::MagnesiumBlock>,
+    pub plastic: bool,
+    /// Fraction of receptors with transmitter bound (state).
+    pub bound: f32,
 }
 
 impl Receptor {
@@ -206,16 +253,29 @@ impl Receptor {
         serialize::Receptor {
             membrane_channel: self.membrane_channel.serialize(),
             neurotransmitter_sensitivity: self.neurotransmitter_sensitivity.serialize(),
+            binding: self.binding.clone(),
+            magnesium_block: self.magnesium_block.clone(),
+            plastic: self.plastic,
         }
     }
 
     pub fn deserialize(s: &serialize::Receptor) -> Result<Self, String> {
+        if let Some(b) = &s.binding {
+            if !(b.rise_sec > 0.0 && b.decay_sec > 0.0) {
+                return Err(format!("receptor binding needs rise_sec and decay_sec above 0, got {b:?}"));
+            }
+        }
         Ok(Receptor {
             membrane_channel: MembraneChannel::deserialize(&s.membrane_channel),
             neurotransmitter_sensitivity: Sensitivity::deserialize(&s.neurotransmitter_sensitivity)?,
+            binding: s.binding.clone(),
+            magnesium_block: s.magnesium_block.clone(),
+            plastic: s.plastic,
+            bound: 0.0,
         })
     }
 }
+
 
 #[derive(Clone, Debug)]
 pub struct Sensitivity {
@@ -399,6 +459,10 @@ pub mod examples {
                 concentration_at_half_max: Molar(3e-3), // TODO: determine the right value.
                 slope: 10000.0,                            // TODO: determine the right value.
             },
+            binding: None,
+            magnesium_block: None,
+            plastic: false,
+            bound: 0.0,
         }
     }
     pub fn excitatory_synapse(initial_voltage: &MilliVolts) -> SynapseMembranes {
@@ -411,6 +475,10 @@ pub mod examples {
             presynaptic_pumps: vec![glutamate_release()],
             postsynaptic_receptors: vec![ampa_receptor(initial_voltage)],
             surface_area: AreaSquareMillimeters(1e-6),
+            calcium: None,
+            plasticity: None,
+            calcium_molar: 0.0,
+            efficacy: 0.0,
         }
     }
 }

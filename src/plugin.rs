@@ -67,6 +67,7 @@ impl Plugin for NbSimPlugin {
                 .after(setup_gpu_readback),
         ));
 
+        app.add_systems(Update, log_plasticity);
         app.add_systems(Update, apply_voltage_to_materials)
             .add_systems(Update, apply_current_to_stimulator_material)
             .add_systems(Update, step_oscilloscope_system)
@@ -624,3 +625,60 @@ fn print_voltages(
 //         synapses: vec![],
 //     }
 // }
+
+/// Every 2 s of wall time, log each plastic synapse's peak spine calcium
+/// since the last line and its efficacy. Only the CPU backend writes
+/// synapse state back from the flat arrays, so on the GPU backend this
+/// stays quiet rather than log stale values.
+fn log_plasticity(
+    backend: Res<SimBackend>,
+    synapses: Query<(&crate::integrations::grace::SynapseAddress, &crate::integrations::grace::Synapse)>,
+    time: Res<Time>,
+    mut since: Local<f32>,
+    voltages: Query<&MembraneVoltage>,
+    timestamp: Res<Timestamp>,
+    mut peaks: Local<std::collections::HashMap<u32, [f32; 3]>>,
+) {
+    if *backend == SimBackend::Gpu {
+        return;
+    }
+    for (a, s) in &synapses {
+        if s.synapse_membranes.plasticity.is_some() {
+            let v = |e| voltages.get(e).map_or(f32::NEG_INFINITY, |v| v.0 .0);
+            let peak = peaks.entry(a.0).or_insert([0.0, f32::NEG_INFINITY, f32::NEG_INFINITY]);
+            peak[0] = peak[0].max(s.synapse_membranes.calcium_molar);
+            peak[1] = peak[1].max(v(s.pre_segment));
+            peak[2] = peak[2].max(v(s.post_segment));
+        }
+    }
+    *since += time.delta_secs();
+    if *since < 2.0 {
+        return;
+    }
+    *since = 0.0;
+    let mut lines: Vec<(u32, String)> = synapses
+        .iter()
+        .filter(|(_, s)| s.synapse_membranes.plasticity.is_some())
+        .map(|(a, s)| {
+            let m = &s.synapse_membranes;
+            let [ca, pre, post] = peaks.remove(&a.0).unwrap_or([m.calcium_molar, f32::NAN, f32::NAN]);
+            (
+                a.0,
+                format!(
+                    "t = {:.3} s, synapse {}: peaks: calcium {:.2} µM, pre {:.0} mV, post {:.0} mV; efficacy {:.3}, weight {:.2}",
+                    timestamp.0,
+                    a.0,
+                    ca * 1e6,
+                    pre,
+                    post,
+                    m.efficacy,
+                    m.weight()
+                ),
+            )
+        })
+        .collect();
+    lines.sort_by_key(|l| l.0);
+    for (_, line) in lines {
+        info!("{line}");
+    }
+}

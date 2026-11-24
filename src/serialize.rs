@@ -274,7 +274,49 @@ pub struct SynapseMembranes {
     pub transmitter_concentrations: TransmitterConcentrations,
     pub presynaptic_pumps: Vec<TransmitterPump>,
     pub postsynaptic_receptors: Vec<Receptor>,
-    pub surface_area_square_mm: f32
+    pub surface_area_square_mm: f32,
+    /// A Ca2+ pool in the postsynaptic spine, fed by the receptors' calcium
+    /// current (an NMDA receptor's, say).
+    #[serde(default)]
+    pub calcium: Option<SynapticCalcium>,
+    /// Calcium-driven change of the synapse's strength. Needs `calcium`.
+    #[serde(default)]
+    pub plasticity: Option<CalciumPlasticity>,
+}
+
+/// Spine calcium: `d[Ca]/dt = ([Ca]_rest - [Ca]) / decay - I_Ca / (2 F V)`,
+/// with `I_Ca` the calcium part of the receptors' current (inward is
+/// negative) and `V` the spine volume.
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct SynapticCalcium {
+    pub resting_molar: f32,
+    pub decay_sec: f32,
+    pub spine_volume_cubic_um: f32,
+}
+
+/// The Graupner–Brunel (2012) calcium rule. The synapse's efficacy `rho`
+/// (0..1) follows
+/// `tau d(rho)/dt = -bistability rho (1 - rho) (1/2 - rho)
+///   + potentiation_rate (1 - rho) [Ca > potentiation_threshold]
+///   - depression_rate rho [Ca > depression_threshold]`,
+/// and receptors marked `plastic` have their conductance scaled by
+/// `weight_at_0 + rho (weight_at_1 - weight_at_0)`: AMPA receptors inserted
+/// or removed. Brief, moderate calcium (a presynaptic spike alone, or a
+/// postsynaptic spike before it) depresses; the large calcium of a
+/// presynaptic spike followed by a postsynaptic one (NMDA receptors bound
+/// and unblocked together) potentiates.
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct CalciumPlasticity {
+    pub depression_threshold_molar: f32,
+    pub potentiation_threshold_molar: f32,
+    pub depression_rate: f32,
+    pub potentiation_rate: f32,
+    pub time_constant_sec: f32,
+    /// Strength of the pull toward rho = 0 or 1 (0 for none).
+    pub bistability: f32,
+    pub initial_efficacy: f32,
+    pub weight_at_0: f32,
+    pub weight_at_1: f32,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
@@ -317,6 +359,32 @@ pub struct TransmitterPumpParams {
 pub struct Receptor {
     pub membrane_channel: MembraneChannel,
     pub neurotransmitter_sensitivity: Sensitivity,
+    /// How fast transmitter binds and unbinds: the bound fraction relaxes
+    /// toward the sensitivity curve with these time constants. Without it,
+    /// binding follows the cleft at once.
+    #[serde(default)]
+    pub binding: Option<BindingKinetics>,
+    /// Voltage-dependent Mg2+ block of the pore (as in NMDA receptors).
+    #[serde(default)]
+    pub magnesium_block: Option<MagnesiumBlock>,
+    /// Scale this receptor's conductance by the synapse's plastic weight.
+    #[serde(default)]
+    pub plastic: bool,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct BindingKinetics {
+    /// Time constant while the bound fraction grows.
+    pub rise_sec: f32,
+    /// Time constant while it falls (unbinding).
+    pub decay_sec: f32,
+}
+
+/// Jahr & Stevens (1990): the conductance is multiplied by
+/// `1 / (1 + [Mg2+] / 3.57 mM * exp(-0.062 / mV * V))`.
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct MagnesiumBlock {
+    pub magnesium_molar: f32,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]

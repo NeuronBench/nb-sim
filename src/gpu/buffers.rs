@@ -121,6 +121,18 @@ pub struct GpuReceptor {
     pub sens_conc_half_max: f32,
     pub sens_slope: f32,
     pub channel: GpuMembraneChannel,
+    /// Bound fraction (state).
+    pub bound: f32,
+    /// Binding time constants; 0 means binding follows the cleft at once.
+    pub binding_rise: f32,
+    pub binding_decay: f32,
+    /// Mg2+ for the pore block; 0 means no block.
+    pub magnesium_molar: f32,
+    /// 1.0 when the synapse's plastic weight scales this receptor.
+    pub plastic: f32,
+    pub _pad0: f32,
+    pub _pad1: f32,
+    pub _pad2: f32,
 }
 
 /// Per-synapse (chemical synapse) data.
@@ -138,7 +150,24 @@ pub struct GpuSynapseData {
     pub surface_area: f32,
     pub num_pumps: f32,
     pub num_receptors: f32,
-    pub _pad: f32,
+    /// Spine Ca2+ (state).
+    pub calcium: f32,
+    pub calcium_rest: f32,
+    /// 0 means the synapse has no calcium pool.
+    pub calcium_decay: f32,
+    /// Molar per (µA·s) of calcium current: 1 / (2 F V).
+    pub calcium_per_microamp_second: f32,
+    /// Graupner–Brunel efficacy rho (state).
+    pub efficacy: f32,
+    /// 0 means the synapse is not plastic.
+    pub plasticity_tau: f32,
+    pub depression_threshold: f32,
+    pub potentiation_threshold: f32,
+    pub depression_rate: f32,
+    pub potentiation_rate: f32,
+    pub bistability: f32,
+    pub weight_at_0: f32,
+    pub weight_at_1: f32,
     pub pumps: [GpuTransmitterPump; MAX_PUMPS],
     pub receptors: [GpuReceptor; MAX_RECEPTORS],
 }

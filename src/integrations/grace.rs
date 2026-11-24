@@ -326,18 +326,29 @@ pub fn spawn_synapse(
     _meshes: &mut ResMut<Assets<Mesh>>,
     _materials: &mut ResMut<Assets<StandardMaterial>>
 ) {
-    if let Ok(parsed_synapse_membranes) = SynapseMembranes::deserialize(&synapse.synapse_membranes) {
-        let pre_segment = neurons_and_segments[synapse.pre_neuron].1[synapse.pre_segment];
-        let post_segment = neurons_and_segments[synapse.post_neuron].1[synapse.post_segment];
-        commands.spawn((
-            Synapse { pre_segment, post_segment, synapse_membranes: parsed_synapse_membranes },
-            SynapseAddress(index),
-            ModelSynapseGain::default(),
-        ));
-    } else {
-        eprintln!("Parse result: {:?}", SynapseMembranes::deserialize(&synapse.synapse_membranes));
-        panic!("TEMPORARY, quit if synapse parsing fails");
-    }
+    let synapse_membranes = match SynapseMembranes::deserialize(&synapse.synapse_membranes) {
+        Ok(m) => m,
+        Err(e) => {
+            warn!("synapse {index} skipped: {e}");
+            return;
+        }
+    };
+    // `pre_segment` and `post_segment` index the neuron's segment list.
+    let segment = |neuron: usize, segment: usize| neurons_and_segments.get(neuron).and_then(|(_, s)| s.get(segment)).copied();
+    let (Some(pre_segment), Some(post_segment)) =
+        (segment(synapse.pre_neuron, synapse.pre_segment), segment(synapse.post_neuron, synapse.post_segment))
+    else {
+        warn!(
+            "synapse {index} skipped: no segment {} in neuron {} or no segment {} in neuron {} (segments are numbered from 0 in each neuron's list)",
+            synapse.pre_segment, synapse.pre_neuron, synapse.post_segment, synapse.post_neuron
+        );
+        return;
+    };
+    commands.spawn((
+        Synapse { pre_segment, post_segment, synapse_membranes },
+        SynapseAddress(index),
+        ModelSynapseGain::default(),
+    ));
 }
 
 pub fn add_stimulation(

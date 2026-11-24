@@ -92,6 +92,14 @@ struct GpuReceptor {
     sens_conc_half_max: f32,
     sens_slope: f32,
     channel: GpuMembraneChannel,
+    bound: f32,
+    binding_rise: f32,
+    binding_decay: f32,
+    magnesium_molar: f32,
+    plastic: f32,
+    _pad0: f32,
+    _pad1: f32,
+    _pad2: f32,
 }
 
 struct GpuSynapseData {
@@ -106,7 +114,19 @@ struct GpuSynapseData {
     surface_area: f32,
     num_pumps: f32,
     num_receptors: f32,
-    _pad: f32,
+    calcium: f32,
+    calcium_rest: f32,
+    calcium_decay: f32,
+    calcium_per_microamp_second: f32,
+    efficacy: f32,
+    plasticity_tau: f32,
+    depression_threshold: f32,
+    potentiation_threshold: f32,
+    depression_rate: f32,
+    potentiation_rate: f32,
+    bistability: f32,
+    weight_at_0: f32,
+    weight_at_1: f32,
     pumps: array<GpuTransmitterPump, 4>,
     receptors: array<GpuReceptor, 4>,
 }
@@ -317,6 +337,27 @@ fn apply_junctions(@builtin(global_invocation_id) global_id: vec3<u32>) {
 }
 
 // ===========================================================================
+// The bound fraction after `dt`, relaxing toward `goal` with time constant
+// `rise` (growing) or `decay` (falling); both 0 means no kinetics.
+fn relax_binding(bound: f32, goal: f32, rise: f32, decay: f32, dt: f32) -> f32 {
+    var tau = decay;
+    if goal > bound {
+        tau = rise;
+    }
+    if tau <= 0.0 {
+        return goal;
+    }
+    return bound + (goal - bound) * min(dt / tau, 1.0);
+}
+
+// Fraction of a Mg2+-blocked pore open at `v` mV (Jahr & Stevens 1990).
+fn magnesium_unblocked(magnesium_molar: f32, v: f32) -> f32 {
+    if magnesium_molar <= 0.0 {
+        return 1.0;
+    }
+    return 1.0 / (1.0 + magnesium_molar * 1000.0 / 3.57 * exp(-0.062 * v));
+}
+
 // Entry point 3: Synapse step (one thread per synapse)
 // ===========================================================================
 
@@ -370,7 +411,9 @@ fn step_synapses(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let e_ca = reversal_potential(post_seg.intra_ca, syn.cleft_ca, params.temperature, 2.0);
 
     let num_receptors = u32(syn.num_receptors);
+    let weight = syn.weight_at_0 + syn.efficacy * (syn.weight_at_1 - syn.weight_at_0);
     var total_current_per_cm2: f32 = 0.0;
+    var calcium_current_per_cm2: f32 = 0.0;
     for (var r: u32 = 0u; r < num_receptors; r++) {
         if syn.receptors[r].present < 0.5 {
             continue;
@@ -392,18 +435,29 @@ fn step_synapses(@builtin(global_invocation_id) global_id: vec3<u32>) {
         let i_cl = ch.ion_cl * g_coef * (post_v - e_cl) * 0.001;
 
         let channel_current = (i_k + i_na + i_ca + i_cl) * ch.siemens_per_square_cm;
+        let channel_calcium = i_ca * ch.siemens_per_square_cm;
 
-        // Neurotransmitter gating
+        // Neurotransmitter gating: the bound fraction relaxes toward the
+        // sensitivity curve (or follows it at once without kinetics).
         var conc: f32;
         if syn.receptors[r].sens_transmitter < 0.5 {
             conc = syn.glutamate_conc;
         } else {
             conc = syn.gaba_conc;
         }
-        let gating = 1.0 / (1.0 + exp(-1.0 * (conc - syn.receptors[r].sens_conc_half_max)
+        let goal = 1.0 / (1.0 + exp(-1.0 * (conc - syn.receptors[r].sens_conc_half_max)
                                              * syn.receptors[r].sens_slope));
+        let bound = relax_binding(syn.receptors[r].bound, goal,
+                                  syn.receptors[r].binding_rise, syn.receptors[r].binding_decay, dt);
+        syn.receptors[r].bound = bound;
 
-        total_current_per_cm2 += channel_current * gating;
+        var scale: f32 = 1.0;
+        if syn.receptors[r].plastic > 0.5 {
+            scale = weight;
+        }
+        let open = bound * magnesium_unblocked(syn.receptors[r].magnesium_molar, post_v) * scale;
+        total_current_per_cm2 += channel_current * open;
+        calcium_current_per_cm2 += channel_calcium * open;
     }
 
     // Voltage delta for postsynaptic segment (V = I * R model)
@@ -411,7 +465,27 @@ fn step_synapses(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let dv = current_microamps * 1e-6 * params.synapse_resistance_ohms * -1.0 * dt * 1000.0;
     synapse_deltas[idx] = dv;
 
-    // Write back updated synapse (transmitter concentrations + gate states)
+    // Spine calcium from the receptors' calcium current (inward negative),
+    // then the Graupner–Brunel efficacy from the new calcium level.
+    if syn.calcium_decay > 0.0 {
+        let calcium_microamps = calcium_current_per_cm2 * synapse_gain(idx) * syn.surface_area;
+        let influx = -calcium_microamps * syn.calcium_per_microamp_second;
+        let decay = (syn.calcium_rest - syn.calcium) / syn.calcium_decay;
+        syn.calcium = max(syn.calcium + dt * (decay + influx), 0.0);
+    }
+    if syn.plasticity_tau > 0.0 {
+        let rho = syn.efficacy;
+        var drho = -syn.bistability * rho * (1.0 - rho) * (0.5 - rho);
+        if syn.calcium > syn.potentiation_threshold {
+            drho += syn.potentiation_rate * (1.0 - rho);
+        }
+        if syn.calcium > syn.depression_threshold {
+            drho -= syn.depression_rate * rho;
+        }
+        syn.efficacy = clamp(rho + dt * drho / syn.plasticity_tau, 0.0, 1.0);
+    }
+
+    // Write back updated synapse (transmitter, binding, gates, calcium, efficacy)
     synapses[idx] = syn;
 }
 

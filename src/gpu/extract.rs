@@ -3,7 +3,7 @@
 use bevy::prelude::*;
 use bytemuck::Zeroable;
 
-use crate::constants::CONDUCTANCE_PER_SQUARE_CM;
+use crate::constants::{CONDUCTANCE_PER_SQUARE_CM, INVERSE_FARADAY};
 use crate::dimension::Timestamp;
 use crate::gpu::buffers::*;
 use crate::gpu::GpuSimState;
@@ -100,6 +100,14 @@ fn receptor_to_gpu(receptor: &Receptor) -> GpuReceptor {
         sens_conc_half_max: receptor.neurotransmitter_sensitivity.concentration_at_half_max.0,
         sens_slope: receptor.neurotransmitter_sensitivity.slope,
         channel: membrane_channel_to_gpu(&receptor.membrane_channel),
+        bound: receptor.bound,
+        binding_rise: receptor.binding.as_ref().map_or(0.0, |b| b.rise_sec),
+        binding_decay: receptor.binding.as_ref().map_or(0.0, |b| b.decay_sec),
+        magnesium_molar: receptor.magnesium_block.as_ref().map_or(0.0, |m| m.magnesium_molar),
+        plastic: if receptor.plastic { 1.0 } else { 0.0 },
+        _pad0: 0.0,
+        _pad1: 0.0,
+        _pad2: 0.0,
     }
 }
 
@@ -249,7 +257,22 @@ pub fn extract_to_gpu_state(
                 surface_area: sm.surface_area.0,
                 num_pumps: num_pumps as f32,
                 num_receptors: num_receptors as f32,
-                _pad: 0.0,
+                calcium: sm.calcium_molar,
+                calcium_rest: sm.calcium.as_ref().map_or(0.0, |c| c.resting_molar),
+                calcium_decay: sm.calcium.as_ref().map_or(0.0, |c| c.decay_sec),
+                calcium_per_microamp_second: sm
+                    .calcium
+                    .as_ref()
+                    .map_or(0.0, |c| 1e-6 * INVERSE_FARADAY / (2.0 * c.spine_volume_cubic_um * 1e-15)),
+                efficacy: sm.efficacy,
+                plasticity_tau: sm.plasticity.as_ref().map_or(0.0, |p| p.time_constant_sec),
+                depression_threshold: sm.plasticity.as_ref().map_or(0.0, |p| p.depression_threshold_molar),
+                potentiation_threshold: sm.plasticity.as_ref().map_or(0.0, |p| p.potentiation_threshold_molar),
+                depression_rate: sm.plasticity.as_ref().map_or(0.0, |p| p.depression_rate),
+                potentiation_rate: sm.plasticity.as_ref().map_or(0.0, |p| p.potentiation_rate),
+                bistability: sm.plasticity.as_ref().map_or(0.0, |p| p.bistability),
+                weight_at_0: sm.plasticity.as_ref().map_or(1.0, |p| p.weight_at_0),
+                weight_at_1: sm.plasticity.as_ref().map_or(1.0, |p| p.weight_at_1),
                 pumps,
                 receptors,
             });
@@ -375,6 +398,8 @@ pub fn writeback_to_ecs(
             synapse.synapse_membranes.transmitter_concentrations.glutamate.0 =
                 gpu_syn.glutamate_conc;
             synapse.synapse_membranes.transmitter_concentrations.gaba.0 = gpu_syn.gaba_conc;
+            synapse.synapse_membranes.calcium_molar = gpu_syn.calcium;
+            synapse.synapse_membranes.efficacy = gpu_syn.efficacy;
 
             // Write back receptor channel gate states
             let num_receptors = synapse
@@ -387,6 +412,7 @@ pub fn writeback_to_ecs(
                     &gpu_syn.receptors[r].channel,
                     &mut synapse.synapse_membranes.postsynaptic_receptors[r].membrane_channel,
                 );
+                synapse.synapse_membranes.postsynaptic_receptors[r].bound = gpu_syn.receptors[r].bound;
             }
         }
     }

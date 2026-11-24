@@ -212,6 +212,10 @@ pub fn spawn_neuroml_synapse(
                     presynaptic_pumps: vec![],
                     postsynaptic_receptors: vec![],
                     surface_area: crate::dimension::AreaSquareMillimeters(1.0),
+                    calcium: None,
+                    plasticity: None,
+                    calcium_molar: 0.0,
+                    efficacy: 0.0,
                 },
                 Junction {
                     first_segment: pre_entity,

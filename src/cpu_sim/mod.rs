@@ -164,7 +164,9 @@ fn step_synapse_cpu(
     let e_cl = reversal_potential(post_intra_cl, syn.cleft_cl, temp, -1.0);
     let e_ca = reversal_potential(post_intra_ca, syn.cleft_ca, temp, 2.0);
 
+    let weight = syn.weight_at_0 + syn.efficacy * (syn.weight_at_1 - syn.weight_at_0);
     let mut total_current_per_cm2: f32 = 0.0;
+    let mut calcium_current_per_cm2: f32 = 0.0;
     for r in 0..num_receptors {
         let receptor = &mut syn.receptors[r];
         if receptor.present < 0.5 {
@@ -187,17 +189,24 @@ fn step_synapse_cpu(
         let i_cl = ch.ion_cl * g_coef * (post_v - e_cl) * 0.001;
 
         let channel_current = (i_k + i_na + i_ca + i_cl) * ch.siemens_per_square_cm;
+        let channel_calcium = i_ca * ch.siemens_per_square_cm;
 
-        // Neurotransmitter gating
+        // Neurotransmitter gating: the bound fraction relaxes toward the
+        // sensitivity curve (or follows it at once without kinetics).
         let conc = if receptor.sens_transmitter < 0.5 {
             syn.glutamate_conc
         } else {
             syn.gaba_conc
         };
-        let gating =
+        let target =
             1.0 / (1.0 + ((-1.0 * (conc - receptor.sens_conc_half_max) * receptor.sens_slope).exp()));
+        receptor.bound = relax_binding(receptor.bound, target, receptor.binding_rise, receptor.binding_decay, params.dt);
 
-        total_current_per_cm2 += channel_current * gating;
+        let unblocked = magnesium_unblocked(receptor.magnesium_molar, post_v);
+        let scale = if receptor.plastic > 0.5 { weight } else { 1.0 };
+        let open = receptor.bound * unblocked * scale;
+        total_current_per_cm2 += channel_current * open;
+        calcium_current_per_cm2 += channel_calcium * open;
     }
 
     // Apply synaptic current to postsynaptic segment
@@ -206,6 +215,49 @@ fn step_synapse_cpu(
     let dv_dt_volts_per_second = current_microamps * 1e-6 * synapse_resistance_ohms * -1.0;
     let delta_mv = dv_dt_volts_per_second * params.dt * 1000.0;
     segments[syn.post_segment_idx as usize].voltage += delta_mv;
+
+    step_calcium_and_efficacy(syn, calcium_current_per_cm2 * gain * syn.surface_area, params.dt);
+}
+
+/// The bound fraction after `dt`, relaxing toward `target` with time
+/// constant `rise` (growing) or `decay` (falling); both 0 means no kinetics.
+pub fn relax_binding(bound: f32, target: f32, rise: f32, decay: f32, dt: f32) -> f32 {
+    let tau = if target > bound { rise } else { decay };
+    if tau <= 0.0 {
+        return target;
+    }
+    bound + (target - bound) * (dt / tau).min(1.0)
+}
+
+/// Fraction of a Mg2+-blocked pore open at `v` mV (Jahr & Stevens 1990);
+/// 1 without magnesium.
+pub fn magnesium_unblocked(magnesium_molar: f32, v: f32) -> f32 {
+    if magnesium_molar <= 0.0 {
+        return 1.0;
+    }
+    1.0 / (1.0 + magnesium_molar * 1000.0 / 3.57 * (-0.062 * v).exp())
+}
+
+/// Advance the spine calcium pool by the receptors' calcium current
+/// (`calcium_microamps`, inward negative), then the Graupner–Brunel
+/// efficacy by the new calcium level.
+pub fn step_calcium_and_efficacy(syn: &mut GpuSynapseData, calcium_microamps: f32, dt: f32) {
+    if syn.calcium_decay > 0.0 {
+        let influx = -calcium_microamps * syn.calcium_per_microamp_second;
+        let decay = (syn.calcium_rest - syn.calcium) / syn.calcium_decay;
+        syn.calcium = (syn.calcium + dt * (decay + influx)).max(0.0);
+    }
+    if syn.plasticity_tau > 0.0 {
+        let rho = syn.efficacy;
+        let mut drho = -syn.bistability * rho * (1.0 - rho) * (0.5 - rho);
+        if syn.calcium > syn.potentiation_threshold {
+            drho += syn.potentiation_rate * (1.0 - rho);
+        }
+        if syn.calcium > syn.depression_threshold {
+            drho -= syn.depression_rate * rho;
+        }
+        syn.efficacy = (rho + dt * drho / syn.plasticity_tau).clamp(0.0, 1.0);
+    }
 }
 
 // --- Main CPU simulation entry point ---
