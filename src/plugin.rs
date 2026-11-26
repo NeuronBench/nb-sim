@@ -734,8 +734,49 @@ fn log_plasticity(
         })
         .collect();
     lines.sort_by_key(|l| l.0);
-    // Large learning networks would flood the log; their first few stand in.
-    for (_, line) in lines.into_iter().take(12) {
-        info!("{line}");
+    if lines.len() <= 12 {
+        for (_, line) in lines {
+            info!("{line}");
+        }
+        return;
+    }
+    // Large learning networks would flood the log: summarize their
+    // efficacies instead, over all of them or over the address ranges in
+    // NB_LOG_EFFICACY ("input->hidden:0..2048,hidden->digit:2048..2368").
+    let groups: Vec<(String, std::ops::Range<u32>)> = env_knob::<String>("NB_LOG_EFFICACY")
+        .map(|spec| {
+            spec.split(',')
+                .filter_map(|g| {
+                    let (name, range) = g.split_once(':')?;
+                    let (a, b) = range.split_once("..")?;
+                    Some((name.to_string(), a.parse().ok()?..b.parse().ok()?))
+                })
+                .collect()
+        })
+        .unwrap_or_else(|| vec![("plastic synapses".to_string(), 0..u32::MAX)]);
+    for (name, range) in groups {
+        let mut e: Vec<f32> = synapses
+            .iter()
+            .filter(|(a, s)| range.contains(&a.0) && s.synapse_membranes.is_plastic())
+            .map(|(_, s)| s.synapse_membranes.efficacy)
+            .collect();
+        if e.is_empty() {
+            continue;
+        }
+        e.sort_by(f32::total_cmp);
+        let q = |f: f32| e[((e.len() - 1) as f32 * f) as usize];
+        let at = |lo: f32, hi: f32| 100.0 * e.iter().filter(|x| **x >= lo && **x <= hi).count() as f32 / e.len() as f32;
+        info!(
+            "t = {:.3} s, {name}: {} synapses, efficacy mean {:.3}, quartiles {:.3} {:.3} {:.3}, max {:.3}; {:.0}% at 0, {:.0}% at 1",
+            timestamp.0,
+            e.len(),
+            e.iter().sum::<f32>() / e.len() as f32,
+            q(0.25),
+            q(0.5),
+            q(0.75),
+            q(1.0),
+            at(0.0, 0.0),
+            at(1.0, 1.0),
+        );
     }
 }

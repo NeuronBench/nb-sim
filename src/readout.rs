@@ -41,6 +41,8 @@ pub struct ReadoutState {
     /// Of the recent frames with a teacher, whether the cells' answer was
     /// the teacher's.
     pub agreement: VecDeque<bool>,
+    /// Recent frames' spikes per tap.
+    pub recent_counts: VecDeque<Vec<u32>>,
 }
 
 impl SceneReadouts {
@@ -59,6 +61,7 @@ impl SceneReadouts {
                 expected: vec![0.0; spec.taps.len()],
                 taught: VecDeque::new(),
                 agreement: VecDeque::new(),
+                recent_counts: VecDeque::new(),
             })
             .collect();
     }
@@ -76,6 +79,10 @@ impl ReadoutState {
     pub fn observe(&mut self, frame: usize, previous_label: Option<u32>) {
         if self.frame == Some(frame) {
             return;
+        }
+        if let Some(frame) = self.frame {
+            push_recent(&mut self.recent_counts, self.counts.clone());
+            dump(&self.spec.name, frame, previous_label, &self.counts, &self.expected);
         }
         if self.frame.is_some() && self.expected.iter().any(|e| *e > 0.0) {
             push_recent(&mut self.taught, (self.counts.clone(), self.expected.clone()));
@@ -107,6 +114,20 @@ impl ReadoutState {
         fraction(&self.recent)
     }
 
+    /// Mean spikes per frame per tap over recent frames, and the most any
+    /// tap averaged.
+    pub fn mean_spikes(&self) -> Option<(f32, f32)> {
+        let frames = self.recent_counts.len() as f32;
+        if frames == 0.0 || self.counts.is_empty() {
+            return None;
+        }
+        let per_tap: Vec<f32> = (0..self.counts.len())
+            .map(|i| self.recent_counts.iter().map(|c| c[i] as f32).sum::<f32>() / frames)
+            .collect();
+        let mean = per_tap.iter().sum::<f32>() / per_tap.len() as f32;
+        Some((mean, per_tap.iter().copied().fold(0.0, f32::max)))
+    }
+
     /// How often the cells' answer was the teacher's, over recent taught frames.
     pub fn teacher_agreement(&self) -> Option<f32> {
         fraction(&self.agreement)
@@ -131,6 +152,27 @@ impl ReadoutState {
         let r = if vx > 0.0 && vy > 0.0 { cov / (vx * vy).sqrt() } else { 0.0 };
         Some((r, mx, my))
     }
+}
+
+/// Diagnostic knob: NB_READOUT_DUMP=path appends every finished frame as a
+/// line `readout<TAB>frame<TAB>label<TAB>spikes...<TAB>expected...`.
+fn dump(name: &str, frame: usize, label: Option<u32>, counts: &[u32], expected: &[f32]) {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        use std::io::Write;
+        let Ok(path) = std::env::var("NB_READOUT_DUMP") else { return };
+        let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(path) else { return };
+        let join = |v: Vec<String>| v.join(",");
+        let _ = writeln!(
+            f,
+            "{name}\t{frame}\t{}\t{}\t{}",
+            label.map_or(-1, |l| l as i64),
+            join(counts.iter().map(|c| c.to_string()).collect()),
+            join(expected.iter().map(|e| format!("{e:.2}")).collect()),
+        );
+    }
+    #[cfg(target_arch = "wasm32")]
+    let _ = (name, frame, label, counts, expected);
 }
 
 fn push_recent<T>(q: &mut VecDeque<T>, item: T) {
@@ -192,6 +234,9 @@ pub fn score_readouts(
     if *since_log >= 5.0 {
         *since_log = 0.0;
         for r in &readouts.readouts {
+            if let Some((mean, most)) = r.mean_spikes() {
+                info!("readout {}: {mean:.1} spikes per frame per cell (busiest {most:.1})", r.spec.name);
+            }
             if let Some((corr, spikes, wanted)) = r.rate_match() {
                 info!(
                     "readout {}: spikes per frame vs. the teacher's: r = {corr:.2}, mean {spikes:.1} vs. {wanted:.1}; answers agree with the teacher's {:.0}%",

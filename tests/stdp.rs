@@ -184,3 +184,17 @@ fn learning_stops_when_the_cell_fires_at_its_target() {
     assert!(too_fast < -0.05 && too_slow > 0.05, "{too_fast} {too_slow}");
     assert!(at_target < 0.15 * too_slow.min(-too_fast), "{at_target}");
 }
+
+#[test]
+fn a_negative_rate_teaches_inhibition() {
+    // An inhibitory synapse onto a cell firing above its target strengthens.
+    let pre = train(20.0, 0.003, 2.0);
+    let post = train(50.0, 0.0117, 2.0);
+    let mut s = supervised(0.5);
+    s.stdp_potentiation = -ETA;
+    for k in 0..(2.0 / DT) as usize {
+        let t = k as f32 * DT;
+        step_spike_timing(&mut s, mv(t, &pre), mv(t, &post), 10.0, DT);
+    }
+    assert!(s.efficacy > 0.55, "{}", s.efficacy);
+}

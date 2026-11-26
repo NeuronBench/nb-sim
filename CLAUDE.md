@@ -110,4 +110,6 @@ wasm-pack build --mode no-install --release --target web
 - `NB_LIB_DIR` - Where tests find nb-lib (defaults to `../nb-lib`)
 - `NB_SIM_DT`, `NB_STEPS_PER_FRAME` - Native: start with another simulation step (default 5e-7 s) or steps per frame (default 100); `1e-5` runs the plasticity demo about 20x faster
 - `NB_SIM_BACKEND=cpu` - Native: stay on the CPU kernel (the GPU reads back voltages, spike counts and synapse efficacies, but not calcium)
+- `NB_SET_PARAMS_AT` - Native: move sliders at simulated times, e.g. `400:teacher=0,stream=1` (for unattended runs)
+- `NB_LOG_EFFICACY`, `NB_READOUT_DUMP` - Native: summarize plastic synapses' efficacies over address ranges (`name:0..2048,...`); append every readout frame to a file
 - `INTERPRETER_URL` - Accepted by `start()` for compatibility and ignored

@@ -178,6 +178,45 @@ pub fn setup(app: &mut App) {
     app.insert_resource(FetchReceiver(frx));
     app.add_systems(Startup, request_initial_load);
     app.add_systems(Update, drive_scene_loader);
+    #[cfg(not(target_arch = "wasm32"))]
+    app.add_systems(Update, scheduled_param_changes);
+}
+
+/// Diagnostic knob: NB_SET_PARAMS_AT="30:teacher=0,stream=1;60:stream=0"
+/// moves sliders at those simulated times (seconds), as if by hand.
+#[cfg(not(target_arch = "wasm32"))]
+fn scheduled_param_changes(
+    timestamp: Res<crate::dimension::Timestamp>,
+    time: Res<Time>,
+    mut params: ResMut<SceneParams>,
+    mut done: Local<usize>,
+) {
+    let Ok(spec) = std::env::var("NB_SET_PARAMS_AT") else { return };
+    let mut changes: Vec<(f32, Vec<(String, f64)>)> = spec
+        .split(';')
+        .filter_map(|step| {
+            let (at, sets) = step.split_once(':')?;
+            let sets = sets
+                .split(',')
+                .filter_map(|kv| {
+                    let (k, v) = kv.split_once('=')?;
+                    Some((k.trim().to_string(), v.trim().parse().ok()?))
+                })
+                .collect();
+            Some((at.trim().parse().ok()?, sets))
+        })
+        .collect();
+    changes.sort_by(|a, b| a.0.total_cmp(&b.0));
+    while let Some((at, sets)) = changes.get(*done) {
+        if timestamp.0 < *at {
+            break;
+        }
+        for (name, value) in sets {
+            info!("NB_SET_PARAMS_AT: {name} = {value} at t = {:.2} s", timestamp.0);
+            params.set(name, *value, time.elapsed_secs_f64());
+        }
+        *done += 1;
+    }
 }
 
 fn request_initial_load(source: Res<SceneSource>, mut loader: ResMut<SceneLoader>) {

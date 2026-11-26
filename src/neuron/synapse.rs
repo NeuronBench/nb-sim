@@ -225,8 +225,8 @@ impl SynapseMembranes {
             if s.plasticity.is_some() || s.spike_timing.is_some() {
                 return Err("a synapse takes one plasticity rule: `plasticity`, `spike_timing` or `supervised`".into());
             }
-            if !(p.pre_trace_sec > 0.0 && p.learning_rate >= 0.0) || !(0.0..=1.0).contains(&p.initial_efficacy) {
-                return Err(format!("supervised needs pre_trace_sec above 0, learning_rate at least 0 and initial_efficacy in 0..1, got {p:?}"));
+            if !(p.pre_trace_sec > 0.0 && p.learning_rate.is_finite()) || !(0.0..=1.0).contains(&p.initial_efficacy) {
+                return Err(format!("supervised needs pre_trace_sec above 0, a finite learning_rate and initial_efficacy in 0..1, got {p:?}"));
             }
         }
         let transmitter_concentrations = TransmitterConcentrations::deserialize(&s.transmitter_concentrations)?;

@@ -342,6 +342,9 @@ pub struct SynapseMembranes {
 /// rule, which stops once the cell fires as the teacher asks. Without a
 /// target nothing is learned. Receptors marked `plastic` have their
 /// conductance scaled by `weight_at_0 + rho (weight_at_1 - weight_at_0)`.
+/// For an inhibitory synapse use a negative `learning_rate`: it then
+/// strengthens while the cell fires above its target, and weakens while
+/// the cell fires below it.
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct SupervisedPlasticity {
     pub spike_threshold_mv: f32,
