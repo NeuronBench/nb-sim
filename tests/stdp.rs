@@ -6,7 +6,7 @@
 use bytemuck::Zeroable;
 use nb_sim::cpu_sim::{step_biophysics_cpu, step_spike_timing};
 use nb_sim::gpu::buffers::*;
-use nb_sim::gpu::extract::control_offsets;
+use nb_sim::gpu::extract::neutral_controls;
 
 const DT: f32 = 1e-5;
 const TAU_PRE: f32 = 0.017;
@@ -39,7 +39,7 @@ fn run(efficacy: f32, pre: &[f32], post: &[f32], duration: f32) -> f32 {
     let mut s = synapse(efficacy);
     for k in 0..(duration / DT).round() as usize {
         let t = k as f32 * DT;
-        step_spike_timing(&mut s, mv(t, pre), mv(t, post), DT);
+        step_spike_timing(&mut s, mv(t, pre), mv(t, post), -1.0, DT);
     }
     s.efficacy
 }
@@ -88,9 +88,7 @@ fn soft_bounds_saturate_inside_0_and_1() {
 fn the_kernel_runs_the_rule() {
     let mut segs = [GpuSegmentData::zeroed(), GpuSegmentData::zeroed()];
     let mut syns = [synapse(0.5)];
-    let (scales_at, gains_at) = control_offsets(2);
-    let mut controls = vec![0.0; gains_at + 1];
-    controls[scales_at..].fill(1.0);
+    let controls = neutral_controls(2, 1);
     let params = SimParams {
         extra_k: 5.0,
         extra_na: 145.0,
@@ -124,4 +122,65 @@ fn the_kernel_runs_the_rule() {
         step_biophysics_cpu(&mut segs, &[], &mut syns, &controls, &params);
     }
     assert!(syns[0].efficacy > 0.5 + 0.5 * A_PLUS * 0.5, "{}", syns[0].efficacy);
+}
+
+// --- The supervised rule (ReSuMe toward a target rate) ---
+
+const ETA: f32 = 0.01;
+
+fn supervised(efficacy: f32) -> GpuSynapseData {
+    let mut s = synapse(efficacy);
+    s.supervised = 1.0;
+    s.stdp_potentiation = ETA;
+    s.stdp_depression = 0.0;
+    s
+}
+
+/// Spikes every `1 / hz` seconds from `start` to `end`.
+fn train(hz: f32, start: f32, end: f32) -> Vec<f32> {
+    let mut t = start;
+    let mut out = vec![];
+    while t < end {
+        out.push(t);
+        t += 1.0 / hz;
+    }
+    out
+}
+
+fn supervise(target_hz: f32, pre: &[f32], post: &[f32], duration: f32) -> f32 {
+    let mut s = supervised(0.5);
+    for k in 0..(duration / DT).round() as usize {
+        let t = k as f32 * DT;
+        step_spike_timing(&mut s, mv(t, pre), mv(t, post), target_hz, DT);
+    }
+    s.efficacy
+}
+
+#[test]
+fn without_a_teacher_nothing_is_learned() {
+    let pre = train(20.0, 0.003, 2.0);
+    let post = train(30.0, 0.011, 2.0);
+    assert_eq!(supervise(-1.0, &pre, &post, 2.0), 0.5);
+}
+
+#[test]
+fn a_silent_cell_with_a_target_strengthens_its_active_inputs() {
+    // Expected: eta * mean trace (rate * tau) * target * time.
+    let pre = train(20.0, 0.003, 2.0);
+    let got = supervise(30.0, &pre, &[], 2.0) - 0.5;
+    let want = ETA * 20.0 * TAU_PRE * 30.0 * 2.0;
+    assert!((got - want).abs() < 0.1 * want, "{got} vs {want}");
+    // A silent input learns nothing.
+    assert_eq!(supervise(30.0, &[], &[], 2.0), 0.5);
+}
+
+#[test]
+fn learning_stops_when_the_cell_fires_at_its_target() {
+    let pre = train(20.0, 0.003, 4.0);
+    let post = train(30.0, 0.0117, 4.0);
+    let at_target = (supervise(30.0, &pre, &post, 4.0) - 0.5).abs();
+    let too_fast = supervise(10.0, &pre, &post, 4.0) - 0.5;
+    let too_slow = supervise(50.0, &pre, &post, 4.0) - 0.5;
+    assert!(too_fast < -0.05 && too_slow > 0.05, "{too_fast} {too_slow}");
+    assert!(at_target < 0.15 * too_slow.min(-too_fast), "{at_target}");
 }

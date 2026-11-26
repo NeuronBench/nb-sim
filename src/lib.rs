@@ -8,6 +8,7 @@ pub mod neuron;
 pub mod onnx;
 pub mod nickel_schema;
 pub mod plugin;
+pub mod readout;
 pub mod integrations;
 pub mod serialize;
 pub mod selection;

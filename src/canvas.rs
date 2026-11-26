@@ -17,6 +17,8 @@ pub struct CanvasState {
     pub spec: Canvas,
     /// Cell values in -1..1, row-major.
     pub values: Vec<f32>,
+    /// The frame on show, for a canvas with `frames`.
+    pub frame: Option<usize>,
 }
 
 impl SceneCanvases {
@@ -38,9 +40,42 @@ impl SceneCanvases {
                     v.resize(cells, 0.0);
                     v
                 });
-                CanvasState { spec: spec.clone(), values }
+                CanvasState { spec: spec.clone(), values, frame: None }
             })
             .collect();
+    }
+
+    /// Show each streaming canvas's frame for simulated time `t`. Returns
+    /// whether any canvas changed frame.
+    pub fn advance(&mut self, t: f32) -> bool {
+        let mut changed = false;
+        for c in &mut self.canvases {
+            let n = c.spec.frames.len();
+            if n == 0 || !(c.spec.frame_sec > 0.0) {
+                continue;
+            }
+            let k = ((t / c.spec.frame_sec).max(0.0) as usize) % n;
+            if c.frame != Some(k) {
+                let cells = (c.spec.width * c.spec.height) as usize;
+                c.values = c.spec.frames[k].iter().map(|x| x.clamp(-1.0, 1.0)).collect();
+                c.values.resize(cells, 0.0);
+                c.frame = Some(k);
+                changed = true;
+            }
+        }
+        changed
+    }
+
+    /// The label of the frame on show in the named canvas, if it has one.
+    pub fn label(&self, name: &str) -> Option<(usize, u32)> {
+        let c = self.canvases.iter().find(|c| c.spec.name == name)?;
+        let k = c.frame?;
+        Some((k, *c.spec.labels.get(k)?))
+    }
+
+    /// The label of frame `frame` of the named canvas.
+    pub fn label_of(&self, name: &str, frame: usize) -> Option<u32> {
+        self.canvases.iter().find(|c| c.spec.name == name)?.spec.labels.get(frame).copied()
     }
 
     /// Current per tapped segment, in µA/cm². A segment under several cells
@@ -70,5 +105,14 @@ impl CanvasState {
                 }
             }
         }
+    }
+}
+
+/// Step streaming canvases to the current frame (before models read them).
+pub fn advance_canvas_frames(timestamp: Res<crate::dimension::Timestamp>, canvases: Option<ResMut<SceneCanvases>>) {
+    let Some(mut canvases) = canvases else { return };
+    let t = timestamp.0;
+    if canvases.canvases.iter().any(|c| !c.spec.frames.is_empty()) {
+        canvases.advance(t);
     }
 }

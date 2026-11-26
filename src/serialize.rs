@@ -11,6 +11,31 @@ pub struct Scene {
     /// Grids of injected current painted in the Canvas window.
     #[serde(default)]
     pub canvases: Vec<Canvas>,
+    /// Read a population's answer, frame by frame, from its spikes.
+    #[serde(default)]
+    pub readouts: Vec<Readout>,
+}
+
+/// Score a population of cells against a canvas's frames: during each frame
+/// count every tap's spikes (upward crossings of `spike_threshold_mv`); the
+/// tap with the most is the answer, compared with the frame's label. The
+/// log shows the running agreement.
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct Readout {
+    pub name: String,
+    /// One segment per answer: tap i stands for label i.
+    pub taps: Vec<SegmentRef>,
+    /// The canvas whose frames and labels to score against.
+    pub canvas: String,
+    pub spike_threshold_mv: f32,
+    /// Whether tap i answers label i (false: only compare the taps' rates
+    /// with their teachers' target rates, for a hidden layer say).
+    #[serde(default = "yes")]
+    pub labeled: bool,
+}
+
+fn yes() -> bool {
+    true
 }
 
 /// A grid of current injections, one cell per segment, painted with the
@@ -30,6 +55,15 @@ pub struct Canvas {
     /// Starting cell values in -1..1, row-major; empty for all zeros.
     #[serde(default)]
     pub initial: Vec<f32>,
+    /// A stream of images instead of a painting: frame k (row-major cell
+    /// values) shows from `k * frame_sec` of simulated time, cycling.
+    #[serde(default)]
+    pub frames: Vec<Vec<f32>>,
+    #[serde(default)]
+    pub frame_sec: f32,
+    /// A label per frame (a digit's class, say), for readouts.
+    #[serde(default)]
+    pub labels: Vec<u32>,
 }
 
 /// An ONNX model that reads simulation state and drives the simulation.
@@ -75,6 +109,8 @@ pub enum ModelInput {
     /// for recurrent state such as a GRU's hidden state: `h0` in, `hn` out.
     /// The input must have a fixed shape.
     Feedback { output: String },
+    /// The cell values of the named canvas (its current frame).
+    Canvas { name: String },
 }
 
 /// What a model output drives.
@@ -99,6 +135,10 @@ pub enum ModelOutput {
     /// `synapses[i]` (an index into the scene's `synapses`) by
     /// `max(0, offset + scale * value)`. Several outputs on one synapse multiply.
     SynapticGain { synapses: Vec<u32>, offset: f32, scale: f32 },
+    /// Output element i, times `scale_hz`, is the firing rate `taps[i]`
+    /// should have: the teacher of `supervised` synapses onto that segment.
+    /// It injects nothing. Negative values count as 0.
+    TargetRate { taps: Vec<SegmentRef>, scale_hz: f32 },
     /// The output is computed but not used.
     Ignore,
 }
@@ -286,6 +326,30 @@ pub struct SynapseMembranes {
     /// `plasticity` that needs no calcium.
     #[serde(default)]
     pub spike_timing: Option<SpikeTimingPlasticity>,
+    /// Learning from a teacher's target rate (ReSuMe), the third choice.
+    #[serde(default)]
+    pub supervised: Option<SupervisedPlasticity>,
+}
+
+/// Supervised spike-based learning in the manner of ReSuMe (Ponulak &
+/// Kasinski 2010), with a target firing rate as the teacher. Each
+/// presynaptic spike adds 1 to a trace that decays with `pre_trace_sec`.
+/// While the postsynaptic segment has a target rate (a model's
+/// `TargetRate` output), the efficacy `rho` (0..1) grows by
+/// `learning_rate * pre_trace * target_hz * dt` and falls by
+/// `learning_rate * pre_trace` at each postsynaptic spike, so on average
+/// `d rho/dt = learning_rate * pre_trace * (target - actual rate)`: the delta
+/// rule, which stops once the cell fires as the teacher asks. Without a
+/// target nothing is learned. Receptors marked `plastic` have their
+/// conductance scaled by `weight_at_0 + rho (weight_at_1 - weight_at_0)`.
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct SupervisedPlasticity {
+    pub spike_threshold_mv: f32,
+    pub pre_trace_sec: f32,
+    pub learning_rate: f32,
+    pub initial_efficacy: f32,
+    pub weight_at_0: f32,
+    pub weight_at_1: f32,
 }
 
 /// Phenomenological, pair-based STDP (nearest spike, soft bounds). A spike

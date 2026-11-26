@@ -66,7 +66,8 @@ pub struct GpuSimState {
     /// and read by both backends (the GPU's `controls` binding). Layout, with
     /// n segments: `[0, n)` input current per segment (µA/cm²),
     /// `[n, n + n * MAX_CHANNELS)` conductance multiplier per segment and
-    /// channel, then one receptor current multiplier per synapse.
+    /// channel, then one receptor current multiplier per synapse, then one
+    /// teacher target rate (Hz, negative: none) per synapse.
     pub controls: Vec<f32>,
     pub topology_dirty: bool,
     pub initialized: bool,

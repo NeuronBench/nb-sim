@@ -10,7 +10,7 @@ use crate::gui::oscilloscope::Oscilloscope;
 use crate::neuron::Junction;
 use crate::neuron::membrane::{Membrane, MembraneVoltage, MembraneMaterials};
 use crate::neuron::solution::EXAMPLE_CYTOPLASM;
-use crate::neuron::segment::{ecs::Segment, ecs::InputCurrent, ecs::SegmentAddress, ecs::ModelCurrent, ecs::ModelConductanceScale, Geometry};
+use crate::neuron::segment::{ecs::Segment, ecs::InputCurrent, ecs::SegmentAddress, ecs::ModelCurrent, ecs::ModelConductanceScale, ecs::ModelTargetRate, Geometry};
 use crate::neuron::synapse::SynapseMembranes;
 use crate::stimulator;
 use crate::serialize;
@@ -225,6 +225,7 @@ pub fn spawn_neuron(
                 SegmentAddress { neuron: neuron_index, segment: *id as u32 },
                 ModelCurrent::default(),
                 ModelConductanceScale::default(),
+                ModelTargetRate::default(),
                 Mesh3d(meshes.add(shape)),
                 MeshMaterial3d(membrane_materials.from_voltage(&v0)),
                 transform,
@@ -310,6 +311,41 @@ impl Default for ModelSynapseGain {
     }
 }
 
+/// The scene's `pre_neuron`, `pre_segment`, `post_neuron` and
+/// `post_segment` for a synapse: what must match for a reloaded scene's
+/// synapse to inherit the old one's learning.
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SynapseEnds(pub [usize; 4]);
+
+/// Learned efficacies of the synapses of the scene being replaced, by
+/// address, until the new scene's synapses take them over.
+#[derive(Resource, Default)]
+pub struct KeptEfficacies(pub HashMap<u32, (SynapseEnds, f32)>);
+
+/// Give newly spawned plastic synapses the efficacy their predecessor (same
+/// address, same ends) had learned, so moving a slider keeps the learning.
+pub fn restore_efficacies(
+    mut kept: ResMut<KeptEfficacies>,
+    mut synapses: Query<(&SynapseAddress, &SynapseEnds, &mut Synapse), Added<Synapse>>,
+) {
+    if kept.0.is_empty() {
+        return;
+    }
+    let mut restored = 0;
+    for (address, ends, mut synapse) in &mut synapses {
+        if let Some((old_ends, efficacy)) = kept.0.get(&address.0) {
+            if old_ends == ends && synapse.synapse_membranes.is_plastic() {
+                synapse.synapse_membranes.efficacy = *efficacy;
+                restored += 1;
+            }
+        }
+    }
+    if restored > 0 {
+        info!("kept the learned efficacy of {restored} plastic synapses across the reload");
+        kept.0.clear();
+    }
+}
+
 #[derive(Component)]
 pub struct Synapse {
     pub pre_segment: Entity,
@@ -347,6 +383,7 @@ pub fn spawn_synapse(
     commands.spawn((
         Synapse { pre_segment, post_segment, synapse_membranes },
         SynapseAddress(index),
+        SynapseEnds([synapse.pre_neuron, synapse.pre_segment, synapse.post_neuron, synapse.post_segment]),
         ModelSynapseGain::default(),
     ));
 }
@@ -523,6 +560,7 @@ pub mod sample {
             }],
             models: vec![],
             canvases: vec![],
+            readouts: vec![],
         }
 
     }

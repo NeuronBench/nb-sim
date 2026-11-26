@@ -134,9 +134,13 @@ impl SceneModels {
 }
 
 fn bind(program: Arc<Program>, spec: SceneModel) -> ModelState {
+    let url = spec.url.clone();
     match ModelInstance::bind(program, spec) {
         Ok(instance) => ModelState::Ready(instance),
-        Err(e) => ModelState::Failed(e),
+        Err(e) => {
+            warn!("model {url}: {e}");
+            ModelState::Failed(e)
+        }
     }
 }
 
@@ -194,6 +198,7 @@ struct Snapshot {
     segments: HashMap<SegmentRef, (f32, usize)>,
     synapses: std::collections::HashSet<u32>,
     time_sec: f32,
+    canvases: HashMap<String, Vec<f32>>,
 }
 
 impl SimState for Snapshot {
@@ -209,10 +214,18 @@ impl SimState for Snapshot {
     fn has_synapse(&self, index: u32) -> bool {
         self.synapses.contains(&index)
     }
+    fn canvas(&self, name: &str) -> Option<&[f32]> {
+        self.canvases.get(name).map(|v| v.as_slice())
+    }
 }
 
 /// What models write into the simulation, per segment and per synapse.
-type SegmentSinks<'a> = (&'a SegmentAddress, &'a mut ModelCurrent, &'a mut ModelConductanceScale);
+type SegmentSinks<'a> = (
+    &'a SegmentAddress,
+    &'a mut ModelCurrent,
+    &'a mut ModelConductanceScale,
+    Option<&'a mut crate::neuron::segment::ecs::ModelTargetRate>,
+);
 
 /// Run every model that is due, then write what all models ask of each
 /// segment and synapse: summed currents, multiplied conductance scales and
@@ -251,6 +264,10 @@ pub fn run_models(
                 .collect(),
             synapses: synapse_addresses.iter().map(|a| a.0).collect(),
             time_sec: now,
+            canvases: canvases
+                .iter()
+                .flat_map(|c| c.canvases.iter().map(|c| (c.spec.name.clone(), c.values.clone())))
+                .collect(),
         };
         for slot in models.slots.iter_mut() {
             let ModelState::Ready(instance) = &mut slot.state else { continue };
@@ -289,7 +306,11 @@ pub fn run_models(
     }
     let mut scales: HashMap<SegmentRef, [f32; MAX_CHANNELS]> = HashMap::new();
     let mut gains: HashMap<u32, f32> = HashMap::new();
+    let mut targets: HashMap<SegmentRef, f32> = HashMap::new();
     for effects in models.slots.iter().map(|s| &s.effects) {
+        for (tap, rate) in &effects.target_rates {
+            *targets.entry(*tap).or_default() += rate;
+        }
         for (tap, current) in &effects.currents {
             *currents.entry(*tap).or_default() += current;
         }
@@ -304,7 +325,7 @@ pub fn run_models(
             *gains.entry(*synapse).or_insert(1.0) *= factor;
         }
     }
-    for (address, mut current, mut scale) in &mut segment_sinks {
+    for (address, mut current, mut scale, mut target) in &mut segment_sinks {
         let tap = SegmentRef { neuron: address.neuron, segment: address.segment };
         let total = currents.get(&tap).copied().unwrap_or(0.0);
         if current.0 .0 != total {
@@ -313,6 +334,10 @@ pub fn run_models(
         let factors = scales.get(&tap).copied().unwrap_or([1.0; MAX_CHANNELS]);
         if scale.0 != factors {
             scale.0 = factors;
+        }
+        let rate = targets.get(&tap).copied().unwrap_or(-1.0);
+        if let Some(target) = target.as_mut().filter(|t| t.0 != rate) {
+            target.0 = rate;
         }
     }
     for (address, mut gain) in &mut synapse_sinks {

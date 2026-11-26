@@ -30,6 +30,10 @@ pub trait SimState {
     fn channel_count(&self, segment: SegmentRef) -> Option<usize>;
     /// Whether the scene has synapse `index`.
     fn has_synapse(&self, index: u32) -> bool;
+    /// The cell values of the named canvas, if the scene has one.
+    fn canvas(&self, _name: &str) -> Option<&[f32]> {
+        None
+    }
 }
 
 /// What one evaluation asks of the simulation.
@@ -44,6 +48,9 @@ pub struct Effects {
     /// Receptor current multipliers per synapse index. Several outputs on
     /// one synapse multiply.
     pub synapse_gains: Vec<(u32, f32)>,
+    /// Teacher target rates in Hz per segment. Several outputs on one
+    /// segment add.
+    pub target_rates: Vec<(SegmentRef, f32)>,
 }
 
 /// The outcome of one evaluation.
@@ -102,6 +109,16 @@ impl ModelInstance {
                     };
                     (len, Some(j))
                 }
+                ModelInput::Canvas { .. } => {
+                    let Some(len) = static_len(port) else {
+                        return Err(format!(
+                            "input `{}` has shape {}; a Canvas input needs a fixed shape",
+                            port.name,
+                            shape_text(&port.shape)
+                        ));
+                    };
+                    (len, None)
+                }
                 other => (input_len(other), None),
             };
             input_shapes.push(fit_shape(port, len)?);
@@ -144,7 +161,9 @@ impl ModelInstance {
             _ => &[],
         });
         let outs = self.spec.outputs.iter().chain(self.spec.hidden.iter().map(|h| &h.output)).flat_map(|o| match o {
-            ModelOutput::InjectCurrent { taps, .. } | ModelOutput::ScaleConductance { taps, .. } => taps.as_slice(),
+            ModelOutput::InjectCurrent { taps, .. }
+            | ModelOutput::ScaleConductance { taps, .. }
+            | ModelOutput::TargetRate { taps, .. } => taps.as_slice(),
             ModelOutput::SynapticGain { .. } | ModelOutput::Ignore => &[],
         });
         ins.chain(outs).copied()
@@ -177,6 +196,14 @@ impl ModelInstance {
                 ModelInput::Time => vec![sim.time_sec()],
                 ModelInput::Constant { values } => values.clone(),
                 ModelInput::Feedback { .. } => state.clone(),
+                ModelInput::Canvas { name } => {
+                    let values = sim.canvas(name).ok_or_else(|| format!("the scene has no canvas `{name}`"))?;
+                    let want: usize = shape.iter().product();
+                    if values.len() != want {
+                        return Err(format!("canvas `{name}` has {} cells, but the model input takes {want}", values.len()));
+                    }
+                    values.to_vec()
+                }
             };
             if data.iter().any(|v| !v.is_finite()) {
                 return Ok((Step::NotReady, Vec::new()));
@@ -296,6 +323,16 @@ fn drive(sink: &str, output: &ModelOutput, values: &[f32], sim: &impl SimState, 
                 }
             }
         }
+        ModelOutput::TargetRate { taps, scale_hz } => {
+            for (tap, value) in taps.iter().zip(values) {
+                sim.voltage_mv(*tap).ok_or_else(|| missing(tap))?;
+                let rate = (value * scale_hz).max(0.0);
+                match effects.target_rates.iter_mut().find(|(t, _)| t == tap) {
+                    Some((_, total)) => *total += rate,
+                    None => effects.target_rates.push((*tap, rate)),
+                }
+            }
+        }
         ModelOutput::Ignore => {}
     }
     Ok(())
@@ -312,6 +349,7 @@ fn targets(output: &ModelOutput) -> Option<(&'static str, usize)> {
         ModelOutput::InjectCurrent { taps, .. } => Some(("InjectCurrent", taps.len())),
         ModelOutput::ScaleConductance { taps, .. } => Some(("ScaleConductance", taps.len())),
         ModelOutput::SynapticGain { synapses, .. } => Some(("SynapticGain", synapses.len())),
+        ModelOutput::TargetRate { taps, .. } => Some(("TargetRate", taps.len())),
         ModelOutput::Ignore => None,
     }
 }
@@ -321,7 +359,7 @@ fn input_len(input: &ModelInput) -> usize {
         ModelInput::Voltages { taps, .. } => taps.len(),
         ModelInput::Time => 1,
         ModelInput::Constant { values } => values.len(),
-        ModelInput::Feedback { .. } => unreachable!("Feedback sizes come from the input port"),
+        ModelInput::Feedback { .. } | ModelInput::Canvas { .. } => unreachable!("these sizes come from the input port"),
     }
 }
 

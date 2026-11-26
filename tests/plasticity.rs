@@ -7,7 +7,7 @@
 use bytemuck::Zeroable;
 use nb_sim::cpu_sim::{magnesium_unblocked, relax_binding, step_biophysics_cpu};
 use nb_sim::gpu::buffers::*;
-use nb_sim::gpu::extract::control_offsets;
+use nb_sim::gpu::extract::neutral_controls;
 
 const DT: f32 = 1e-5;
 const REST_MV: f32 = -70.0;
@@ -186,9 +186,7 @@ struct Run {
 fn run(plasticity: Plasticity, pre: &[f32], post: &[f32], duration: f32) -> Run {
     let mut segs = [clamped(), clamped()];
     let mut syns = [synapse(plasticity)];
-    let (scales_at, gains_at) = control_offsets(2);
-    let mut controls = vec![0.0; gains_at + 1];
-    controls[scales_at..].fill(1.0);
+    let controls = neutral_controls(2, 1);
     let params = params();
     let mut peak: f32 = 0.0;
     let steps = (duration / DT) as usize;
@@ -280,9 +278,7 @@ fn the_weight_scales_only_plastic_receptors() {
         }
         segs[0].voltage = 20.0;
         let mut syns = [syn];
-        let (scales_at, gains_at) = control_offsets(2);
-        let mut controls = vec![0.0; gains_at + 1];
-        controls[scales_at..].fill(1.0);
+        let controls = neutral_controls(2, 1);
         step_biophysics_cpu(&mut segs, &[], &mut syns, &controls, &params());
         segs[1].voltage + 20.0
     };

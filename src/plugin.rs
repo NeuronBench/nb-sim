@@ -72,7 +72,10 @@ impl Plugin for NbSimPlugin {
         // ONNX models: fetched and compiled as scenes load, run before the
         // sim step so their currents apply this frame.
         app.add_plugins(crate::onnx::OnnxPlugin);
-        app.add_systems(Update, crate::onnx::plugin::run_models.before(step_biophysics_flat));
+        app.add_systems(
+            Update,
+            (crate::canvas::advance_canvas_frames, crate::onnx::plugin::run_models).chain().before(step_biophysics_flat),
+        );
 
         app.add_systems(Update, (
             step_biophysics_flat,
@@ -83,6 +86,7 @@ impl Plugin for NbSimPlugin {
         ));
 
         app.add_systems(Update, log_plasticity);
+        app.add_systems(Update, crate::readout::score_readouts.after(step_biophysics_flat));
         app.add_systems(Update, apply_voltage_to_materials)
             .add_systems(Update, apply_current_to_stimulator_material)
             .add_systems(Update, step_oscilloscope_system)

@@ -65,13 +65,19 @@ pub struct GpuSegmentData {
     pub surface_area: f32,
     pub input_current: f32,
     pub num_channels: f32,
-    pub _pad0: f32,
-    pub _pad1: f32,
+    /// Upward crossings of [`SPIKE_THRESHOLD_MV`] (state; the CPU backend
+    /// extracts it as 0 every frame, so there it counts this frame's spikes).
+    pub spike_count: f32,
+    /// 1 while the voltage is above [`SPIKE_THRESHOLD_MV`] (state).
+    pub above_threshold: f32,
     pub _pad2: f32,
     pub _pad3: f32,
     // Fixed array of channels
     pub channels: [GpuMembraneChannel; MAX_CHANNELS],
 }
+
+/// Where a segment's voltage counts as a spike (readouts).
+pub const SPIKE_THRESHOLD_MV: f32 = -20.0;
 
 /// Per-junction (gap junction / electrical synapse) data.
 #[derive(Clone, Copy, Debug, Pod, Zeroable)]
@@ -179,6 +185,9 @@ pub struct GpuSynapseData {
     pub post_trace: f32,
     pub pre_above: f32,
     pub post_above: f32,
+    /// 1: the supervised rule (learning rate in `stdp_potentiation`, the
+    /// target rate from the controls); 0: pair STDP.
+    pub supervised: f32,
     pub pumps: [GpuTransmitterPump; MAX_PUMPS],
     pub receptors: [GpuReceptor; MAX_RECEPTORS],
 }

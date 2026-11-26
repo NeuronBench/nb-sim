@@ -105,6 +105,16 @@ fn step_channels_cpu(seg: &mut GpuSegmentData, input_current: f32, scales: &[f32
         step_gate(&mut seg.channels[c].activation, v_after, params.dt);
         step_gate(&mut seg.channels[c].inactivation, v_after, params.dt);
     }
+    count_spike(seg);
+}
+
+/// Count an upward crossing of [`SPIKE_THRESHOLD_MV`].
+pub fn count_spike(seg: &mut GpuSegmentData) {
+    let up = seg.voltage > SPIKE_THRESHOLD_MV;
+    if up && seg.above_threshold < 0.5 {
+        seg.spike_count += 1.0;
+    }
+    seg.above_threshold = if up { 1.0 } else { 0.0 };
 }
 
 // --- Per-synapse step ---
@@ -114,6 +124,7 @@ fn step_synapse_cpu(
     syn: &mut GpuSynapseData,
     segments: &mut [GpuSegmentData],
     gain: f32,
+    target_hz: f32,
     params: &SimParams,
 ) {
     let pre_v = segments[syn.pre_segment_idx as usize].voltage;
@@ -217,13 +228,16 @@ fn step_synapse_cpu(
     segments[syn.post_segment_idx as usize].voltage += delta_mv;
 
     step_calcium_and_efficacy(syn, calcium_current_per_cm2 * gain * syn.surface_area, params.dt);
-    step_spike_timing(syn, pre_v, post_v, params.dt);
+    step_spike_timing(syn, pre_v, post_v, target_hz, params.dt);
 }
 
-/// Pair STDP (see `serialize::SpikeTimingPlasticity`): decay the traces,
-/// detect upward threshold crossings, and move the efficacy. With both
-/// spikes in one step, each sees the other's trace from before it.
-pub fn step_spike_timing(syn: &mut GpuSynapseData, pre_v: f32, post_v: f32, dt: f32) {
+/// Pair STDP (see `serialize::SpikeTimingPlasticity`) or, for a
+/// `supervised` synapse, ReSuMe toward `target_hz` (see
+/// `serialize::SupervisedPlasticity`; negative: no teacher, no learning):
+/// decay the traces, detect upward threshold crossings, and move the
+/// efficacy. With both spikes in one step, each sees the other's trace from
+/// before it.
+pub fn step_spike_timing(syn: &mut GpuSynapseData, pre_v: f32, post_v: f32, target_hz: f32, dt: f32) {
     if syn.stdp_pre_tau <= 0.0 {
         return;
     }
@@ -236,17 +250,29 @@ pub fn step_spike_timing(syn: &mut GpuSynapseData, pre_v: f32, post_v: f32, dt: 
     syn.pre_above = if pre_up { 1.0 } else { 0.0 };
     syn.post_above = if post_up { 1.0 } else { 0.0 };
     let mut rho = syn.efficacy;
-    if pre_spike {
-        rho -= syn.stdp_depression * rho * syn.post_trace;
-    }
-    if post_spike {
-        rho += syn.stdp_potentiation * (1.0 - rho) * syn.pre_trace;
-    }
-    if pre_spike {
-        syn.pre_trace = 1.0;
-    }
-    if post_spike {
-        syn.post_trace = 1.0;
+    if syn.supervised > 0.5 {
+        if target_hz >= 0.0 {
+            rho += syn.stdp_potentiation * syn.pre_trace * target_hz * dt;
+            if post_spike {
+                rho -= syn.stdp_potentiation * syn.pre_trace;
+            }
+        }
+        if pre_spike {
+            syn.pre_trace += 1.0;
+        }
+    } else {
+        if pre_spike {
+            rho -= syn.stdp_depression * rho * syn.post_trace;
+        }
+        if post_spike {
+            rho += syn.stdp_potentiation * (1.0 - rho) * syn.pre_trace;
+        }
+        if pre_spike {
+            syn.pre_trace = 1.0;
+        }
+        if post_spike {
+            syn.post_trace = 1.0;
+        }
     }
     syn.efficacy = rho.clamp(0.0, 1.0);
 }
@@ -304,7 +330,8 @@ pub fn step_biophysics_cpu(
     params: &SimParams,
 ) {
     let (scales_at, gains_at) = crate::gpu::extract::control_offsets(segments.len());
-    assert_eq!(controls.len(), gains_at + synapses.len(), "controls don't match the flat arrays");
+    let targets_at = gains_at + synapses.len();
+    assert_eq!(controls.len(), targets_at + synapses.len(), "controls don't match the flat arrays");
     for _step in 0..params.steps_per_dispatch {
         // Stage 1: Channel currents and voltage update (per-segment, independent)
         for (i, seg) in segments.iter_mut().enumerate() {
@@ -336,7 +363,7 @@ pub fn step_biophysics_cpu(
         for syn_idx in 0..synapses.len() {
             // Split borrow: take synapse out, operate, put back
             let mut syn = synapses[syn_idx];
-            step_synapse_cpu(&mut syn, segments, controls[gains_at + syn_idx], params);
+            step_synapse_cpu(&mut syn, segments, controls[gains_at + syn_idx], controls[targets_at + syn_idx], params);
             synapses[syn_idx] = syn;
         }
     }

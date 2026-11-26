@@ -52,8 +52,8 @@ struct GpuSegmentData {
     surface_area: f32,
     input_current: f32,
     num_channels: f32,
-    _pad0: f32,
-    _pad1: f32,
+    spike_count: f32,
+    above_threshold: f32,
     _pad2: f32,
     _pad3: f32,
     channels: array<GpuMembraneChannel, 8>,
@@ -136,6 +136,7 @@ struct GpuSynapseData {
     post_trace: f32,
     pre_above: f32,
     post_above: f32,
+    supervised: f32,
     pumps: array<GpuTransmitterPump, 4>,
     receptors: array<GpuReceptor, 4>,
 }
@@ -171,9 +172,11 @@ struct SimParams {
 // With n = params.num_segments:
 //   [0, n)                      input current per segment (µA/cm²)
 //   [n, n + n * MAX_CHANNELS)   conductance multiplier per segment and channel
-//   [n + n * MAX_CHANNELS, ..)  receptor current multiplier per synapse
+//   [n + n * MAX_CHANNELS, + s) receptor current multiplier per synapse
+//   [.. + s, .. + 2s)           teacher target rate (Hz) per synapse; < 0: none
 @group(0) @binding(5) var<storage, read> controls: array<f32>;
 const MAX_CHANNELS: u32 = 8u;
+const SPIKE_THRESHOLD_MV: f32 = -20.0;
 
 fn conductance_scale(segment: u32, channel: u32) -> f32 {
     return controls[params.num_segments + segment * MAX_CHANNELS + channel];
@@ -181,6 +184,11 @@ fn conductance_scale(segment: u32, channel: u32) -> f32 {
 
 fn synapse_gain(synapse: u32) -> f32 {
     return controls[params.num_segments * (1u + MAX_CHANNELS) + synapse];
+}
+
+// The teacher's target rate (Hz) for a supervised synapse; negative: none.
+fn synapse_target(synapse: u32) -> f32 {
+    return controls[params.num_segments * (1u + MAX_CHANNELS) + params.num_synapses + synapse];
 }
 // Per-segment voltage output for readback to CPU (written once per frame after all steps)
 @group(0) @binding(6) var<storage, read_write> voltages_out: array<f32>;
@@ -312,6 +320,13 @@ fn step_channels(@builtin(global_invocation_id) global_id: vec3<u32>) {
         step_gate(&seg.channels[c].activation, v_after, dt);
         step_gate(&seg.channels[c].inactivation, v_after, dt);
     }
+
+    // Count spikes (mirrors cpu_sim::count_spike).
+    let up = v_after > SPIKE_THRESHOLD_MV;
+    if up && seg.above_threshold < 0.5 {
+        seg.spike_count += 1.0;
+    }
+    seg.above_threshold = select(0.0, 1.0, up);
 
     // Write back
     segments[idx] = seg;
@@ -505,17 +520,30 @@ fn step_synapses(@builtin(global_invocation_id) global_id: vec3<u32>) {
         syn.pre_above = select(0.0, 1.0, pre_up);
         syn.post_above = select(0.0, 1.0, post_up);
         var rho = syn.efficacy;
-        if pre_spike {
-            rho -= syn.stdp_depression * rho * syn.post_trace;
-        }
-        if post_spike {
-            rho += syn.stdp_potentiation * (1.0 - rho) * syn.pre_trace;
-        }
-        if pre_spike {
-            syn.pre_trace = 1.0;
-        }
-        if post_spike {
-            syn.post_trace = 1.0;
+        if syn.supervised > 0.5 {
+            let goal_hz = synapse_target(idx);
+            if goal_hz >= 0.0 {
+                rho += syn.stdp_potentiation * syn.pre_trace * goal_hz * dt;
+                if post_spike {
+                    rho -= syn.stdp_potentiation * syn.pre_trace;
+                }
+            }
+            if pre_spike {
+                syn.pre_trace += 1.0;
+            }
+        } else {
+            if pre_spike {
+                rho -= syn.stdp_depression * rho * syn.post_trace;
+            }
+            if post_spike {
+                rho += syn.stdp_potentiation * (1.0 - rho) * syn.pre_trace;
+            }
+            if pre_spike {
+                syn.pre_trace = 1.0;
+            }
+            if post_spike {
+                syn.post_trace = 1.0;
+            }
         }
         syn.efficacy = clamp(rho, 0.0, 1.0);
     }

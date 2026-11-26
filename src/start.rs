@@ -74,7 +74,7 @@ pub fn start(
         .add_plugins(ModelViewPlugin)
         .add_systems(Startup, setup_scene)
         .insert_resource(ClearColor(Srgba::hex("#0e0e1f").unwrap().into()))
-        .add_systems(EguiPrimaryContextPass, (run_gui, run_scene_panel, run_models_panel, run_canvas_panel, model_view_tooltip))
+        .add_systems(EguiPrimaryContextPass, (run_gui, run_scene_panel, run_models_panel, run_canvas_panel, crate::readout::run_readout_panel, model_view_tooltip))
         .add_systems(Update, (handle_loaded_neuron, debug_screenshot));
 
         if demo {

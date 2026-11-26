@@ -190,8 +190,8 @@ pub fn extract_to_gpu_state(
             surface_area,
             input_current: total_input,
             num_channels: num_channels as f32,
-            _pad0: 0.0,
-            _pad1: 0.0,
+            spike_count: 0.0,
+            above_threshold: if voltage.0 .0 > SPIKE_THRESHOLD_MV { 1.0 } else { 0.0 },
             _pad2: 0.0,
             _pad3: 0.0,
             channels,
@@ -273,15 +273,31 @@ pub fn extract_to_gpu_state(
                 bistability: sm.plasticity.as_ref().map_or(0.0, |p| p.bistability),
                 weight_at_0: sm.weight_range().0,
                 weight_at_1: sm.weight_range().1,
-                stdp_threshold: sm.spike_timing.as_ref().map_or(0.0, |p| p.spike_threshold_mv),
-                stdp_pre_tau: sm.spike_timing.as_ref().map_or(0.0, |p| p.pre_trace_sec),
-                stdp_post_tau: sm.spike_timing.as_ref().map_or(0.0, |p| p.post_trace_sec),
-                stdp_potentiation: sm.spike_timing.as_ref().map_or(0.0, |p| p.potentiation),
+                stdp_threshold: sm
+                    .spike_timing
+                    .as_ref()
+                    .map(|p| p.spike_threshold_mv)
+                    .or(sm.supervised.as_ref().map(|p| p.spike_threshold_mv))
+                    .unwrap_or(0.0),
+                stdp_pre_tau: sm
+                    .spike_timing
+                    .as_ref()
+                    .map(|p| p.pre_trace_sec)
+                    .or(sm.supervised.as_ref().map(|p| p.pre_trace_sec))
+                    .unwrap_or(0.0),
+                stdp_post_tau: sm.spike_timing.as_ref().map_or(1.0, |p| p.post_trace_sec),
+                stdp_potentiation: sm
+                    .spike_timing
+                    .as_ref()
+                    .map(|p| p.potentiation)
+                    .or(sm.supervised.as_ref().map(|p| p.learning_rate))
+                    .unwrap_or(0.0),
                 stdp_depression: sm.spike_timing.as_ref().map_or(0.0, |p| p.depression),
                 pre_trace: sm.spike_traces[0],
                 post_trace: sm.spike_traces[1],
                 pre_above: sm.spike_traces[2],
                 post_above: sm.spike_traces[3],
+                supervised: if sm.supervised.is_some() { 1.0 } else { 0.0 },
                 pumps,
                 receptors,
             });
@@ -331,11 +347,12 @@ pub type SegmentControls<'a> = (
     Option<&'a Stimulator>,
     Option<&'a ModelCurrent>,
     Option<&'a ModelConductanceScale>,
+    Option<&'a crate::neuron::segment::ecs::ModelTargetRate>,
 );
 
 /// Rebuild `state.controls` (see [`GpuSimState::controls`]) from the ECS:
-/// input currents (input + stimulator + model), conductance multipliers and
-/// synapse gains. Runs every frame on both backends.
+/// input currents (input + stimulator + model), conductance multipliers,
+/// synapse gains and synapse target rates. Runs every frame on both backends.
 pub fn fill_controls(
     segments: &Query<SegmentControls>,
     synapse_gains: &Query<&ModelSynapseGain>,
@@ -345,9 +362,10 @@ pub fn fill_controls(
     let n = state.segment_entities.len();
     state.controls.clear();
     state.controls.resize(n + n * MAX_CHANNELS, 0.0);
+    let mut targets = vec![-1.0f32; n];
     let (currents, scales) = state.controls.split_at_mut(n);
     for (i, entity) in state.segment_entities.iter().enumerate() {
-        let Ok((input, stimulator, model_current, model_scale)) = segments.get(*entity) else {
+        let Ok((input, stimulator, model_current, model_scale, target)) = segments.get(*entity) else {
             scales[i * MAX_CHANNELS..(i + 1) * MAX_CHANNELS].fill(1.0);
             continue;
         };
@@ -356,10 +374,25 @@ pub fn fill_controls(
             + model_current.map_or(0.0, |m| m.0 .0);
         let factors = model_scale.map_or([1.0; MAX_CHANNELS], |s| s.0);
         scales[i * MAX_CHANNELS..(i + 1) * MAX_CHANNELS].copy_from_slice(&factors);
+        targets[i] = target.map_or(-1.0, |t| t.0);
     }
     for entity in &state.synapse_entities {
         state.controls.push(synapse_gains.get(*entity).map_or(1.0, |g| g.0));
     }
+    for i in 0..state.synapses.len() {
+        let post = state.synapses[i].post_segment_idx as usize;
+        state.controls.push(targets.get(post).copied().unwrap_or(-1.0));
+    }
+}
+
+/// Controls for `segments` segments and `synapses` synapses that change
+/// nothing: no input current, unit multipliers and gains, no teachers.
+pub fn neutral_controls(segments: usize, synapses: usize) -> Vec<f32> {
+    let (scales_at, gains_at) = control_offsets(segments);
+    let mut c = vec![0.0; gains_at + 2 * synapses];
+    c[scales_at..gains_at + synapses].fill(1.0);
+    c[gains_at + synapses..].fill(-1.0);
+    c
 }
 
 /// Offsets into [`GpuSimState::controls`] for `n` segments.

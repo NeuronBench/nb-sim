@@ -12,6 +12,9 @@ fn canvas(name: &str, width: u32, height: u32, initial: Vec<f32>) -> Canvas {
         taps: (0..width * height).map(|i| SegmentRef { neuron: i, segment: 1 }).collect(),
         max_uamps_per_square_cm: 10.0,
         initial,
+        frames: vec![],
+        frame_sec: 0.0,
+        labels: vec![],
     }
 }
 
@@ -65,4 +68,25 @@ fn cells_inject_their_value_times_the_maximum() {
         currents,
         vec![(SegmentRef { neuron: 0, segment: 1 }, 5.0), (SegmentRef { neuron: 1, segment: 1 }, -10.0)]
     );
+}
+
+#[test]
+fn frames_stream_in_order_and_cycle() {
+    let mut spec = canvas("digits", 2, 1, vec![]);
+    spec.frames = vec![vec![1.0, 0.0], vec![0.0, 1.0], vec![0.5]];
+    spec.frame_sec = 0.1;
+    spec.labels = vec![7, 3, 9];
+    let mut c = SceneCanvases::default();
+    c.load(&[spec]);
+    assert!(c.advance(0.05));
+    assert_eq!(c.canvases[0].values, vec![1.0, 0.0]);
+    assert_eq!(c.label("digits"), Some((0, 7)));
+    assert!(!c.advance(0.07), "same frame: nothing to do");
+    c.advance(0.15);
+    assert_eq!(c.label("digits"), Some((1, 3)));
+    c.advance(0.25);
+    assert_eq!(c.canvases[0].values, vec![0.5, 0.0], "short frames are padded");
+    c.advance(0.31);
+    assert_eq!(c.label("digits"), Some((0, 7)), "cycles");
+    assert_eq!(c.label_of("digits", 2), Some(9));
 }

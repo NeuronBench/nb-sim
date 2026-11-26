@@ -53,6 +53,17 @@ pub mod ecs {
         }
     }
 
+    /// The firing rate (Hz) a model's `TargetRate` output asks of a segment:
+    /// the teacher of supervised synapses onto it. Negative: no teacher.
+    #[derive(bevy::ecs::component::Component, Clone, Copy, Debug, PartialEq)]
+    pub struct ModelTargetRate(pub f32);
+
+    impl Default for ModelTargetRate {
+        fn default() -> Self {
+            ModelTargetRate(-1.0)
+        }
+    }
+
     /// Where a segment came from in the scene: the index of its neuron in
     /// `Scene::neurons` and its SWC id. Scenes address segments this way.
     #[derive(bevy::ecs::component::Component, Clone, Copy, Debug, PartialEq, Eq, Hash)]

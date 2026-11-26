@@ -167,6 +167,9 @@ pub fn setup(app: &mut App) {
     app.init_resource::<SceneParams>();
     app.init_resource::<SceneDiagnostics>();
     app.init_resource::<crate::canvas::SceneCanvases>();
+    app.init_resource::<crate::readout::SceneReadouts>();
+    app.init_resource::<crate::integrations::grace::KeptEfficacies>();
+    app.add_systems(Update, crate::integrations::grace::restore_efficacies);
     let (tx, rx) = unbounded();
     app.insert_resource(GraceSceneSender(tx));
     app.insert_resource(GraceSceneReceiver(rx));
@@ -220,10 +223,28 @@ pub struct SceneEntities<'w, 's> {
     segments: Query<'w, 's, Entity, With<Segment>>,
     junctions: Query<'w, 's, Entity, With<Junction>>,
     stimulations: Query<'w, 's, Entity, With<Stimulation>>,
+    synapses: Query<
+        'w,
+        's,
+        (
+            Entity,
+            &'static crate::integrations::grace::SynapseAddress,
+            &'static crate::integrations::grace::SynapseEnds,
+            &'static crate::integrations::grace::Synapse,
+        ),
+    >,
 }
 
 impl SceneEntities<'_, '_> {
-    fn despawn_all(&self, commands: &mut Commands) {
+    /// Despawn everything, keeping plastic synapses' learned efficacies.
+    fn despawn_all(&self, commands: &mut Commands, kept: &mut crate::integrations::grace::KeptEfficacies) {
+        kept.0.clear();
+        for (e, address, ends, synapse) in self.synapses.iter() {
+            if synapse.synapse_membranes.is_plastic() {
+                kept.0.insert(address.0, (*ends, synapse.synapse_membranes.efficacy));
+            }
+            commands.entity(e).despawn();
+        }
         for e in self.stimulations.iter() {
             commands.entity(e).despawn();
         }
@@ -254,6 +275,7 @@ pub fn drive_scene_loader(
     entities: SceneEntities,
     scene_sender: Res<GraceSceneSender>,
     (mut models, model_sender, mut canvases): (ResMut<SceneModels>, Res<ModelFetchSender>, ResMut<crate::canvas::SceneCanvases>),
+    (mut readouts, mut kept): (ResMut<crate::readout::SceneReadouts>, ResMut<crate::integrations::grace::KeptEfficacies>),
     mut last_debug_reload: Local<f64>,
 ) {
     while let Ok((path, result)) = receiver.0.try_recv() {
@@ -329,10 +351,11 @@ pub fn drive_scene_loader(
                         params.specs.len()
                     );
                     diagnostics.0.clear();
-                    entities.despawn_all(&mut commands);
+                    entities.despawn_all(&mut commands, &mut kept);
                     let refetch = std::mem::take(&mut loader.refetch_models);
                     models.load(&scene.models, &root, refetch, &model_sender);
                     canvases.load(&scene.canvases);
+                    readouts.load(&scene.readouts);
                     let _ = scene_sender.0.send(GraceScene(scene));
                 }
                 Err(d) => {

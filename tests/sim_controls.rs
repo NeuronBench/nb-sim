@@ -5,7 +5,7 @@
 use bytemuck::Zeroable;
 use nb_sim::cpu_sim::step_biophysics_cpu;
 use nb_sim::gpu::buffers::*;
-use nb_sim::gpu::extract::control_offsets;
+use nb_sim::gpu::extract::{control_offsets, neutral_controls};
 
 const DT: f32 = 1e-5;
 
@@ -57,10 +57,7 @@ fn segment(v: f32) -> GpuSegmentData {
 /// Controls for `segments` segments and `synapses` synapses: no input,
 /// unit multipliers.
 fn controls(segments: usize, synapses: usize) -> Vec<f32> {
-    let (scales_at, gains_at) = control_offsets(segments);
-    let mut c = vec![0.0; gains_at + synapses];
-    c[scales_at..].fill(1.0);
-    c
+    neutral_controls(segments, synapses)
 }
 
 /// Voltage change of segment 0 after one step.

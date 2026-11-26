@@ -85,7 +85,7 @@ fn output_taps(activations: &[Activation], instance: &crate::onnx::coupling::Mod
         .zip(outputs)
         .filter_map(|(out, port)| {
             let taps = match out {
-                ModelOutput::InjectCurrent { taps, .. } | ModelOutput::ScaleConductance { taps, .. } => taps.clone(),
+                ModelOutput::InjectCurrent { taps, .. } | ModelOutput::ScaleConductance { taps, .. } | ModelOutput::TargetRate { taps, .. } => taps.clone(),
                 _ => return None,
             };
             let layer = activations.iter().rposition(|a| a.name == port.name)?;
@@ -147,7 +147,7 @@ fn sync_model_view(
             for tap in &instance.spec.hidden {
                 let Some(layer) = slot.activations.iter().rposition(|a| a.name == tap.value) else { continue };
                 let refs = match &tap.output {
-                    ModelOutput::InjectCurrent { taps, .. } | ModelOutput::ScaleConductance { taps, .. } => taps,
+                    ModelOutput::InjectCurrent { taps, .. } | ModelOutput::ScaleConductance { taps, .. } | ModelOutput::TargetRate { taps, .. } => taps,
                     _ => continue,
                 };
                 lines.extend(tap.elements.iter().zip(refs).map(|(e, r)| (layer, *e as usize, *r)));
