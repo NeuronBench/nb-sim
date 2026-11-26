@@ -155,7 +155,8 @@ fn setup_scene(
         (Camera3d::default(),
          Transform::from_xyz(camera_x,camera_y,camera_z).looking_at(Vec3::ZERO, Vec3::Y),
          MyCamera,
-         Bloom::NATURAL,
+         // A tenth of NATURAL's bloom, so a glowing cell doesn't hide its shape.
+         Bloom { intensity: Bloom::NATURAL.intensity * 0.1, ..Bloom::NATURAL },
          PanOrbitCamera {radius: Some(camera_radius), ..default()},
         ));
 
