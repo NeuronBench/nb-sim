@@ -8,7 +8,7 @@ use crate::dimension::{MilliVolts, Diameter, MicroAmpsPerSquareCm};
 use crate::gui::NextClickAction;
 use crate::gui::oscilloscope::Oscilloscope;
 use crate::neuron::Junction;
-use crate::neuron::membrane::{Membrane, MembraneVoltage, MembraneMaterials};
+use crate::neuron::membrane::{Membrane, MembraneVoltage, MembraneMaterials, Palette};
 use crate::neuron::solution::EXAMPLE_CYTOPLASM;
 use crate::neuron::segment::{ecs::Segment, ecs::InputCurrent, ecs::SegmentAddress, ecs::ModelCurrent, ecs::ModelConductanceScale, ecs::ModelTargetRate, ecs::SpikeCount, Geometry};
 use crate::neuron::synapse::SynapseMembranes;
@@ -39,7 +39,12 @@ impl GraceScene {
         highlights: Query<Entity, With<Highlight>>,
     ) -> Vec<(Entity, Vec<Entity>)> {
         let neuron_entities = self.0.neurons.iter().enumerate().map(|(neuron_index, scene_neuron)| {
-            spawn_neuron(&scene_neuron, neuron_index as u32, soma_location_cm, &mut commands, &mut meshes, &membrane_materials, materials, &selections, &highlights)
+            let palette = Palette::from_transmitters(
+                self.0.synapses.iter()
+                    .filter(|s| s.pre_neuron == neuron_index)
+                    .flat_map(|s| s.synapse_membranes.presynaptic_pumps.iter().map(|p| p.transmitter.as_str())),
+            );
+            spawn_neuron(&scene_neuron, neuron_index as u32, palette, soma_location_cm, &mut commands, &mut meshes, &membrane_materials, materials, &selections, &highlights)
         }).collect();
 
         for (index, synapse) in self.0.synapses.iter().enumerate() {
@@ -124,6 +129,7 @@ pub fn distance_to_segment_cm(source: &serialize::Segment, dest: &serialize::Seg
 pub fn spawn_neuron(
     scene_neuron: &serialize::SceneNeuron,
     neuron_index: u32,
+    palette: Palette,
     soma_location_cm: Vec3,
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
@@ -228,11 +234,11 @@ pub fn spawn_neuron(
                 ModelTargetRate::default(),
                 SpikeCount::default(),
                 Mesh3d(meshes.add(shape)),
-                MeshMaterial3d(membrane_materials.from_voltage(&v0)),
+                MeshMaterial3d(membrane_materials.from_voltage_in(palette, &v0)),
                 transform,
                 Pickable::default(),
             )
-        ).observe(add_stimulation).id();
+        ).observe(add_stimulation).insert(palette).id();
         commands.entity(neuron_entity).add_children(&[segment_entity]);
         entities_and_parents.insert(id.clone(), (segment_entity, segment.parent, Diameter(1.0), transform));
         segment_entity

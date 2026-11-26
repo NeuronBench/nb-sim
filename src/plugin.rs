@@ -24,7 +24,7 @@ use crate::gui;
 use crate::gui::oscilloscope::{step_oscilloscope_system, Oscilloscope};
 use crate::integrations::grace::{ModelSynapseGain, Synapse};
 use crate::neuron::channel::{ca_reversal, cl_reversal, k_reversal, na_reversal};
-use crate::neuron::membrane::{Membrane, MembraneMaterials, MembraneVoltage};
+use crate::neuron::membrane::{Membrane, MembraneMaterials, MembraneVoltage, Palette};
 use crate::neuron::segment::{ecs::InputCurrent, ecs::ModelCurrent, ecs::Segment, Geometry};
 use crate::neuron::solution::{Solution, INTERSTICIAL_FLUID};
 use crate::neuron::Junction;
@@ -602,10 +602,10 @@ fn default_env() -> Env {
 
 fn apply_voltage_to_materials(
     membrane_materials: Res<MembraneMaterials>,
-    mut query: Query<(&MembraneVoltage, &mut MeshMaterial3d<StandardMaterial>)>,
+    mut query: Query<(&MembraneVoltage, Option<&Palette>, &mut MeshMaterial3d<StandardMaterial>)>,
 ) {
-    for (v, mut material) in &mut query {
-        material.0 = membrane_materials.from_voltage(&v.0);
+    for (v, palette, mut material) in &mut query {
+        material.0 = membrane_materials.from_voltage_in(palette.copied().unwrap_or_default(), &v.0);
     }
 }
 

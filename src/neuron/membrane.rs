@@ -157,10 +157,49 @@ impl MembraneChannel {
     }
 }
 
-/// A collection of segment PBR materials for Bevy rendering.
+/// Which color ramp a segment's voltage is shown in: by what its neuron
+/// releases (gold for glutamate, blue for GABA), else the neutral teal.
+#[derive(Component, Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Palette {
+    #[default]
+    Neutral,
+    Excitatory,
+    Inhibitory,
+}
+
+impl Palette {
+    /// Hue of the ramp, at full intensity.
+    fn rgb(self) -> (f32, f32, f32) {
+        match self {
+            Palette::Neutral => (0.0, 0.83, 0.48),
+            Palette::Excitatory => (1.0, 0.68, 0.12),
+            Palette::Inhibitory => (0.15, 0.42, 1.0),
+        }
+    }
+
+    /// A neuron's palette from the transmitters its synapses release
+    /// (GABA wins over glutamate); Neutral if it releases neither.
+    pub fn from_transmitters<'a>(transmitters: impl IntoIterator<Item = &'a str>) -> Self {
+        let mut palette = Palette::Neutral;
+        for t in transmitters {
+            if t.eq_ignore_ascii_case("gaba") {
+                return Palette::Inhibitory;
+            }
+            if t.eq_ignore_ascii_case("glutamate") {
+                palette = Palette::Excitatory;
+            }
+        }
+        palette
+    }
+}
+
+/// A collection of segment PBR materials for Bevy rendering: a ramp from
+/// rest to peak voltage for each [`Palette`].
 #[derive(Resource)]
 pub struct MembraneMaterials {
     pub handles: Vec<Handle<StandardMaterial>>,
+    pub excitatory: Vec<Handle<StandardMaterial>>,
+    pub inhibitory: Vec<Handle<StandardMaterial>>,
     pub voltage_range: (MilliVolts,MilliVolts),
     pub len: usize,
 }
@@ -170,31 +209,42 @@ impl FromWorld for MembraneMaterials {
       let mut material_assets = world.get_resource_mut::<Assets<StandardMaterial>>().expect("Can get Assets");
       let len = 500;
       let voltage_range = (MilliVolts(-80.0), MilliVolts(50.0));
-      let handles = (0..len).map(|i| {
-          let intensity_range = 1.0;
-          let intensity = i as f32 / len as f32 * intensity_range;
-          let color = Color::srgb(intensity * 0.0, intensity * 0.83, intensity * 0.48);
-          let mut material : StandardMaterial = color.into();
-          material.emissive = Color::linear_rgb(
-              intensity * 100000.0 * 0.0,
-              intensity * 100000.0 * 0.83,
-              intensity * 100000.0 * 0.48
-          ).into();
-          // material.metallic = intensity;
-          let handle = material_assets.add(material);
-          handle
-      }).collect();
-      MembraneMaterials { handles, voltage_range, len}
+      let mut ramp = |palette: Palette| -> Vec<Handle<StandardMaterial>> {
+          let (r, g, b) = palette.rgb();
+          (0..len).map(|i| {
+              let intensity = i as f32 / len as f32;
+              let mut material : StandardMaterial = Color::srgb(intensity * r, intensity * g, intensity * b).into();
+              material.emissive = Color::linear_rgb(
+                  intensity * 100000.0 * r,
+                  intensity * 100000.0 * g,
+                  intensity * 100000.0 * b,
+              ).into();
+              material_assets.add(material)
+          }).collect()
+      };
+      let handles = ramp(Palette::Neutral);
+      let excitatory = ramp(Palette::Excitatory);
+      let inhibitory = ramp(Palette::Inhibitory);
+      MembraneMaterials { handles, excitatory, inhibitory, voltage_range, len}
   }
 }
 
 impl MembraneMaterials {
 
     pub fn from_voltage(&self, v: &MilliVolts) -> Handle<StandardMaterial> {
+        self.from_voltage_in(Palette::Neutral, v)
+    }
+
+    pub fn from_voltage_in(&self, palette: Palette, v: &MilliVolts) -> Handle<StandardMaterial> {
         let v_min = self.voltage_range.0.0;
         let v_max = self.voltage_range.1.0;
-        let index = (((v.0 - v_min) / (v_max - v_min)) * self.len as f32) as usize;
-        self.handles[index.min(self.len - 1)].clone()
+        let index = (((v.0 - v_min) / (v_max - v_min)) * self.len as f32).max(0.0) as usize;
+        let ramp = match palette {
+            Palette::Neutral => &self.handles,
+            Palette::Excitatory => &self.excitatory,
+            Palette::Inhibitory => &self.inhibitory,
+        };
+        ramp[index.min(self.len - 1)].clone()
     }
 }
 #[cfg(test)]
