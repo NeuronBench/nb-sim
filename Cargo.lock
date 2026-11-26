@@ -6730,7 +6730,7 @@ checksum = "8d5439c4ad607c3c23abf66de8c8bf57ba8adcd1f129e699851a6e43935d339d"
 [[package]]
 name = "nb-nickel"
 version = "0.1.0"
-source = "git+https://github.com/NeuronBench/nb-nickel?branch=main#2285c57e25b70dcd77216168b0698af17ff9c2ac"
+source = "git+https://github.com/NeuronBench/nb-nickel?branch=main#7708a09dd8e5f12c144e3d7e05291e82c6686df4"
 dependencies = [
  "nickel-lang-core",
  "serde",
