@@ -156,13 +156,15 @@ pub fn runtime_stats_header(
               ui.label(realtime_frac_str);
             });
 
+            // In tenths of a microsecond: 100 is 10 µs (1e-5 s). Much more
+            // than 20 µs makes the compartments' coupling unstable.
             ui.add(egui::Slider::from_get_set(
-                1.0..=100.0, move |v: Option<f64>| {
+                1.0..=200.0, move |v: Option<f64>| {
                     if let Some(v) = v {
                         simulation_step.0 = v as f32 * 0.0000001;
                     }
                     (simulation_step.0 * 10000000.0) as f64
-                }).logarithmic(false).text("Simulation step (microseconds)"));
+                }).logarithmic(false).text("Simulation step (0.1 µs)"));
 
             ui.add(egui::Slider::from_get_set(
                 1.0..=500.0, move |v: Option<f64>| {

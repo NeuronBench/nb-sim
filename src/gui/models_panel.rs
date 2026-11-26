@@ -33,6 +33,7 @@ pub fn run_models_panel(mut contexts: EguiContexts, models: Res<SceneModels>, mu
     }
     let Ok(ctx) = contexts.ctx_mut() else { return };
     egui::Window::new("Models")
+        .default_open(false)
         .default_pos([380.0, 460.0])
         .default_width(340.0)
         .show(ctx, |ui| {

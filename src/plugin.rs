@@ -50,11 +50,11 @@ impl Plugin for NbSimPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(default_env())
             .insert_resource(Timestamp(0.0))
-            .insert_resource(StepsPerFrame(env_knob("NB_STEPS_PER_FRAME").unwrap_or(100)))
+            .insert_resource(StepsPerFrame(env_knob("NB_STEPS_PER_FRAME").unwrap_or(50)))
             .init_resource::<gui::NextClickAction>()
             .init_resource::<Oscilloscope>()
             .insert_resource(Stimulator::default())
-            .insert_resource(SimulationStepSeconds(env_knob("NB_SIM_DT").unwrap_or(5e-7)))
+            .insert_resource(SimulationStepSeconds(env_knob("NB_SIM_DT").unwrap_or(1e-5)))
             .init_resource::<MembraneMaterials>()
             .init_resource::<StimulatorMaterials>()
             .init_resource::<GpuSimState>()

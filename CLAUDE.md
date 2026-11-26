@@ -108,7 +108,7 @@ wasm-pack build --mode no-install --release --target web
 
 - `NB_SCENE` - Native: path or URL of the root `.ncl` scene (defaults to `../nb-lib/scene.ncl`)
 - `NB_LIB_DIR` - Where tests find nb-lib (defaults to `../nb-lib`)
-- `NB_SIM_DT`, `NB_STEPS_PER_FRAME` - Native: start with another simulation step (default 5e-7 s) or steps per frame (default 100); `1e-5` runs the plasticity demo about 20x faster
+- `NB_SIM_DT`, `NB_STEPS_PER_FRAME` - Native: start with another simulation step (default 1e-5 s; it was 5e-7 s before 2026-11-26) or steps per frame (default 50); 1e-4 s is unstable
 - `NB_SIM_BACKEND=cpu` - Native: stay on the CPU kernel (the GPU reads back voltages, spike counts and synapse efficacies, but not calcium)
 - `NB_SET_PARAMS_AT` - Native: move sliders at simulated times, e.g. `400:teacher=0,stream=1` (for unattended runs)
 - `NB_DEBUG_LOAD_AT` - Native: press the Scene window's Load with another scene once, e.g. `5:../nb-lib/demos/mnist_wta.ncl` (seconds after startup)
