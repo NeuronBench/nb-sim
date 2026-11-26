@@ -304,7 +304,7 @@ impl SceneEntities<'_, '_> {
 pub fn drive_scene_loader(
     mut commands: Commands,
     mut loader: ResMut<SceneLoader>,
-    source: Res<SceneSource>,
+    mut source: ResMut<SceneSource>,
     receiver: Res<FetchReceiver>,
     sender: Res<FetchSender>,
     mut params: ResMut<SceneParams>,
@@ -316,6 +316,7 @@ pub fn drive_scene_loader(
     (mut models, model_sender, mut canvases): (ResMut<SceneModels>, Res<ModelFetchSender>, ResMut<crate::canvas::SceneCanvases>),
     (mut readouts, mut kept): (ResMut<crate::readout::SceneReadouts>, ResMut<crate::integrations::grace::KeptEfficacies>),
     mut last_debug_reload: Local<f64>,
+    mut last_debug_load: Local<bool>,
 ) {
     while let Ok((path, result)) = receiver.0.try_recv() {
         loader.pending.remove(&path);
@@ -345,6 +346,22 @@ pub fn drive_scene_loader(
         }
     }
 
+    // Diagnostic knob: NB_DEBUG_LOAD_AT=secs:path enters `path` in the Scene
+    // window and presses Load once, `secs` seconds after startup (switching
+    // scenes replaces the GPU buffers, which slider reloads don't).
+    if !*last_debug_load {
+        if let Some((at, path)) = std::env::var("NB_DEBUG_LOAD_AT").ok().and_then(|v| {
+            let (at, path) = v.split_once(':')?;
+            Some((at.parse::<f64>().ok()?, path.to_string()))
+        }) {
+            if now > at {
+                *last_debug_load = true;
+                info!("NB_DEBUG_LOAD_AT: loading {path}");
+                source.0 = path;
+                loader.request(true);
+            }
+        }
+    }
     is_loading.0 = loader.requested;
     if !loader.requested || !loader.pending.is_empty() {
         return;

@@ -132,6 +132,10 @@ pub struct GpuComputeState {
     pub num_junctions: u32,
     pub num_synapses: u32,
     pub bind_group: Option<BindGroup>,
+    /// The voltages_out buffer `bind_group` writes to. Loading a scene of
+    /// another size replaces that buffer (and its Readback) after the
+    /// topology buffers may already have been bound to the old one.
+    pub bound_voltages: Option<AssetId<ShaderStorageBuffer>>,
     /// Topology generation these buffers were built from.
     pub generation: u64,
 }
@@ -394,6 +398,7 @@ pub fn prepare_gpu_buffers(
             num_junctions: n_junc as u32,
             num_synapses: n_syn as u32,
             bind_group: None,
+            bound_voltages: None,
             generation: input.topology_generation,
         });
     } else if let Some(mut state) = existing_state {
@@ -439,8 +444,9 @@ pub fn prepare_bind_group(
         return;
     };
 
-    // Only recreate bind group when it's None (invalidated on topology change)
-    if state.bind_group.is_some() {
+    // Recreate the bind group when it was invalidated (topology change) or
+    // was built with a voltages_out buffer that has since been replaced.
+    if state.bind_group.is_some() && state.bound_voltages == Some(voltages_handle.0.id()) {
         return;
     }
 
@@ -449,6 +455,7 @@ pub fn prepare_bind_group(
         return;
     };
     info!("biophysics: creating bind group for topology generation {}", state.generation);
+    state.bound_voltages = Some(voltages_handle.0.id());
 
     let layout = pipeline_cache.get_bind_group_layout(&layout_desc.0);
 
