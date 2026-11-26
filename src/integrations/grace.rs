@@ -10,7 +10,7 @@ use crate::gui::oscilloscope::Oscilloscope;
 use crate::neuron::Junction;
 use crate::neuron::membrane::{Membrane, MembraneVoltage, MembraneMaterials};
 use crate::neuron::solution::EXAMPLE_CYTOPLASM;
-use crate::neuron::segment::{ecs::Segment, ecs::InputCurrent, ecs::SegmentAddress, ecs::ModelCurrent, ecs::ModelConductanceScale, ecs::ModelTargetRate, Geometry};
+use crate::neuron::segment::{ecs::Segment, ecs::InputCurrent, ecs::SegmentAddress, ecs::ModelCurrent, ecs::ModelConductanceScale, ecs::ModelTargetRate, ecs::SpikeCount, Geometry};
 use crate::neuron::synapse::SynapseMembranes;
 use crate::stimulator;
 use crate::serialize;
@@ -226,6 +226,7 @@ pub fn spawn_neuron(
                 ModelCurrent::default(),
                 ModelConductanceScale::default(),
                 ModelTargetRate::default(),
+                SpikeCount::default(),
                 Mesh3d(meshes.add(shape)),
                 MeshMaterial3d(membrane_materials.from_voltage(&v0)),
                 transform,
@@ -325,9 +326,10 @@ pub struct KeptEfficacies(pub HashMap<u32, (SynapseEnds, f32)>);
 /// Give newly spawned plastic synapses the efficacy their predecessor (same
 /// address, same ends) had learned, so moving a slider keeps the learning.
 pub fn restore_efficacies(
-    mut kept: ResMut<KeptEfficacies>,
+    kept: Option<ResMut<KeptEfficacies>>,
     mut synapses: Query<(&SynapseAddress, &SynapseEnds, &mut Synapse), Added<Synapse>>,
 ) {
+    let Some(mut kept) = kept else { return };
     if kept.0.is_empty() {
         return;
     }

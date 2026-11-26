@@ -64,6 +64,12 @@ pub mod ecs {
         }
     }
 
+    /// Spikes (upward crossings of `gpu::buffers::SPIKE_THRESHOLD_MV`) since
+    /// the segment was spawned, from either backend. Read differences, since
+    /// the GPU backend restarts its count when it rebuilds its buffers.
+    #[derive(bevy::ecs::component::Component, Clone, Copy, Debug, Default, PartialEq)]
+    pub struct SpikeCount(pub f32);
+
     /// Where a segment came from in the scene: the index of its neuron in
     /// `Scene::neurons` and its SWC id. Scenes address segments this way.
     #[derive(bevy::ecs::component::Component, Clone, Copy, Debug, PartialEq, Eq, Hash)]

@@ -86,6 +86,8 @@ impl Plugin for NbSimPlugin {
         ));
 
         app.add_systems(Update, log_plasticity);
+        // Before the flat arrays are rebuilt from the new synapses.
+        app.add_systems(Update, crate::integrations::grace::restore_efficacies.before(step_biophysics_flat));
         app.add_systems(Update, crate::readout::score_readouts.after(step_biophysics_flat));
         app.add_systems(Update, apply_voltage_to_materials)
             .add_systems(Update, apply_current_to_stimulator_material)
@@ -257,6 +259,7 @@ fn step_biophysics_flat(
     model_currents: Query<&ModelCurrent>,
     controls_query: Query<extract::SegmentControls>,
     synapse_gains: Query<&ModelSynapseGain>,
+    mut spike_counts: Query<&mut crate::neuron::segment::ecs::SpikeCount>,
 ) {
     if segments_query.is_empty() {
         return;
@@ -331,6 +334,14 @@ fn step_biophysics_flat(
     );
 
     extract::writeback_to_ecs(state, &mut segments_query, &mut synapses_query);
+    // The flat arrays count this frame's spikes (extraction zeroes them).
+    for (seg, entity) in state.segments.iter().zip(&state.segment_entities) {
+        if seg.spike_count > 0.0 {
+            if let Ok(mut count) = spike_counts.get_mut(*entity) {
+                count.0 += seg.spike_count;
+            }
+        }
+    }
     timestamp.0 += simulation_step.0 * steps_per_frame.0 as f32;
 }
 
@@ -346,7 +357,8 @@ fn setup_gpu_readback(
     existing_readback: Option<Res<VoltagesReadbackEntity>>,
     render_device: Option<Res<RenderDevice>>,
     health: Res<GpuComputeHealth>,
-    mut buffer_segments: Local<usize>,
+    gpu_state: Res<GpuSimState>,
+    mut buffer_size: Local<(usize, usize)>,
     mut fallback_logged: Local<bool>,
 ) {
     if segments_query.is_empty() {
@@ -386,19 +398,26 @@ fn setup_gpu_readback(
         return;
     }
 
+    // Size the buffer for the flat arrays (extracted on the CPU backend's
+    // first frame, and again after every reload).
     let n_segments = segments_query.iter().count();
-    if existing_handle.is_some() && *buffer_segments == n_segments {
+    if gpu_state.segments.len() != n_segments {
+        return;
+    }
+    let n_synapses = gpu_state.synapses.len();
+    if existing_handle.is_some() && *buffer_size == (n_segments, n_synapses) {
         return;
     }
     // A stale Readback entity would keep delivering the old buffer's contents.
     if let Some(old) = existing_readback {
         commands.entity(old.0).despawn();
     }
-    *buffer_segments = n_segments;
+    *buffer_size = (n_segments, n_synapses);
+    // Voltages, spike counts, efficacies (see the shader's write_voltages).
     // Start as NaN ("not computed yet") rather than zeros: until the compute
     // pipelines are ready (seconds in a browser) readbacks return the initial
     // contents, and zeros would show every segment at 0 mV (bright green).
-    let initial = vec![f32::NAN; n_segments];
+    let initial = vec![f32::NAN; readback_len(n_segments, n_synapses)];
     let mut buffer = ShaderStorageBuffer::new(
         bytemuck::cast_slice(&initial),
         RenderAssetUsages::RENDER_WORLD,
@@ -418,7 +437,13 @@ fn setup_gpu_readback(
     if *backend != SimBackend::Gpu {
         *backend = SimBackend::Gpu;
     }
-    info!("GPU readback set up for {} segments, GPU backend active", n_segments);
+    info!("GPU readback set up for {n_segments} segments and {n_synapses} synapses, GPU backend active");
+}
+
+/// Floats in the readback buffer: voltages and spike counts per segment,
+/// then efficacies per synapse.
+fn readback_len(segments: usize, synapses: usize) -> usize {
+    2 * segments + synapses
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -509,7 +534,8 @@ fn apply_voltage_readback(
     event: On<ReadbackComplete>,
     backend: Res<SimBackend>,
     gpu_state: Res<GpuSimState>,
-    mut segments_query: Query<&mut MembraneVoltage>,
+    mut segments_query: Query<(&mut MembraneVoltage, Option<&mut crate::neuron::segment::ecs::SpikeCount>)>,
+    mut synapses: Query<&mut Synapse>,
 ) {
     // After a fallback to the CPU backend the Readback entity may still exist;
     // its data must not overwrite the CPU's voltages.
@@ -517,21 +543,35 @@ fn apply_voltage_readback(
         return;
     }
     let data: &[u8] = &event.data;
-    let expected_size = gpu_state.segment_entities.len() * std::mem::size_of::<f32>();
+    let n = gpu_state.segment_entities.len();
+    let s = gpu_state.synapse_entities.len();
+    let expected_size = readback_len(n, s) * std::mem::size_of::<f32>();
     // A mismatch means this readback belongs to a buffer from a previous
     // topology; applying it would scramble voltages.
     if data.len() != expected_size || expected_size == 0 {
         return;
     }
-    let voltages: &[f32] = bytemuck::cast_slice(&data[..expected_size]);
+    let values: &[f32] = bytemuck::cast_slice(&data[..expected_size]);
+    let (voltages, rest) = values.split_at(n);
+    let (spikes, efficacies) = rest.split_at(n);
     // All-NaN is the buffer's initial contents: the GPU hasn't written it yet.
     if voltages.iter().all(|v| v.is_nan()) {
         return;
     }
 
     for (i, entity) in gpu_state.segment_entities.iter().enumerate() {
-        if let Ok(mut mv) = segments_query.get_mut(*entity) {
+        if let Ok((mut mv, count)) = segments_query.get_mut(*entity) {
             mv.0 .0 = voltages[i];
+            if let Some(mut count) = count.filter(|c| c.0 != spikes[i] && spikes[i].is_finite()) {
+                count.0 = spikes[i];
+            }
+        }
+    }
+    for (i, entity) in gpu_state.synapse_entities.iter().enumerate() {
+        if let Ok(mut synapse) = synapses.get_mut(*entity) {
+            if efficacies[i].is_finite() && synapse.synapse_membranes.efficacy != efficacies[i] {
+                synapse.synapse_membranes.efficacy = efficacies[i];
+            }
         }
     }
 }
@@ -646,9 +686,8 @@ fn print_voltages(
 // }
 
 /// Every 2 s of wall time, log each plastic synapse's peak voltages (and
-/// spine calcium) since the last line and its efficacy. Only the CPU backend writes
-/// synapse state back from the flat arrays, so on the GPU backend this
-/// stays quiet rather than log stale values.
+/// spine calcium) since the last line and its efficacy. The GPU backend
+/// reads back efficacies but not calcium, so there the calcium is left out.
 fn log_plasticity(
     backend: Res<SimBackend>,
     synapses: Query<(&crate::integrations::grace::SynapseAddress, &crate::integrations::grace::Synapse)>,
@@ -658,9 +697,7 @@ fn log_plasticity(
     timestamp: Res<Timestamp>,
     mut peaks: Local<std::collections::HashMap<u32, [f32; 3]>>,
 ) {
-    if *backend == SimBackend::Gpu {
-        return;
-    }
+    let gpu = *backend == SimBackend::Gpu;
     for (a, s) in &synapses {
         if s.synapse_membranes.is_plastic() {
             let v = |e| voltages.get(e).map_or(f32::NEG_INFINITY, |v| v.0 .0);
@@ -687,7 +724,7 @@ fn log_plasticity(
                     "t = {:.3} s, synapse {}: peaks: {}pre {:.0} mV, post {:.0} mV; efficacy {:.3}, weight {:.2}",
                     timestamp.0,
                     a.0,
-                    if m.calcium.is_some() { format!("calcium {:.2} µM, ", ca * 1e6) } else { String::new() },
+                    if m.calcium.is_some() && !gpu { format!("calcium {:.2} µM, ", ca * 1e6) } else { String::new() },
                     pre,
                     post,
                     m.efficacy,

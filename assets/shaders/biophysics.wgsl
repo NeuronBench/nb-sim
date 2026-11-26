@@ -575,14 +575,20 @@ fn apply_synapse_deltas(@builtin(global_invocation_id) global_id: vec3<u32>) {
 }
 
 // ===========================================================================
-// Entry point 5: Copy voltages to output buffer for CPU readback (per-segment)
+// Entry point 5: Copy results to the output buffer for CPU readback. With n
+// segments and s synapses: [0, n) voltages, [n, 2n) spike counts (since the
+// buffers were built), [2n, 2n + s) synapse efficacies.
 // ===========================================================================
 
 @compute @workgroup_size(64)
 fn write_voltages(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let idx = global_id.x;
-    if idx >= params.num_segments {
-        return;
+    let n = params.num_segments;
+    if idx < n {
+        voltages_out[idx] = segments[idx].voltage;
+        voltages_out[n + idx] = segments[idx].spike_count;
     }
-    voltages_out[idx] = segments[idx].voltage;
+    if idx < params.num_synapses {
+        voltages_out[2u * n + idx] = synapses[idx].efficacy;
+    }
 }

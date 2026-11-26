@@ -169,7 +169,7 @@ pub fn setup(app: &mut App) {
     app.init_resource::<crate::canvas::SceneCanvases>();
     app.init_resource::<crate::readout::SceneReadouts>();
     app.init_resource::<crate::integrations::grace::KeptEfficacies>();
-    app.add_systems(Update, crate::integrations::grace::restore_efficacies);
+    // (`restore_efficacies` runs in NbSimPlugin, before the simulation step.)
     let (tx, rx) = unbounded();
     app.insert_resource(GraceSceneSender(tx));
     app.insert_resource(GraceSceneReceiver(rx));

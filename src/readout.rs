@@ -8,9 +8,8 @@ use bevy::prelude::*;
 use bevy_egui::{egui, EguiContexts};
 
 use crate::canvas::SceneCanvases;
-use crate::gpu::{GpuSimState, SimBackend};
 use crate::dimension::Timestamp;
-use crate::neuron::segment::ecs::{ModelTargetRate, SegmentAddress};
+use crate::neuron::segment::ecs::{ModelTargetRate, SegmentAddress, SpikeCount};
 use crate::serialize::{Readout, SegmentRef};
 
 /// How many recent frames the running agreement covers.
@@ -145,15 +144,14 @@ fn fraction(q: &VecDeque<bool>) -> Option<f32> {
     (!q.is_empty()).then(|| q.iter().filter(|r| **r).count() as f32 / q.len() as f32)
 }
 
-/// After each simulation step, add the taps' spikes to their readouts and
-/// close frames as the canvases move on. Spike counts come from the CPU
-/// backend's flat arrays (counted every step, reset every frame).
+/// After each simulation step, add the taps' new spikes (from either
+/// backend's `SpikeCount`) to their readouts and close frames as the
+/// canvases move on.
 pub fn score_readouts(
     readouts: Option<ResMut<SceneReadouts>>,
     canvases: Option<Res<SceneCanvases>>,
-    state: Res<GpuSimState>,
-    backend: Res<SimBackend>,
-    addresses: Query<(Entity, &SegmentAddress, Option<&ModelTargetRate>)>,
+    addresses: Query<(Entity, &SegmentAddress, &SpikeCount, Option<&ModelTargetRate>)>,
+    mut seen: Local<HashMap<Entity, f32>>,
     time: Res<Time>,
     timestamp: Res<Timestamp>,
     mut since_log: Local<f32>,
@@ -162,25 +160,29 @@ pub fn score_readouts(
     let elapsed = (timestamp.0 - *last_time).max(0.0);
     *last_time = timestamp.0;
     let (Some(mut readouts), Some(canvases)) = (readouts, canvases) else { return };
-    if readouts.readouts.is_empty() || *backend == SimBackend::Gpu {
+    if readouts.readouts.is_empty() {
         return;
     }
-    let index: HashMap<SegmentRef, (usize, f32)> = addresses
+    // New spikes per segment since the last frame; a count that went down
+    // was restarted (GPU buffers rebuilt), so all of it is new.
+    let index: HashMap<SegmentRef, (u32, f32)> = addresses
         .iter()
-        .filter_map(|(e, a, target)| {
-            let i = *state.entity_to_index.get(&e)? as usize;
-            Some((SegmentRef { neuron: a.neuron, segment: a.segment }, (i, target.map_or(-1.0, |t| t.0))))
+        .map(|(e, a, count, target)| {
+            let before = seen.insert(e, count.0).unwrap_or(count.0);
+            let new = if count.0 >= before { count.0 - before } else { count.0 };
+            (SegmentRef { neuron: a.neuron, segment: a.segment }, (new as u32, target.map_or(-1.0, |t| t.0)))
         })
         .collect();
+    if seen.len() > 2 * index.len() {
+        seen.retain(|e, _| addresses.contains(*e));
+    }
     for r in &mut readouts.readouts {
         let Some((frame, _)) = canvases.label(&r.spec.canvas) else { continue };
         let previous = r.frame.and_then(|f| canvases.label_of(&r.spec.canvas, f));
         r.observe(frame, previous);
         for ((count, expected), tap) in r.counts.iter_mut().zip(r.expected.iter_mut()).zip(&r.spec.taps) {
-            let Some((i, target)) = index.get(tap) else { continue };
-            if let Some(seg) = state.segments.get(*i) {
-                *count += seg.spike_count as u32;
-            }
+            let Some((new, target)) = index.get(tap) else { continue };
+            *count += new;
             if *target >= 0.0 {
                 *expected += target * elapsed;
             }
@@ -213,16 +215,13 @@ pub fn score_readouts(
 }
 
 /// The Readouts window.
-pub fn run_readout_panel(mut contexts: EguiContexts, readouts: Option<Res<SceneReadouts>>, backend: Res<SimBackend>) {
+pub fn run_readout_panel(mut contexts: EguiContexts, readouts: Option<Res<SceneReadouts>>) {
     let Some(readouts) = readouts else { return };
     if readouts.readouts.is_empty() {
         return;
     }
     let Ok(ctx) = contexts.ctx_mut() else { return };
     egui::Window::new("Readouts").default_pos([20.0, 600.0]).resizable(false).show(ctx, |ui| {
-        if *backend == SimBackend::Gpu {
-            ui.label("Readouts count spikes on the CPU backend (NB_SIM_BACKEND=cpu).");
-        }
         for r in &readouts.readouts {
             ui.strong(&r.spec.name);
             if let Some((corr, spikes, wanted)) = r.rate_match() {

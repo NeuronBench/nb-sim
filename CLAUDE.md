@@ -109,5 +109,5 @@ wasm-pack build --mode no-install --release --target web
 - `NB_SCENE` - Native: path or URL of the root `.ncl` scene (defaults to `../nb-lib/scene.ncl`)
 - `NB_LIB_DIR` - Where tests find nb-lib (defaults to `../nb-lib`)
 - `NB_SIM_DT`, `NB_STEPS_PER_FRAME` - Native: start with another simulation step (default 5e-7 s) or steps per frame (default 100); `1e-5` runs the plasticity demo about 20x faster
-- `NB_SIM_BACKEND=cpu` - Native: stay on the CPU kernel (synapse calcium and efficacy are read back and logged only there)
+- `NB_SIM_BACKEND=cpu` - Native: stay on the CPU kernel (the GPU reads back voltages, spike counts and synapse efficacies, but not calcium)
 - `INTERPRETER_URL` - Accepted by `start()` for compatibility and ignored

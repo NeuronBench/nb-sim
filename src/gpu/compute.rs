@@ -233,7 +233,7 @@ impl render_graph::Node for BiophysicsComputeNode {
         }
 
         pass.set_pipeline(write_voltages_pl);
-        pass.dispatch_workgroups(seg_wg, 1, 1);
+        pass.dispatch_workgroups(div_ceil(n_seg.max(n_syn), WORKGROUP_SIZE), 1, 1);
 
         Ok(())
     }
